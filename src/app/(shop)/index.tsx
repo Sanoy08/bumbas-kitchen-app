@@ -37,6 +37,24 @@ const TESTIMONIALS = [
   { name: 'Priya S.', location: 'Serampore', rating: 5, quote: "Bumba's Kitchen is my go-to for weekend meals. Consistent quality!" },
 ];
 
+// --- Dynamic Auto Scaled Image Component ---
+const AutoScaledImage = ({ url, isFullWidth = true }: { url: string, isFullWidth?: boolean }) => {
+  const [ratio, setRatio] = useState(2); // Default 2:1 aspect ratio
+
+  return (
+    <Image
+      source={{ uri: url }}
+      style={{ width: isFullWidth ? windowWidth : windowWidth - 32, aspectRatio: ratio }}
+      contentFit="cover"
+      onLoad={(e) => {
+        if (e.source.width && e.source.height) {
+          setRatio(e.source.width / e.source.height); // Asol image er ratio calculate kora
+        }
+      }}
+    />
+  );
+};
+
 // --- Reusable Native Carousel Component ---
 const AutoCarousel = ({ data, renderItem, autoPlayDelay = 4000, isAutoPlay = false }: any) => {
   const flatListRef = useRef<FlatList>(null);
@@ -137,7 +155,7 @@ export default function HomeScreen() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName: nameParts[0],
+          firstName: nameParts,
           lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '.',
           dob: dob || user?.dob,
           anniversary: anniversary || user?.anniversary
@@ -170,23 +188,16 @@ export default function HomeScreen() {
     <View className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         
-        {/* 1. Hero Section */}
+        {/* 1. Hero Section - Now Edge to Edge with Auto Height */}
         {homeData.heroSlides.length > 0 && (
-          <View className="bg-gray-50 pt-2">
+          <View className="bg-gray-50 pb-2">
             <AutoCarousel 
               data={homeData.heroSlides} 
               isAutoPlay={true}
               renderItem={(slide: any) => (
                 <Link href={slide.clickUrl || '/menus'} asChild>
-                  <TouchableOpacity activeOpacity={0.9} className="px-4">
-                    <View className="w-full rounded-2xl overflow-hidden shadow-sm bg-white border border-gray-100">
-                      {/* image size auto adjust করার জন্য contentFit="contain" এবং aspectRatio ব্যবহার করা হয়েছে */}
-                      <Image 
-                        source={{ uri: optimizeImageUrl(slide.imageUrl) }} 
-                        style={{ width: '100%', aspectRatio: 16/9 }} 
-                        contentFit="contain" 
-                      />
-                    </View>
+                  <TouchableOpacity activeOpacity={0.9} className="w-full">
+                    <AutoScaledImage url={optimizeImageUrl(slide.imageUrl)} isFullWidth={true} />
                   </TouchableOpacity>
                 </Link>
               )} 
@@ -203,7 +214,6 @@ export default function HomeScreen() {
               <Link key={idx} href={cat.link} asChild>
                 <TouchableOpacity className="items-center mr-5" activeOpacity={0.7}>
                   <View className={`h-16 w-16 rounded-full border-2 ${cat.color} p-0.5 bg-white shadow-sm mb-2 overflow-hidden items-center justify-center`}>
-                    {/* Local image fix */}
                     <Image source={cat.image} style={{ width: 56, height: 56, borderRadius: 28 }} contentFit="cover" />
                   </View>
                   <Text className="text-xs font-semibold text-gray-700">{cat.name}</Text>
@@ -225,7 +235,7 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* 4. Middle Slider */}
+        {/* 4. Middle Slider - Auto Height, slightly padded */}
         {homeData.sliderImages?.length > 0 && (
           <View className="py-6">
             <AutoCarousel 
@@ -235,11 +245,7 @@ export default function HomeScreen() {
                 <View className="px-4">
                   <Link href={slide.clickUrl || '/menus'} asChild>
                     <TouchableOpacity activeOpacity={0.9} className="rounded-2xl overflow-hidden shadow-sm bg-white border border-gray-100">
-                      <Image 
-                        source={{ uri: optimizeImageUrl(slide.imageUrl) }} 
-                        style={{ width: '100%', aspectRatio: 21/9 }} 
-                        contentFit="contain" 
-                      />
+                      <AutoScaledImage url={optimizeImageUrl(slide.imageUrl)} isFullWidth={false} />
                     </TouchableOpacity>
                   </Link>
                 </View>
@@ -256,7 +262,7 @@ export default function HomeScreen() {
             <View className="bg-white p-3 rounded-3xl shadow-sm border border-amber-100">
               <View className="aspect-square w-full rounded-2xl overflow-hidden bg-gray-100">
                 {dailySpecial.images?.length > 0 ? (
-                  <Image source={{ uri: optimizeImageUrl(dailySpecial.images[0].url) }} className="w-full h-full" contentFit="cover" />
+                  <Image source={{ uri: optimizeImageUrl(dailySpecial.images.url) }} className="w-full h-full" contentFit="cover" />
                 ) : (
                   <SpecialDishCard name={dailySpecial.name} description={dailySpecial.description} price={dailySpecial.price} />
                 )}

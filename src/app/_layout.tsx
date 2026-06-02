@@ -6,17 +6,45 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import "../../global.css";
 
+// ★ Font Imports
+import {
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  useFonts
+} from '@expo-google-fonts/poppins';
+import * as SplashScreen from 'expo-splash-screen';
+
+// ফন্ট লোড হওয়ার আগে স্প্ল্যাশ স্ক্রিন যাতে অটো-হাইড না হয়
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
   const initAuth = useAuthStore((state) => state.initAuth);
   const isInitialized = useAuthStore((state) => state.isInitialized);
 
-  // অ্যাপ স্টার্ট হলে SecureStore থেকে টোকেন ইনিশিয়ালাইজ করবে
+  // ★ Load Fonts
+  const [fontsLoaded, fontError] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
+  // Auth ইনিশিয়ালাইজেশন
   useEffect(() => {
     initAuth();
   }, [initAuth]);
 
-  // Auth স্টেট চেক না হওয়া পর্যন্ত একটি লোডার দেখাবে (পরবর্তীতে এখানে Lottie Splash দিতে পারেন)
-  if (!isInitialized) {
+  // ফন্ট লোড হয়ে গেলে স্প্ল্যাশ স্ক্রিন হাইড করবে
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  // Auth স্টেট বা ফন্ট চেক না হওয়া পর্যন্ত লোডার দেখাবে
+  if (!isInitialized || (!fontsLoaded && !fontError)) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator size="large" color="#e11d48" />
@@ -27,12 +55,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      
-      {/* Pure Native Stack Navigation */}
-      <Stack screenOptions={{ headerShown: false }}>
-        {/* আমরা পরবর্তীতে স্ক্রিনগুলোর নাম এখানে দেব, 
-            আপাতত এক্সপো রাউটার অটোমেটিক্যালি ফাইল ফোল্ডার অনুযায়ী রাউট তৈরি করে নেবে */}
-      </Stack>
+      <Stack screenOptions={{ headerShown: false }} />
     </SafeAreaProvider>
   );
 }
