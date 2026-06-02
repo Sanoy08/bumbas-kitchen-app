@@ -1,30 +1,23 @@
-// src/components/shop/ProductCard.tsx
-
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { Ban, Minus, Plus, ShoppingCart } from 'lucide-react-native';
 import { Text, TouchableOpacity, View } from 'react-native';
 
-// আপনার প্রোজেক্টের টাইপ এবং ইউটিলস
 import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
 import { optimizeImageUrl } from '@/lib/imageUtils';
 import type { CartItem, Product } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
 
-// অন্যান্য কম্পোনেন্ট এবং স্টোর
-import { useCartStore } from '@/store/cartStore'; // Zustand কার্ট স্টোর
-import { SpecialDishCard } from './SpecialDishCard';
-
-// date-fns এর differenceInDays
+import { useCartStore } from '@/store/cartStore';
 import { differenceInDays } from 'date-fns';
+import { SpecialDishCard } from './SpecialDishCard';
 
 type ProductCardProps = {
   product: Product;
 };
 
 export function ProductCard({ product }: ProductCardProps) {
-  // Zustand স্টোর থেকে স্টেট এবং অ্যাকশন নিচ্ছি
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
@@ -32,12 +25,11 @@ export function ProductCard({ product }: ProductCardProps) {
   const cartItem = items.find((item: CartItem) => item.id === product.id);
   const isOutOfStock = product.stock <= 0;
 
-  // Haptic Feedback
   const triggerVibration = async (style: Haptics.ImpactFeedbackStyle) => {
     try {
       await Haptics.impactAsync(style);
     } catch (err) {
-      console.error("Haptics failed", err);
+      console.log("Haptics failed", err);
     }
   };
 
@@ -64,12 +56,10 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const isNew = product.createdAt && differenceInDays(new Date(), new Date(product.createdAt)) < 7;
 
-  // ইমেজ চেক লজিক
   const hasValidImage = product.images && product.images.length > 0 && product.images[0].url && product.images[0].url.trim() !== '';
   const rawImageUrl = hasValidImage ? product.images[0].url : PLACEHOLDER_IMAGE_URL;
   const imageSrc = optimizeImageUrl(rawImageUrl);
 
-  // স্পেশাল ডিশ কার্ড
   if (product.isDailySpecial && !hasValidImage) {
     return (
       <View className="flex-1 m-1.5 bg-amber-50/30 rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
@@ -84,7 +74,6 @@ export function ProductCard({ product }: ProductCardProps) {
             </View>
           </TouchableOpacity>
         </Link>
-        {/* Floating Add Button */}
         <TouchableOpacity
           onPress={handleAdd}
           className="absolute bottom-4 right-4 bg-white rounded-full p-3 shadow-md z-20"
@@ -95,11 +84,11 @@ export function ProductCard({ product }: ProductCardProps) {
     );
   }
 
-  // নরমাল প্রোডাক্ট কার্ড
   return (
     <View className={`flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm ${isOutOfStock ? 'opacity-70' : ''}`}>
       <Link href={`/menus/${product.slug}`} asChild>
-        <TouchableOpacity activeOpacity={0.9} className="aspect-square relative overflow-hidden bg-gray-50">
+        {/* প্যারেন্ট কন্টেইনারে w-full যোগ করা হয়েছে */}
+        <TouchableOpacity activeOpacity={0.9} className="aspect-square w-full relative overflow-hidden bg-gray-50">
           {isOutOfStock ? (
             <View className="absolute top-2 right-2 bg-red-500 px-2 py-1 rounded-md z-10">
               <Text className="text-white text-[10px] font-bold">Out of Stock</Text>
@@ -110,9 +99,10 @@ export function ProductCard({ product }: ProductCardProps) {
             </View>
           ) : null}
 
+          {/* expo-image এ সরাসরি style প্রোপার্টি ব্যবহার করা হয়েছে */}
           <Image
             source={{ uri: imageSrc }}
-            className="w-full h-full"
+            style={{ width: '100%', height: '100%' }}
             contentFit="cover"
             transition={200}
           />
@@ -139,11 +129,11 @@ export function ProductCard({ product }: ProductCardProps) {
               </View>
             ) : cartItem ? (
               <View className="flex-row items-center h-8 border border-primary/30 rounded-full bg-white shadow-sm">
-                <TouchableOpacity onPress={handleDecrease} className="px-2 py-1" hitSlop={10}>
+                <TouchableOpacity onPress={handleDecrease} className="px-2 py-1" hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                   <Minus size={14} color="#e11d48" />
                 </TouchableOpacity>
                 <Text className="w-5 text-center font-bold text-sm text-gray-900">{cartItem.quantity}</Text>
-                <TouchableOpacity onPress={handleIncrease} className="px-2 py-1" hitSlop={10}>
+                <TouchableOpacity onPress={handleIncrease} className="px-2 py-1" hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                   <Plus size={14} color="#e11d48" />
                 </TouchableOpacity>
               </View>
