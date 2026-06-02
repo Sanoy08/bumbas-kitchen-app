@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { Cake, Gift, Leaf, ShieldCheck, Truck } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, FlatList, ScrollView, Text, TouchableOpacity, View, Modal } from 'react-native';
 
 import { ProductCard } from '@/components/shop/ProductCard';
 import { SpecialDishCard } from '@/components/shop/SpecialDishCard';
@@ -172,18 +172,21 @@ export default function HomeScreen() {
         
         {/* 1. Hero Section */}
         {homeData.heroSlides.length > 0 && (
-          <View className="bg-gray-100">
+          <View className="bg-gray-50 pt-2">
             <AutoCarousel 
               data={homeData.heroSlides} 
               isAutoPlay={true}
               renderItem={(slide: any) => (
                 <Link href={slide.clickUrl || '/menus'} asChild>
-                  <TouchableOpacity activeOpacity={0.9}>
-                    <Image 
-                      source={{ uri: optimizeImageUrl(slide.imageUrl) }} 
-                      style={{ width: windowWidth, height: windowWidth * 0.5 }} 
-                      contentFit="cover" 
-                    />
+                  <TouchableOpacity activeOpacity={0.9} className="px-4">
+                    <View className="w-full rounded-2xl overflow-hidden shadow-sm bg-white border border-gray-100">
+                      {/* image size auto adjust করার জন্য contentFit="contain" এবং aspectRatio ব্যবহার করা হয়েছে */}
+                      <Image 
+                        source={{ uri: optimizeImageUrl(slide.imageUrl) }} 
+                        style={{ width: '100%', aspectRatio: 16/9 }} 
+                        contentFit="contain" 
+                      />
+                    </View>
                   </TouchableOpacity>
                 </Link>
               )} 
@@ -199,8 +202,9 @@ export default function HomeScreen() {
             {CATEGORIES.map((cat, idx) => (
               <Link key={idx} href={cat.link} asChild>
                 <TouchableOpacity className="items-center mr-5" activeOpacity={0.7}>
-                  <View className={`h-16 w-16 rounded-full border-2 ${cat.color} p-0.5 bg-white shadow-sm mb-2`}>
-                    <Image source={cat.image} className="w-full h-full rounded-full" contentFit="cover" />
+                  <View className={`h-16 w-16 rounded-full border-2 ${cat.color} p-0.5 bg-white shadow-sm mb-2 overflow-hidden items-center justify-center`}>
+                    {/* Local image fix */}
+                    <Image source={cat.image} style={{ width: 56, height: 56, borderRadius: 28 }} contentFit="cover" />
                   </View>
                   <Text className="text-xs font-semibold text-gray-700">{cat.name}</Text>
                 </TouchableOpacity>
@@ -230,11 +234,11 @@ export default function HomeScreen() {
               renderItem={(slide: any) => (
                 <View className="px-4">
                   <Link href={slide.clickUrl || '/menus'} asChild>
-                    <TouchableOpacity activeOpacity={0.9} className="rounded-2xl overflow-hidden shadow-sm">
+                    <TouchableOpacity activeOpacity={0.9} className="rounded-2xl overflow-hidden shadow-sm bg-white border border-gray-100">
                       <Image 
                         source={{ uri: optimizeImageUrl(slide.imageUrl) }} 
-                        style={{ width: windowWidth - 32, height: (windowWidth - 32) * 0.4 }} 
-                        contentFit="cover" 
+                        style={{ width: '100%', aspectRatio: 21/9 }} 
+                        contentFit="contain" 
                       />
                     </TouchableOpacity>
                   </Link>
@@ -288,9 +292,37 @@ export default function HomeScreen() {
           </Link>
         </View>
 
+        {/* 7. Testimonials */}
+        <View className="py-10 bg-slate-50">
+          <Text className="text-2xl font-bold text-gray-900 text-center mb-1">Happy Tummies 😊</Text>
+          <Text className="text-sm text-gray-500 text-center mb-6">What our customers say about us.</Text>
+          <AutoCarousel
+            data={TESTIMONIALS}
+            isAutoPlay={true}
+            autoPlayDelay={5000}
+            renderItem={(item: any, idx: number) => (
+              <View className="px-4">
+                <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <Text className="text-amber-500 font-bold mb-3">★ {item.rating}</Text>
+                  <Text className="text-gray-600 italic mb-4 leading-5">"{item.quote}"</Text>
+                  <View className="flex-row items-center">
+                    <View className="h-10 w-10 bg-primary/20 rounded-full items-center justify-center">
+                      <Text className="font-bold text-primary">{item.name.charAt(0)}</Text>
+                    </View>
+                    <View className="ml-3">
+                      <Text className="font-bold text-sm text-gray-900">{item.name}</Text>
+                      <Text className="text-xs text-gray-500">{item.location}</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          />
+        </View>
+
       </ScrollView>
 
-      {/* Special Dates Modal (Simplified Native Version) */}
+      {/* Special Dates Modal */}
       <Modal visible={showDatePopup} transparent animationType="slide">
         <View className="flex-1 justify-center items-center bg-black/50 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
@@ -302,8 +334,6 @@ export default function HomeScreen() {
               </Text>
             </View>
             <View className="p-6 space-y-4">
-              {/* Note: React Native does not have a native web-like date input without third-party libraries. 
-                  For now, we capture simple text (YYYY-MM-DD). You can replace this with @react-native-community/datetimepicker later. */}
               {!user?.dob && (
                 <View>
                   <Text className="text-xs font-bold text-pink-500 mb-1 uppercase">Your Birthday</Text>
