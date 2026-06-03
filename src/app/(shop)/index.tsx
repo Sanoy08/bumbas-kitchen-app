@@ -13,7 +13,7 @@ import Animated, {
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
-  useSharedValue,
+  useSharedValue
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,7 +33,7 @@ const CATEGORIES = [
   { name: "Kachori", image: require("../../../assets/Categories/5.webp"), link: "/menus?category=kachori", color: "border-amber-500" },
   { name: "Fried Rice", image: require("../../../assets/Categories/3.webp"), link: "/menus?category=fried-rice", color: "border-cyan-500" },
   { name: "Chicken", image: require("../../../assets/Categories/7.webp"), link: "/menus?category=chicken", color: "border-red-500" },
-  { name: "Paneer", image: require("../../../assets/Categories/8.webp"), link: "/menus?category=paneer", color: "border-indigo-500" },
+  { name: "Paneer", require: "../../../assets/Categories/8.webp", link: "/menus?category=paneer", color: "border-indigo-500" },
   { name: "Veg", image: require("../../../assets/Categories/1.webp"), link: "/menus?category=veg", color: "border-lime-500" },
 ];
 
@@ -192,7 +192,8 @@ export default function HomeScreen() {
 
   // Sticky Category appears smoothly when scrolled past original category
   const stickyCategoryStyle = useAnimatedStyle(() => {
-    const collapsedHeaderHeight = insets.top + 60; // Approximate search bar height
+    // UPDATED: Changed from insets.top + 60 to insets.top + 76 to avoid overlapping the header
+    const collapsedHeaderHeight = insets.top + 92; 
     const triggerY = categoryY.value - collapsedHeaderHeight;
     const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
     
@@ -282,7 +283,7 @@ export default function HomeScreen() {
         <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
           <View className="flex-row items-center flex-1">
             <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full shadow-sm">
-              <MapPin size={22} color="#e11d48" />
+              <MapPin size={22} color="#e11d48" className="mr-1.5" />
               <Text className="text-lg font-bold text-gray-900 font-sans">Garbagan, Janai</Text>
               <ChevronDown size={18} color="#374151" className="ml-1" />
             </View>
@@ -373,15 +374,22 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </ScrollView>
 
+          {/* Recommended For You / Bestsellers (2-Column Grid) */}
           <View className="px-4 pt-2 pb-4">
             <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Recommended For You</Text>
-            <View className="flex-row flex-wrap justify-between">
-              {homeData.bestsellers.map((item: any) => (
-                <View key={item.id} style={{ width: '48%', marginBottom: 16 }}>
-                  <ProductCard product={item} />
-                </View>
-              ))}
-            </View>
+            
+            {homeData.bestsellers && homeData.bestsellers.length > 0 ? (
+              <View className="flex-row flex-wrap justify-between">
+                {homeData.bestsellers.map((item: any) => (
+                  // ★ ফিক্স: flex-1 যাতে কলাপ্স না করে তাই height: 280 যুক্ত করা হয়েছে
+                  <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
+                    <ProductCard product={item} />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <ActivityIndicator size="small" color="#e11d48" className="my-8" />
+            )}
           </View>
 
           <View className="px-4 pb-6">
