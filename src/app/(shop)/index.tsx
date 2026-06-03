@@ -160,19 +160,15 @@ export default function HomeScreen() {
     scrollY.value = event.contentOffset.y;
   });
 
-  // Animated Background for Header (Transparent to Solid White)
+  // Animated Background for Header (Transparent to Solid White) - NO SHADOW
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 0.98], Extrapolation.CLAMP);
     const isScrolled = scrollY.value > 80;
     
     return {
       backgroundColor: `rgba(255, 255, 255, ${bgOpacity})`,
-      elevation: isScrolled ? 4 : 0,
-      shadowOpacity: isScrolled ? 0.08 : 0,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      borderBottomWidth: isScrolled ? 1 : 0,
-      borderBottomColor: '#f3f4f6'
+      // Removed all elevation, shadow, and border to eliminate any shadow effect
+      borderBottomWidth: 0,
     };
   });
 
@@ -192,8 +188,7 @@ export default function HomeScreen() {
 
   // Sticky Category appears smoothly when scrolled past original category
   const stickyCategoryStyle = useAnimatedStyle(() => {
-    // UPDATED: Changed from insets.top + 60 to insets.top + 76 to avoid overlapping the header
-    const collapsedHeaderHeight = insets.top + 92; 
+    const collapsedHeaderHeight = insets.top + 90; 
     const triggerY = categoryY.value - collapsedHeaderHeight;
     const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
     
@@ -273,29 +268,29 @@ export default function HomeScreen() {
   return (
     <View className="flex-1 bg-white">
       
-      {/* --- OVERLAPPING ABSOLUTE HEADER --- */}
+      {/* --- OVERLAPPING ABSOLUTE HEADER (NO SHADOWS) --- */}
       <Animated.View 
         style={[headerAnimatedStyle, { paddingTop: insets.top + 10, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }]} 
         className="px-4 pb-3"
         pointerEvents="box-none"
       >
-        {/* Location Row - Fades and Collapses on Scroll */}
+        {/* Location Row - Fades and Collapses on Scroll, no shadow */}
         <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
           <View className="flex-row items-center flex-1">
-            <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full shadow-sm">
+            <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full">
               <MapPin size={22} color="#e11d48" className="mr-1.5" />
               <Text className="text-lg font-bold text-gray-900 font-sans">Garbagan, Janai</Text>
               <ChevronDown size={18} color="#374151" className="ml-1" />
             </View>
           </View>
-          <TouchableOpacity onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')} className="h-10 w-10 bg-white/90 shadow-sm rounded-full items-center justify-center">
+          <TouchableOpacity onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')} className="h-10 w-10 bg-white/90 rounded-full items-center justify-center">
             <User size={20} color="#e11d48" />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Search Bar Row - Always Visible */}
+        {/* Search Bar Row - Always Visible, no shadow */}
         <View className="flex-row items-center gap-3">
-          <TouchableOpacity activeOpacity={0.8} className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5 shadow-sm">
+          <TouchableOpacity activeOpacity={0.8} className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5">
             <Search size={20} color="#e11d48" />
             <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">Search "namkeen"</Text>
             <View className="border-l border-gray-300 pl-3 py-0.5">
@@ -303,7 +298,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
-          <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl shadow-sm">
+          <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl">
             <Text className="text-[10px] font-bold text-green-700 mb-0.5 font-sans">VEG</Text>
             <Switch 
               value={isVeg} 
@@ -316,8 +311,8 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
-      {/* --- FLOATING STICKY CATEGORIES --- */}
-      <Animated.View style={stickyCategoryStyle} className="bg-white py-2 border-b border-gray-100 shadow-sm">
+      {/* --- FLOATING STICKY CATEGORIES (NO SHADOW) --- */}
+      <Animated.View style={stickyCategoryStyle} className="bg-white py-2 border-b border-gray-100">
         <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
       </Animated.View>
 
@@ -340,8 +335,7 @@ export default function HomeScreen() {
                 <Link href={slide.clickUrl || '/menus'} asChild>
                   <TouchableOpacity activeOpacity={0.9} className="w-full relative">
                     <AutoScaledImage url={optimizeImageUrl(slide.imageUrl)} isFullWidth={true} />
-                    {/* Subtle gradient to ensure header icons remain readable */}
-                    <View className="absolute top-0 left-0 right-0 h-32 bg-black/10" />
+            
                   </TouchableOpacity>
                 </Link>
               )} 
@@ -381,7 +375,6 @@ export default function HomeScreen() {
             {homeData.bestsellers && homeData.bestsellers.length > 0 ? (
               <View className="flex-row flex-wrap justify-between">
                 {homeData.bestsellers.map((item: any) => (
-                  // ★ ফিক্স: flex-1 যাতে কলাপ্স না করে তাই height: 280 যুক্ত করা হয়েছে
                   <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
                     <ProductCard product={item} />
                   </View>
