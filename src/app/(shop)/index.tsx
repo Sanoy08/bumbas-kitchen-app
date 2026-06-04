@@ -29,11 +29,13 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.
 // --- Constants ---
 const CATEGORIES = [
   { name: "All", image: require("../../../assets/Categories/9.webp"), link: "/menus", color: "border-slate-500" },
-  { name: "Rice", image: require("../../../assets/Categories/2.webp"), link: "/menus?category=rice", color: "border-orange-400" },
-  { name: "Kachori", image: require("../../../assets/Categories/5.webp"), link: "/menus?category=kachori", color: "border-amber-500" },
-  { name: "Fried Rice", image: require("../../../assets/Categories/3.webp"), link: "/menus?category=fried-rice", color: "border-cyan-500" },
   { name: "Chicken", image: require("../../../assets/Categories/7.webp"), link: "/menus?category=chicken", color: "border-red-500" },
+  { name: "Mutton", image: require("../../../assets/Categories/4.webp"), link: "/menus?category=mutton", color: "border-rose-700" },
+  { name: "Rice", image: require("../../../assets/Categories/2.webp"), link: "/menus?category=rice", color: "border-orange-400" },
+  { name: "Fish", image: require("../../../assets/Categories/3.webp"), link: "/menus?category=fish", color: "border-blue-500" },
   { name: "Paneer", image: require("../../../assets/Categories/8.webp"), link: "/menus?category=paneer", color: "border-indigo-500" },
+  { name: "Fried", image: require("../../../assets/Categories/5.webp"), link: "/menus?category=fried", color: "border-amber-500" },
+  { name: "Chapati", image: require("../../../assets/Categories/6.webp"), link: "/menus?category=chapati", color: "border-emerald-500" },
   { name: "Veg", image: require("../../../assets/Categories/1.webp"), link: "/menus?category=veg", color: "border-lime-500" },
 ];
 
@@ -124,7 +126,7 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => (
         <TouchableOpacity 
           key={idx} 
           onPress={() => setActiveCategory(cat.name)} 
-          className={`items-center mx-2 pb-1 border-b-[3px] ${isActive ? 'border-primary' : 'border-transparent'}`}
+          className={`items-center mx-2 pb-0 ${isActive ? 'border-b-[3px] border-primary' : ''}`}
           activeOpacity={0.7}
         >
           <View className={`h-16 w-16 rounded-full mb-1.5 overflow-hidden items-center justify-center border-2 ${isActive ? 'border-primary' : 'border-gray-200 bg-gray-50'}`}>
@@ -162,30 +164,33 @@ export default function HomeScreen() {
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
 
+  // Refs for scroll and category position
+  const scrollViewRef = useRef<Animated.ScrollView>(null);
+  const categoryContainerRef = useRef<View>(null);
+  const categoryY = useSharedValue(0);
+
   // Reanimated scroll value
   const scrollY = useSharedValue(0);
-  const categoryY = useSharedValue(0);
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
   });
 
-  // Animated Background for Header (Transparent to Solid White) - NO SHADOW
+  // Animated Background for Header - FULL SOLID WHITE when scrolled
   const headerAnimatedStyle = useAnimatedStyle(() => {
-    const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 0.98], Extrapolation.CLAMP);
-    
+    // Interpolate from 0 to 1 (was 0 to 0.98)
+    const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
     return {
       backgroundColor: `rgba(255, 255, 255, ${bgOpacity})`,
       borderBottomWidth: 0,
     };
   });
 
-  // Location row fades out and collapses as you scroll
+  // Location row fades out and collapses
   const locationRowStyle = useAnimatedStyle(() => {
     const opacity = interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP);
     const height = interpolate(scrollY.value, [0, 80], [48, 0], Extrapolation.CLAMP);
     const marginBottom = interpolate(scrollY.value, [0, 80], [12, 0], Extrapolation.CLAMP);
-    
     return {
       opacity,
       height,
@@ -199,7 +204,6 @@ export default function HomeScreen() {
     const collapsedHeaderHeight = insets.top + 90; 
     const triggerY = categoryY.value - collapsedHeaderHeight;
     const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
-    
     return {
       opacity: isSticking ? 1 : 0,
       position: 'absolute',
@@ -212,6 +216,25 @@ export default function HomeScreen() {
     };
   });
 
+  // Auto-scroll to make category bar stick under header when a non-All category is selected
+  const scrollToCategoryBar = () => {
+    if (activeCategory === "All") return;
+    // Give time for layout to update
+    setTimeout(() => {
+      categoryContainerRef.current?.measureLayout(
+        scrollViewRef.current as any,
+        (x, y) => {
+          // y is the position of category container relative to the scroll view content
+          const stickyHeaderHeight = insets.top + 90; // height of collapsed header
+          const targetOffset = y - stickyHeaderHeight + 10; // small extra offset for perfect alignment
+          scrollViewRef.current?.scrollTo({ y: Math.max(0, targetOffset), animated: true });
+        },
+        () => {}
+      );
+    }, 100);
+  };
+
+  // Fetch home data
   useEffect(() => {
     const fetchHomeData = async () => {
       const cachedData = await AsyncStorage.getItem('bumbas_home_data');
@@ -230,6 +253,7 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
+  // Date popup logic
   useEffect(() => {
     if (user) {
       const missingDob = !user.dob; 
@@ -241,6 +265,11 @@ export default function HomeScreen() {
       });
     }
   }, [user]);
+
+  // When category changes, scroll the category bar into sticky position
+  useEffect(() => {
+    scrollToCategoryBar();
+  }, [activeCategory]);
 
   const handleSaveDates = async () => {
     setIsSavingDates(true);
@@ -273,6 +302,16 @@ export default function HomeScreen() {
 
   const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
 
+  // Filter products for the selected category (when not "All")
+  const filteredProducts = activeCategory !== "All"
+    ? homeData.allProducts?.filter((p: any) => 
+        p.category?.name?.toLowerCase() === activeCategory.toLowerCase()
+      ) || []
+    : [];
+
+  // For "All" we show bestsellers; for others we show filtered products
+  const showCategoryProducts = activeCategory !== "All" && filteredProducts.length > 0;
+
   return (
     <View className="flex-1 bg-white">
       
@@ -282,7 +321,7 @@ export default function HomeScreen() {
         className="px-4 pb-3"
         pointerEvents="box-none"
       >
-        {/* Location Row - Fades and Collapses on Scroll, no shadow */}
+        {/* Location Row - Fades and Collapses on Scroll */}
         <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
           <View className="flex-row items-center flex-1 pr-4">
             <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full max-w-full">
@@ -298,7 +337,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Search Bar Row - Always Visible, no shadow */}
+        {/* Search Bar Row - Always Visible */}
         <View className="flex-row items-center gap-3">
           <TouchableOpacity activeOpacity={0.8} className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5">
             <Search size={20} color="#e11d48" />
@@ -322,12 +361,13 @@ export default function HomeScreen() {
       </Animated.View>
 
       {/* --- FLOATING STICKY CATEGORIES (NO SHADOW) --- */}
-      <Animated.View style={stickyCategoryStyle} className="bg-white py-2 border-b border-gray-100">
+      <Animated.View style={stickyCategoryStyle} className="bg-white py-2">
         <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
       </Animated.View>
 
       {/* --- MAIN SCROLL VIEW --- */}
       <Animated.ScrollView 
+        ref={scrollViewRef}
         onScroll={scrollHandler} 
         scrollEventThrottle={16} 
         showsVerticalScrollIndicator={false} 
@@ -352,10 +392,11 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* BLOCK 1: Normal Categories (Triggers Sticky) */}
+        {/* BLOCK 1: Normal Categories (Triggers Sticky) - REMOVED bottom border and extra padding */}
         <View 
+          ref={categoryContainerRef}
           onLayout={(e) => { categoryY.value = e.nativeEvent.layout.y; }}
-          className="bg-white py-2 border-b border-gray-100"
+          className="bg-white py-2"
         >
           <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
@@ -377,23 +418,46 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </ScrollView>
 
-          {/* Recommended For You / Bestsellers (2-Column Grid) */}
-          <View className="px-4 pt-2 pb-4">
-            <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Recommended For You</Text>
-            
-            {homeData.bestsellers && homeData.bestsellers.length > 0 ? (
-              <View className="flex-row flex-wrap justify-between">
-                {homeData.bestsellers.map((item: any) => (
-                  <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
-                    <ProductCard product={item} />
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <ActivityIndicator size="small" color="#e11d48" className="my-8" />
-            )}
-          </View>
+          {/* Conditional Rendering: For "All" show bestsellers, for others show category products */}
+          {activeCategory === "All" ? (
+            /* Recommended For You / Bestsellers (2-Column Grid) */
+            <View className="px-4 pt-2 pb-4">
+              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Recommended For You</Text>
+              {homeData.bestsellers && homeData.bestsellers.length > 0 ? (
+                <View className="flex-row flex-wrap justify-between">
+                  {homeData.bestsellers.map((item: any) => (
+                    <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
+                      <ProductCard product={item} />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <ActivityIndicator size="small" color="#e11d48" className="my-8" />
+              )}
+            </View>
+          ) : (
+            /* Category Products Grid */
+            <View className="px-4 pt-2 pb-4">
+              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
+                Fresh from {activeCategory}
+              </Text>
+              {filteredProducts.length > 0 ? (
+                <View className="flex-row flex-wrap justify-between">
+                  {filteredProducts.map((item: any) => (
+                    <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
+                      <ProductCard product={item} />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View className="py-12 items-center">
+                  <Text className="text-gray-500 font-sans">No {activeCategory} items available</Text>
+                </View>
+              )}
+            </View>
+          )}
 
+          {/* Explore More Section */}
           <View className="px-4 pb-6">
              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Explore More</Text>
              <View className="flex-row justify-between flex-wrap gap-y-3">
@@ -408,6 +472,7 @@ export default function HomeScreen() {
              </View>
           </View>
 
+          {/* Features */}
           <View className="flex-row justify-between px-4 py-6 bg-gray-50 border-y border-gray-100 mb-6">
             {FEATURES.map((feat, idx) => (
               <View key={idx} className="flex-1 items-center px-1">
@@ -419,6 +484,7 @@ export default function HomeScreen() {
             ))}
           </View>
 
+          {/* Daily Special */}
           {dailySpecial && (
             <View className="py-8 bg-amber-50/60 px-4 mb-6">
               <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">Today's Special 🌟</Text>
@@ -440,6 +506,7 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* Testimonials */}
           <View className="pt-2 bg-white">
             <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">Happy Tummies 😊</Text>
             <Text className="text-sm text-gray-500 text-center mb-6 font-sans">What our customers say about us.</Text>
