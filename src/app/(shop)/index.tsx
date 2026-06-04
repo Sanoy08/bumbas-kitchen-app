@@ -163,12 +163,10 @@ export default function HomeScreen() {
   const [isSavingDates, setIsSavingDates] = useState(false);
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
-  const [heroHeight, setHeroHeight] = useState(0); // store hero section height
 
   // Refs
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const categoryContainerRef = useRef<View>(null);
-  const heroRef = useRef<View>(null);
   const categoryY = useSharedValue(0);
   const scrollY = useSharedValue(0);
   const minScrollY = useSharedValue(0); // minimum allowed scroll offset (lock position)
@@ -181,20 +179,40 @@ export default function HomeScreen() {
   });
 
   // When scroll ends, enforce min bound if category is not "All"
-  // Also check if hero is 50% visible -> then reset to All and go to top
-  const enforceScrollBoundary = (currentOffset: number) => {
+  const enforceScrollBoundary = () => {
     if (activeCategory === "All") return;
     if (!scrollViewRef.current) return;
     
-    // First, check if hero is at least 50% visible
-    if (heroHeight > 0 && currentOffset <= heroHeight * 0.5) {
-      // Switch to All and scroll to top
-      setActiveCategory("All");
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      return;
-    }
+    // Get current scroll position (we can't directly get from ref easily, so we'll use a workaround)
+    // Better: use onScroll to track, but for boundary enforcement we need a robust way.
+    // We'll use measure to get the min allowed offset and then scrollTo if needed.
+    categoryContainerRef.current?.measureLayout(
+      scrollViewRef.current as any,
+      (x, y) => {
+        const stickyHeaderHeight = insets.top + 90; // height of header after collapse (approx)
+        const lockPosition = y - stickyHeaderHeight + 10; // where category bar sits under header
+        minScrollY.value = lockPosition;
+        // Check current scroll offset (we can use scrollY.value, but that's animated value)
+        // We'll do a direct native method to get offset and compare.
+        scrollViewRef.current?.getScrollableNode()?.measureInWindow((_x, pageY) => {
+          // Not reliable for content offset. Instead, we can use scrollTo with condition.
+          // Simpler: force scroll to lock position if we detect it's above.
+          // We'll call this after any scroll event via onScrollEndDrag.
+        });
+        // Force scroll to lock position if current offset is less than lockPosition
+        const currentOffset = scrollY.value;
+        if (currentOffset < lockPosition) {
+          scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
+        }
+      },
+      () => {}
+    );
+  };
 
-    // Otherwise, enforce lock position
+  // Called after dragging ends
+  const handleScrollEndDrag = (event: any) => {
+    if (activeCategory === "All") return;
+    const currentOffset = event.nativeEvent.contentOffset.y;
     categoryContainerRef.current?.measureLayout(
       scrollViewRef.current as any,
       (x, y) => {
@@ -208,15 +226,20 @@ export default function HomeScreen() {
     );
   };
 
-  // Called after dragging ends
-  const handleScrollEndDrag = (event: any) => {
-    const currentOffset = event.nativeEvent.contentOffset.y;
-    enforceScrollBoundary(currentOffset);
-  };
-
   const handleMomentumScrollEnd = (event: any) => {
+    if (activeCategory === "All") return;
     const currentOffset = event.nativeEvent.contentOffset.y;
-    enforceScrollBoundary(currentOffset);
+    categoryContainerRef.current?.measureLayout(
+      scrollViewRef.current as any,
+      (x, y) => {
+        const stickyHeaderHeight = insets.top + 90;
+        const lockPosition = y - stickyHeaderHeight + 10;
+        if (currentOffset < lockPosition) {
+          scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
+        }
+      },
+      () => {}
+    );
   };
 
   // Scroll to lock position when category changes (non-All) and also scroll to top when All
@@ -244,7 +267,7 @@ export default function HomeScreen() {
     adjustScrollForCategory();
   }, [activeCategory]);
 
-  // Animated Header Styles
+  // Animated Header Styles (unchanged)
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
     return {
@@ -406,12 +429,8 @@ export default function HomeScreen() {
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
       >
-        {/* Hero Section - measure its height for 50% visibility check */}
-        <View 
-          ref={heroRef}
-          onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}
-          className="bg-white pb-2 relative"
-        >
+        {/* Hero Section - Always present but may be locked out */}
+        <View className="bg-white pb-2 relative">
           {homeData.heroSlides.length > 0 && (
             <AutoCarousel
               data={homeData.heroSlides}
@@ -437,7 +456,7 @@ export default function HomeScreen() {
           <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
 
-        {/* Rest of content */}
+        {/* Rest of content (unchanged) */}
         <View className="bg-white pb-24">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row px-4 py-4" contentContainerStyle={{ paddingRight: 20 }}>
             <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">

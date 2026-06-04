@@ -1,28 +1,28 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
-    Cake,
-    ChevronRight,
-    Heart,
-    Lock,
-    LogOut,
-    MapPin,
-    Phone,
-    ShoppingBag,
-    Sparkles,
-    TicketPercent,
-    Wallet
+  Cake,
+  ChevronRight,
+  Heart,
+  Lock,
+  LogOut,
+  MapPin,
+  Phone,
+  ShoppingBag,
+  Sparkles,
+  TicketPercent,
+  Wallet
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import { useAuthStore } from '@/store/authStore';
@@ -81,8 +81,6 @@ export default function AccountScreen() {
     if (user.dob) setDob(user.dob);
     if (user.anniversary) setAnniversary(user.anniversary);
     if (user.wallet?.currentBalance) setWalletBalance(user.wallet.currentBalance);
-
-    // Fetch Wallet balance (Optional: if you have a separate API)
   }, [user, isInitialized]);
 
   const onProfileSubmit = async () => {
@@ -92,7 +90,7 @@ export default function AccountScreen() {
       const nameParts = user.name ? user.name.split(' ') : ['User', ''];
       
       const payload = {
-        firstName: nameParts[0],
+        firstName: nameParts,
         lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '.',
         dob: dob,
         anniversary: anniversary,
@@ -135,7 +133,7 @@ export default function AccountScreen() {
     );
   };
 
-  const getInitials = (name: string) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U';
+  const getInitials = (name: string) => name ? name.split(' ').map(n => n).join('').toUpperCase().substring(0, 2) : 'U';
   const hasDob = !!user?.dob;
   const hasAnniversary = !!user?.anniversary;
 
@@ -204,7 +202,8 @@ export default function AccountScreen() {
         </View>
 
         {/* --- MENU LIST --- */}
-        <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => Alert.alert("Orders Page Coming Soon")} />
+        {/* ★ এখানে Alert সরিয়ে router.push অ্যাড করা হয়েছে ★ */}
+        <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/(shop)/account/orders')} />
         <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => Alert.alert("Addresses Page Coming Soon")} />
         <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/(shop)/account/wallet')} />
         <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => Alert.alert("Coupons Page Coming Soon")} />
@@ -228,7 +227,7 @@ export default function AccountScreen() {
             <View className="flex-row gap-4 mb-6">
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">First Name</Text>
-                <TextInput value={user?.name?.split(' ')[0]} editable={false} className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-500 font-medium font-sans" />
+                <TextInput value={user?.name?.split(' ')} editable={false} className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-500 font-medium font-sans" />
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">Last Name</Text>
