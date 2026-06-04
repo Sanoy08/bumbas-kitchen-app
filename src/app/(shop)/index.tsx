@@ -163,22 +163,89 @@ export default function HomeScreen() {
   const [isSavingDates, setIsSavingDates] = useState(false);
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [heroHeight, setHeroHeight] = useState(0); // store hero section height
 
-  // Refs for scroll and category position
+  // Refs
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const categoryContainerRef = useRef<View>(null);
+  const heroRef = useRef<View>(null);
   const categoryY = useSharedValue(0);
-
-  // Reanimated scroll value
   const scrollY = useSharedValue(0);
+  const minScrollY = useSharedValue(0); // minimum allowed scroll offset (lock position)
 
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
+  // Scroll handler
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
   });
 
-  // Animated Background for Header - FULL SOLID WHITE when scrolled
+  // When scroll ends, enforce min bound if category is not "All"
+  // Also check if hero is 50% visible -> then reset to All and go to top
+  const enforceScrollBoundary = (currentOffset: number) => {
+    if (activeCategory === "All") return;
+    if (!scrollViewRef.current) return;
+    
+    // First, check if hero is at least 50% visible
+    if (heroHeight > 0 && currentOffset <= heroHeight * 0.5) {
+      // Switch to All and scroll to top
+      setActiveCategory("All");
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
+
+    // Otherwise, enforce lock position
+    categoryContainerRef.current?.measureLayout(
+      scrollViewRef.current as any,
+      (x, y) => {
+        const stickyHeaderHeight = insets.top + 90;
+        const lockPosition = y - stickyHeaderHeight + 10;
+        if (currentOffset < lockPosition) {
+          scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
+        }
+      },
+      () => {}
+    );
+  };
+
+  // Called after dragging ends
+  const handleScrollEndDrag = (event: any) => {
+    const currentOffset = event.nativeEvent.contentOffset.y;
+    enforceScrollBoundary(currentOffset);
+  };
+
+  const handleMomentumScrollEnd = (event: any) => {
+    const currentOffset = event.nativeEvent.contentOffset.y;
+    enforceScrollBoundary(currentOffset);
+  };
+
+  // Scroll to lock position when category changes (non-All) and also scroll to top when All
+  const adjustScrollForCategory = () => {
+    if (activeCategory === "All") {
+      // Allow full scroll, no lock. Optionally scroll to top to show hero.
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    } else {
+      // Scroll to lock position (category bar under header)
+      setTimeout(() => {
+        categoryContainerRef.current?.measureLayout(
+          scrollViewRef.current as any,
+          (x, y) => {
+            const stickyHeaderHeight = insets.top + 90;
+            const lockPosition = y - stickyHeaderHeight + 10;
+            scrollViewRef.current?.scrollTo({ y: Math.max(0, lockPosition), animated: true });
+          },
+          () => {}
+        );
+      }, 100);
+    }
+  };
+
+  useEffect(() => {
+    adjustScrollForCategory();
+  }, [activeCategory]);
+
+  // Animated Header Styles
   const headerAnimatedStyle = useAnimatedStyle(() => {
-    // Interpolate from 0 to 1 (was 0 to 0.98)
     const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
     return {
       backgroundColor: `rgba(255, 255, 255, ${bgOpacity})`,
@@ -186,7 +253,6 @@ export default function HomeScreen() {
     };
   });
 
-  // Location row fades out and collapses
   const locationRowStyle = useAnimatedStyle(() => {
     const opacity = interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP);
     const height = interpolate(scrollY.value, [0, 80], [48, 0], Extrapolation.CLAMP);
@@ -199,9 +265,8 @@ export default function HomeScreen() {
     };
   });
 
-  // Sticky Category appears smoothly when scrolled past original category
   const stickyCategoryStyle = useAnimatedStyle(() => {
-    const collapsedHeaderHeight = insets.top + 90; 
+    const collapsedHeaderHeight = insets.top + 90;
     const triggerY = categoryY.value - collapsedHeaderHeight;
     const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
     return {
@@ -216,25 +281,7 @@ export default function HomeScreen() {
     };
   });
 
-  // Auto-scroll to make category bar stick under header when a non-All category is selected
-  const scrollToCategoryBar = () => {
-    if (activeCategory === "All") return;
-    // Give time for layout to update
-    setTimeout(() => {
-      categoryContainerRef.current?.measureLayout(
-        scrollViewRef.current as any,
-        (x, y) => {
-          // y is the position of category container relative to the scroll view content
-          const stickyHeaderHeight = insets.top + 90; // height of collapsed header
-          const targetOffset = y - stickyHeaderHeight + 10; // small extra offset for perfect alignment
-          scrollViewRef.current?.scrollTo({ y: Math.max(0, targetOffset), animated: true });
-        },
-        () => {}
-      );
-    }, 100);
-  };
-
-  // Fetch home data
+  // Fetch data
   useEffect(() => {
     const fetchHomeData = async () => {
       const cachedData = await AsyncStorage.getItem('bumbas_home_data');
@@ -253,10 +300,10 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
-  // Date popup logic
+  // Date popup
   useEffect(() => {
     if (user) {
-      const missingDob = !user.dob; 
+      const missingDob = !user.dob;
       const missingAnniversary = !user.anniversary;
       AsyncStorage.getItem('skippedDatePopup').then((hasSkipped) => {
         if ((missingDob || missingAnniversary) && !hasSkipped) {
@@ -265,11 +312,6 @@ export default function HomeScreen() {
       });
     }
   }, [user]);
-
-  // When category changes, scroll the category bar into sticky position
-  useEffect(() => {
-    scrollToCategoryBar();
-  }, [activeCategory]);
 
   const handleSaveDates = async () => {
     setIsSavingDates(true);
@@ -288,7 +330,7 @@ export default function HomeScreen() {
       const data = await res.json();
       if (res.ok) {
         Alert.alert("Success", "Special dates saved successfully! 🎉");
-        await login(data.user); 
+        await login(data.user);
         setShowDatePopup(false);
       } else {
         Alert.alert("Error", data.error || "Failed to save");
@@ -301,27 +343,18 @@ export default function HomeScreen() {
   };
 
   const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
-
-  // Filter products for the selected category (when not "All")
   const filteredProducts = activeCategory !== "All"
-    ? homeData.allProducts?.filter((p: any) => 
-        p.category?.name?.toLowerCase() === activeCategory.toLowerCase()
-      ) || []
+    ? homeData.allProducts?.filter((p: any) => p.category?.name?.toLowerCase() === activeCategory.toLowerCase()) || []
     : [];
-
-  // For "All" we show bestsellers; for others we show filtered products
-  const showCategoryProducts = activeCategory !== "All" && filteredProducts.length > 0;
 
   return (
     <View className="flex-1 bg-white">
-      
-      {/* --- OVERLAPPING ABSOLUTE HEADER (NO SHADOWS) --- */}
-      <Animated.View 
-        style={[headerAnimatedStyle, { paddingTop: insets.top + 10, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }]} 
+      {/* Absolute Header */}
+      <Animated.View
+        style={[headerAnimatedStyle, { paddingTop: insets.top + 10, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }]}
         className="px-4 pb-3"
         pointerEvents="box-none"
       >
-        {/* Location Row - Fades and Collapses on Scroll */}
         <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
           <View className="flex-row items-center flex-1 pr-4">
             <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full max-w-full">
@@ -337,7 +370,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Search Bar Row - Always Visible */}
         <View className="flex-row items-center gap-3">
           <TouchableOpacity activeOpacity={0.8} className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5">
             <Search size={20} color="#e11d48" />
@@ -346,39 +378,43 @@ export default function HomeScreen() {
               <Mic size={20} color="#e11d48" />
             </View>
           </TouchableOpacity>
-
           <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl">
             <Text className="text-[10px] font-bold text-green-700 mb-0.5 font-sans">VEG</Text>
-            <Switch 
-              value={isVeg} 
-              onValueChange={setIsVeg} 
-              trackColor={{ false: '#e5e7eb', true: '#22c55e' }} 
-              thumbColor="#ffffff" 
+            <Switch
+              value={isVeg}
+              onValueChange={setIsVeg}
+              trackColor={{ false: '#e5e7eb', true: '#22c55e' }}
+              thumbColor="#ffffff"
               style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
             />
           </View>
         </View>
       </Animated.View>
 
-      {/* --- FLOATING STICKY CATEGORIES (NO SHADOW) --- */}
+      {/* Sticky Category Floating */}
       <Animated.View style={stickyCategoryStyle} className="bg-white py-2">
         <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
       </Animated.View>
 
-      {/* --- MAIN SCROLL VIEW --- */}
-      <Animated.ScrollView 
+      {/* Main ScrollView with Lock Logic */}
+      <Animated.ScrollView
         ref={scrollViewRef}
-        onScroll={scrollHandler} 
-        scrollEventThrottle={16} 
-        showsVerticalScrollIndicator={false} 
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
         className="flex-1"
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
       >
-        
-        {/* BLOCK 0: Hero Section at Top (Overlapped by header) */}
-        <View className="bg-white pb-2 relative">
+        {/* Hero Section - measure its height for 50% visibility check */}
+        <View 
+          ref={heroRef}
+          onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}
+          className="bg-white pb-2 relative"
+        >
           {homeData.heroSlides.length > 0 && (
-            <AutoCarousel 
-              data={homeData.heroSlides} 
+            <AutoCarousel
+              data={homeData.heroSlides}
               isAutoPlay={true}
               showDots={true}
               renderItem={(slide: any) => (
@@ -387,13 +423,13 @@ export default function HomeScreen() {
                     <AutoScaledImage url={optimizeImageUrl(slide.imageUrl)} isFullWidth={true} />
                   </TouchableOpacity>
                 </Link>
-              )} 
+              )}
             />
           )}
         </View>
 
-        {/* BLOCK 1: Normal Categories (Triggers Sticky) - REMOVED bottom border and extra padding */}
-        <View 
+        {/* Category bar (reference for locking) */}
+        <View
           ref={categoryContainerRef}
           onLayout={(e) => { categoryY.value = e.nativeEvent.layout.y; }}
           className="bg-white py-2"
@@ -401,7 +437,7 @@ export default function HomeScreen() {
           <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
 
-        {/* BLOCK 2: Rest of Content */}
+        {/* Rest of content */}
         <View className="bg-white pb-24">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row px-4 py-4" contentContainerStyle={{ paddingRight: 20 }}>
             <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
@@ -418,9 +454,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </ScrollView>
 
-          {/* Conditional Rendering: For "All" show bestsellers, for others show category products */}
           {activeCategory === "All" ? (
-            /* Recommended For You / Bestsellers (2-Column Grid) */
             <View className="px-4 pt-2 pb-4">
               <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Recommended For You</Text>
               {homeData.bestsellers && homeData.bestsellers.length > 0 ? (
@@ -436,7 +470,6 @@ export default function HomeScreen() {
               )}
             </View>
           ) : (
-            /* Category Products Grid */
             <View className="px-4 pt-2 pb-4">
               <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
                 Fresh from {activeCategory}
@@ -457,7 +490,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Explore More Section */}
           <View className="px-4 pb-6">
              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Explore More</Text>
              <View className="flex-row justify-between flex-wrap gap-y-3">
@@ -472,7 +504,6 @@ export default function HomeScreen() {
              </View>
           </View>
 
-          {/* Features */}
           <View className="flex-row justify-between px-4 py-6 bg-gray-50 border-y border-gray-100 mb-6">
             {FEATURES.map((feat, idx) => (
               <View key={idx} className="flex-1 items-center px-1">
@@ -484,7 +515,6 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* Daily Special */}
           {dailySpecial && (
             <View className="py-8 bg-amber-50/60 px-4 mb-6">
               <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">Today's Special 🌟</Text>
@@ -506,7 +536,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Testimonials */}
           <View className="pt-2 bg-white">
             <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">Happy Tummies 😊</Text>
             <Text className="text-sm text-gray-500 text-center mb-6 font-sans">What our customers say about us.</Text>
@@ -558,8 +587,8 @@ export default function HomeScreen() {
                   </View>
                 </View>
               )}
-              <TouchableOpacity 
-                onPress={handleSaveDates} 
+              <TouchableOpacity
+                onPress={handleSaveDates}
                 className="w-full bg-orange-500 h-14 rounded-xl items-center justify-center mt-4 shadow-sm"
               >
                 {isSavingDates ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-base font-sans">Claim 5% Discount</Text>}
