@@ -13,7 +13,7 @@ import Animated, {
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
-  useSharedValue
+  useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,7 +33,7 @@ const CATEGORIES = [
   { name: "Kachori", image: require("../../../assets/Categories/5.webp"), link: "/menus?category=kachori", color: "border-amber-500" },
   { name: "Fried Rice", image: require("../../../assets/Categories/3.webp"), link: "/menus?category=fried-rice", color: "border-cyan-500" },
   { name: "Chicken", image: require("../../../assets/Categories/7.webp"), link: "/menus?category=chicken", color: "border-red-500" },
-  { name: "Paneer", require: "../../../assets/Categories/8.webp", link: "/menus?category=paneer", color: "border-indigo-500" },
+  { name: "Paneer", image: require("../../../assets/Categories/8.webp"), link: "/menus?category=paneer", color: "border-indigo-500" },
   { name: "Veg", image: require("../../../assets/Categories/1.webp"), link: "/menus?category=veg", color: "border-lime-500" },
 ];
 
@@ -137,6 +137,16 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => (
   </ScrollView>
 );
 
+// --- Get Short Address for Header ---
+const getDisplayAddress = (user: any) => {
+  if (!user || !user.savedAddresses || user.savedAddresses.length === 0) {
+    return "Select Location";
+  }
+  const defaultAddr = user.savedAddresses.find((a: any) => a.isDefault) || user.savedAddresses[0];
+  const parts = defaultAddr.address.split(',');
+  return parts.slice(0, 2).join(',').trim();
+};
+
 export default function HomeScreen() {
   const { user, login } = useAuthStore();
   const router = useRouter();
@@ -163,11 +173,9 @@ export default function HomeScreen() {
   // Animated Background for Header (Transparent to Solid White) - NO SHADOW
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 0.98], Extrapolation.CLAMP);
-    const isScrolled = scrollY.value > 80;
     
     return {
       backgroundColor: `rgba(255, 255, 255, ${bgOpacity})`,
-      // Removed all elevation, shadow, and border to eliminate any shadow effect
       borderBottomWidth: 0,
     };
   });
@@ -276,11 +284,13 @@ export default function HomeScreen() {
       >
         {/* Location Row - Fades and Collapses on Scroll, no shadow */}
         <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
-          <View className="flex-row items-center flex-1">
-            <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full">
-              <MapPin size={22} color="#e11d48" className="mr-1.5" />
-              <Text className="text-lg font-bold text-gray-900 font-sans">Garbagan, Janai</Text>
-              <ChevronDown size={18} color="#374151" className="ml-1" />
+          <View className="flex-row items-center flex-1 pr-4">
+            <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full max-w-full">
+              <MapPin size={22} color="#e11d48" className="mr-1.5 flex-shrink-0" />
+              <Text className="text-lg font-bold text-gray-900 font-sans flex-shrink" numberOfLines={1} ellipsizeMode="tail">
+                {getDisplayAddress(user)}
+              </Text>
+              <ChevronDown size={18} color="#374151" className="ml-1 flex-shrink-0" />
             </View>
           </View>
           <TouchableOpacity onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')} className="h-10 w-10 bg-white/90 rounded-full items-center justify-center">
@@ -335,7 +345,6 @@ export default function HomeScreen() {
                 <Link href={slide.clickUrl || '/menus'} asChild>
                   <TouchableOpacity activeOpacity={0.9} className="w-full relative">
                     <AutoScaledImage url={optimizeImageUrl(slide.imageUrl)} isFullWidth={true} />
-            
                   </TouchableOpacity>
                 </Link>
               )} 

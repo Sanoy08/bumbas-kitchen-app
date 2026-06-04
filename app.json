@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "bumbas-kitchen-app",
-    "slug": "bumbas-kitchen-app",
+    "name": "Bumba\'s Kitchen",
+    "slug": "Bumba\'s Kitchen",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -39,7 +39,8 @@
       "expo-status-bar",
       "expo-secure-store",
       "expo-image",
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
