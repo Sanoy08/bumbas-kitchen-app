@@ -11,10 +11,10 @@ import {
   Leaf, MapPin, Mic,
   PartyPopper, Percent, Search, ShieldCheck, SlidersHorizontal,
   Sparkles,
-  TrainFront, Truck, User, ArrowUpDown, X
+  TrainFront, Truck, User
 } from 'lucide-react-native';
-import { useEffect, useRef, useState, useMemo } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -23,7 +23,6 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { toast } from 'sonner-native';
 
 import { ProductCard } from '@/components/shop/ProductCard';
 import { SpecialDishCard } from '@/components/shop/SpecialDishCard';
@@ -126,58 +125,32 @@ const AutoCarousel = ({ data, renderItem, autoPlayDelay = 4000, isAutoPlay = fal
   );
 };
 
-const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
-  const scrollRef = useRef<ScrollView>(null);
-  const itemsRef = useRef<{ [key: string]: { x: number, width: number } }>({});
-
-  const handleCategoryPress = (name: string) => {
-    setActiveCategory(name);
-    
-    // Smoothly scroll to center the selected category
-    const item = itemsRef.current[name];
-    if (item && scrollRef.current) {
-      const scrollPosition = item.x - (windowWidth / 2) + (item.width / 2);
-      scrollRef.current.scrollTo({ x: Math.max(0, scrollPosition), animated: true });
-    }
-  };
-
-  return (
-    <ScrollView 
-      ref={scrollRef}
-      horizontal 
-      showsHorizontalScrollIndicator={false} 
-      className="px-2" 
-      contentContainerStyle={{ paddingRight: 20 }}
-    >
-      {CATEGORIES.map((cat, idx) => {
-        const isActive = activeCategory === cat.name;
-        return (
-          <TouchableOpacity 
-            key={idx} 
-            onLayout={(event) => {
-              const layout = event.nativeEvent.layout;
-              itemsRef.current[cat.name] = { x: layout.x, width: layout.width };
-            }}
-            onPress={() => handleCategoryPress(cat.name)} 
-            className={`items-center mx-2 pb-0 ${isActive ? 'border-b-[3px] border-primary' : ''}`}
-            activeOpacity={0.7}
-          >
-            <View className={`h-16 w-16 rounded-full mb-1.5 overflow-hidden items-center justify-center border-2 ${isActive ? 'border-primary shadow-sm' : 'border-gray-200 bg-gray-50'}`}>
-              <Image source={cat.image} style={{ width: '100%', height: '100%', borderRadius: 32 }} contentFit="cover" />
-            </View>
-            <Text className={`text-xs ${isActive ? 'font-bold text-primary' : 'font-medium text-gray-600'} font-sans`}>{cat.name}</Text>
-          </TouchableOpacity>
-        )
-      })}
-    </ScrollView>
-  );
-};
+const CategoryList = ({ activeCategory, setActiveCategory }: any) => (
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2" contentContainerStyle={{ paddingRight: 20 }}>
+    {CATEGORIES.map((cat, idx) => {
+      const isActive = activeCategory === cat.name;
+      return (
+        <TouchableOpacity 
+          key={idx} 
+          onPress={() => setActiveCategory(cat.name)} 
+          className={`items-center mx-2 pb-0 ${isActive ? 'border-b-[3px] border-primary' : ''}`}
+          activeOpacity={0.7}
+        >
+          <View className={`h-16 w-16 rounded-full mb-1.5 overflow-hidden items-center justify-center border-2 ${isActive ? 'border-primary' : 'border-gray-200 bg-gray-50'}`}>
+            <Image source={cat.image} style={{ width: '100%', height: '100%', borderRadius: 32 }} contentFit="cover" />
+          </View>
+          <Text className={`text-xs ${isActive ? 'font-bold text-gray-900' : 'font-medium text-gray-600'} font-sans`}>{cat.name}</Text>
+        </TouchableOpacity>
+      )
+    })}
+  </ScrollView>
+);
 
 const getDisplayAddress = (user: any) => {
   if (!user || !user.savedAddresses || user.savedAddresses.length === 0) {
     return "Select Location";
   }
-  const defaultAddr = user.savedAddresses.find((a: any) => a.isDefault) || user.savedAddresses;
+  const defaultAddr = user.savedAddresses.find((a: any) => a.isDefault) || user.savedAddresses[0];
   const parts = defaultAddr.address.split(',');
   return parts.slice(0, 2).join(',').trim();
 };
@@ -194,14 +167,9 @@ export default function HomeScreen() {
   const [dob, setDob] = useState("");
   const [anniversary, setAnniversary] = useState("");
   const [isSavingDates, setIsSavingDates] = useState(false);
-  
+  const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
-  
-  // ★ Filter & Sort States (Next.js logic)
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('recommended');
-  const [isUnder200, setIsUnder200] = useState(false);
-  
+
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
 
@@ -271,7 +239,7 @@ export default function HomeScreen() {
   }, [activeCategory]);
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
-    const bgOpacity = interpolate(scrollY.value,,, Extrapolation.CLAMP);
+    const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
     return {
       backgroundColor: `rgba(255, 255, 255, ${bgOpacity})`,
       borderBottomWidth: 0,
@@ -279,9 +247,9 @@ export default function HomeScreen() {
   });
 
   const locationRowStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value,,, Extrapolation.CLAMP);
-    const height = interpolate(scrollY.value,,, Extrapolation.CLAMP);
-    const marginBottom = interpolate(scrollY.value,,, Extrapolation.CLAMP);
+    const opacity = interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP);
+    const height = interpolate(scrollY.value, [0, 80], [48, 0], Extrapolation.CLAMP);
+    const marginBottom = interpolate(scrollY.value, [0, 80], [12, 0], Extrapolation.CLAMP);
     return {
       opacity,
       height,
@@ -306,7 +274,6 @@ export default function HomeScreen() {
     };
   });
 
-  // Fetch data
   useEffect(() => {
     const fetchHomeData = async () => {
       const cachedData = await AsyncStorage.getItem('bumbas_home_data');
@@ -346,7 +313,7 @@ export default function HomeScreen() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName: nameParts,
+          firstName: nameParts[0],
           lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '.',
           dob: dob || user?.dob,
           anniversary: anniversary || user?.anniversary
@@ -354,14 +321,14 @@ export default function HomeScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success("Special dates saved successfully! 🎉");
+        Alert.alert("Success", "Special dates saved successfully! 🎉");
         await login(data.user);
         setShowDatePopup(false);
       } else {
-        toast.error(data.error || "Failed to save");
+        Alert.alert("Error", data.error || "Failed to save");
       }
     } catch (e) {
-      toast.error("An error occurred while saving.");
+      Alert.alert("Error", "An error occurred");
     } finally {
       setIsSavingDates(false);
     }
@@ -387,8 +354,9 @@ export default function HomeScreen() {
     if (Platform.OS === 'android') {
       setActiveDatePicker(null); 
     }
+    // Cancel button in Android triggers "dismissed"
     if (event.type !== 'dismissed' && selectedDate) {
-      const formatted = selectedDate.toISOString().split('T');
+      const formatted = selectedDate.toISOString().split('T')[0];
       if (activeDatePicker === 'dob') {
         setDob(formatted);
       } else if (activeDatePicker === 'anniversary') {
@@ -401,40 +369,9 @@ export default function HomeScreen() {
   const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
 
   const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
-
-  // ★ Filter and Sort Logic (Replicating Next.js behavior)
-  const filteredAndSortedProducts = useMemo(() => {
-    let result = [...(homeData.allProducts || [])];
-
-    // Filter by Category
-    if (activeCategory !== 'All') {
-      result = result.filter((p: any) => p.category?.name?.toLowerCase() === activeCategory.toLowerCase());
-    }
-
-    // Filter Under ₹200
-    if (isUnder200) {
-      result = result.filter((p: any) => p.price < 200);
-    }
-
-    // Sort Logic
-    switch (sortBy) {
-      case 'price-low': result.sort((a: any, b: any) => a.price - b.price); break;
-      case 'price-high': result.sort((a: any, b: any) => b.price - a.price); break;
-      case 'rating': result.sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0)); break;
-      default: 
-        // Recommended logic: Special -> Stock -> Name
-        result.sort((a: any, b: any) => {
-            if (a.stock !== b.stock) return b.stock - a.stock;
-            const aSpecial = a.isDailySpecial ? 1 : 0;
-            const bSpecial = b.isDailySpecial ? 1 : 0;
-            if (aSpecial !== bSpecial) return bSpecial - aSpecial;
-            return a.name.localeCompare(b.name);
-        });
-        break; 
-    }
-
-    return result;
-  }, [homeData.allProducts, activeCategory, isUnder200, sortBy]);
+  const filteredProducts = activeCategory !== "All"
+    ? homeData.allProducts?.filter((p: any) => p.category?.name?.toLowerCase() === activeCategory.toLowerCase()) || []
+    : [];
 
   return (
     <View className="flex-1 bg-white">
@@ -460,15 +397,28 @@ export default function HomeScreen() {
         </Animated.View>
 
         <View className="flex-row items-center gap-3">
-          <TouchableOpacity onPress={() => router.push('/(shop)/search')} activeOpacity={0.8} className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5">
+          <TouchableOpacity activeOpacity={0.8} className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5">
             <Search size={20} color="#e11d48" />
-            <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">Search for dishes...</Text>
+            <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">Search "namkeen"</Text>
+            <View className="border-l border-gray-300 pl-3 py-0.5">
+              <Mic size={20} color="#e11d48" />
+            </View>
           </TouchableOpacity>
+          <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl">
+            <Text className="text-[10px] font-bold text-green-700 mb-0.5 font-sans">VEG</Text>
+            <Switch
+              value={isVeg}
+              onValueChange={setIsVeg}
+              trackColor={{ false: '#e5e7eb', true: '#22c55e' }}
+              thumbColor="#ffffff"
+              style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+            />
+          </View>
         </View>
       </Animated.View>
 
       {/* Sticky Category Floating */}
-      <Animated.View style={stickyCategoryStyle} className="bg-white py-2 shadow-sm border-b border-gray-100">
+      <Animated.View style={stickyCategoryStyle} className="bg-white py-2">
         <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
       </Animated.View>
 
@@ -511,50 +461,56 @@ export default function HomeScreen() {
 
         {/* Rest of content */}
         <View className="bg-white pb-24">
-          
-          {/* ★ Updated Filters Bar */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row px-4 py-4" contentContainerStyle={{ paddingRight: 20 }}>
-            <TouchableOpacity 
-              onPress={() => setIsFilterOpen(true)}
-              className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm"
-            >
+            <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
               <SlidersHorizontal size={14} color="#374151" />
               <Text className="ml-1.5 text-xs font-semibold text-gray-700 font-sans">Filters</Text>
               <ChevronDown size={14} color="#374151" className="ml-1" />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              onPress={() => setIsUnder200(!isUnder200)}
-              className={`border rounded-xl px-3 py-1.5 mr-3 shadow-sm ${isUnder200 ? 'bg-primary border-primary' : 'bg-white border-gray-300'}`}
-            >
-              <Text className={`text-xs font-semibold font-sans ${isUnder200 ? 'text-white' : 'text-gray-700'}`}>Under ₹200</Text>
+            <TouchableOpacity className="border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
+              <Text className="text-xs font-semibold text-gray-700 font-sans">Under ₹200</Text>
+            </TouchableOpacity>
+            <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
+              <Text className="text-xs font-semibold text-gray-700 font-sans">Schedule</Text>
+              <ChevronDown size={14} color="#374151" className="ml-1" />
             </TouchableOpacity>
           </ScrollView>
 
-          <View className="px-4 pt-2 pb-4">
-            <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
-              {activeCategory === "All" ? "Recommended For You" : `Fresh from ${activeCategory}`}
-            </Text>
-            
-            {filteredAndSortedProducts.length > 0 ? (
-              <View className="flex-row flex-wrap justify-between">
-                {filteredAndSortedProducts.map((item: any) => (
-                  <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
-                    <ProductCard product={item} />
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View className="py-12 items-center">
-                <Text className="text-gray-500 font-sans">No items available</Text>
-                {isUnder200 && (
-                  <TouchableOpacity onPress={() => setIsUnder200(false)} className="mt-3">
-                    <Text className="text-primary font-bold font-sans">Clear Filter</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
+          {activeCategory === "All" ? (
+            <View className="px-4 pt-2 pb-4">
+              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Recommended For You</Text>
+              {homeData.bestsellers && homeData.bestsellers.length > 0 ? (
+                <View className="flex-row flex-wrap justify-between">
+                  {homeData.bestsellers.map((item: any) => (
+                    <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
+                      <ProductCard product={item} />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <ActivityIndicator size="small" color="#e11d48" className="my-8" />
+              )}
+            </View>
+          ) : (
+            <View className="px-4 pt-2 pb-4">
+              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
+                Fresh from {activeCategory}
+              </Text>
+              {filteredProducts.length > 0 ? (
+                <View className="flex-row flex-wrap justify-between">
+                  {filteredProducts.map((item: any) => (
+                    <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
+                      <ProductCard product={item} />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View className="py-12 items-center">
+                  <Text className="text-gray-500 font-sans">No {activeCategory} items available</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           <View className="px-4 pb-6">
              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Explore More</Text>
@@ -588,7 +544,7 @@ export default function HomeScreen() {
               <View className="bg-white p-3 rounded-3xl shadow-sm border border-amber-100">
                 <View className="aspect-square w-full rounded-2xl overflow-hidden bg-gray-100">
                   {dailySpecial.images?.length > 0 ? (
-                    <Image source={{ uri: optimizeImageUrl(dailySpecial.images.url) }} className="w-full h-full" contentFit="cover" />
+                    <Image source={{ uri: optimizeImageUrl(dailySpecial.images[0].url) }} className="w-full h-full" contentFit="cover" />
                   ) : (
                     <SpecialDishCard name={dailySpecial.name} description={dailySpecial.description} price={dailySpecial.price} />
                   )}
@@ -632,58 +588,12 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* ★ Filters Modal (Replicating Next.js Sheet) */}
-      <Modal visible={isFilterOpen} animationType="slide" transparent={true}>
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl p-6 pb-8">
-            <View className="flex-row justify-between items-center mb-6">
-              <View>
-                <Text className="text-xl font-bold text-gray-900 font-sans">Filters & Sort</Text>
-                <Text className="text-sm text-gray-500 font-sans">Customize your menu view.</Text>
-              </View>
-              <TouchableOpacity onPress={() => setIsFilterOpen(false)} className="p-2 bg-gray-100 rounded-full">
-                <X size={20} color="#4b5563" />
-              </TouchableOpacity>
-            </View>
-
-            <View className="space-y-6">
-              <View>
-                <Text className="text-sm font-bold text-gray-700 mb-3 font-sans">Sort By</Text>
-                <View className="flex-row flex-wrap gap-3">
-                  {[
-                    { id: 'recommended', label: 'Recommended' },
-                    { id: 'rating', label: 'Top Rated' },
-                    { id: 'price-low', label: 'Price: Low to High' },
-                    { id: 'price-high', label: 'Price: High to Low' }
-                  ].map((option) => (
-                    <TouchableOpacity
-                      key={option.id}
-                      onPress={() => setSortBy(option.id)}
-                      className={`px-4 py-2.5 rounded-xl border ${sortBy === option.id ? 'bg-primary/10 border-primary' : 'bg-white border-gray-200'}`}
-                    >
-                      <Text className={`font-semibold font-sans ${sortBy === option.id ? 'text-primary' : 'text-gray-600'}`}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <TouchableOpacity 
-                onPress={() => setIsFilterOpen(false)} 
-                className="w-full h-14 bg-primary rounded-xl items-center justify-center mt-4 shadow-sm"
-              >
-                <Text className="text-white font-bold text-lg font-sans">Apply Filters</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Date Popup Modal */}
+      {/* ★★★ FIXED DATE POPUP (Solid Colors & Fixed Heights) ★★★ */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
+            
+            {/* Header with solid colors */}
             <View className="relative bg-orange-50 p-8 pb-10 items-center overflow-hidden">
               <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-200/50 rounded-full" />
               <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />
@@ -695,46 +605,49 @@ export default function HomeScreen() {
                 A Special Gift! 🎁
               </Text>
               <Text className="text-sm text-gray-700 font-medium text-center px-2 mt-2 leading-relaxed font-sans">
-                Add your dates and get a <Text className="font-bold text-rose-600 bg-white px-2 py-0.5 rounded shadow-sm">Flat 5% OFF</Text> on celebration days!
+                Add your special dates and get a <Text className="font-bold text-rose-600 bg-white px-2 py-0.5 rounded shadow-sm">Flat 5% OFF</Text> on your celebration days!
               </Text>
             </View>
 
+            {/* Body */}
             <View className="bg-white rounded-t-[2rem] -mt-6 p-6 pt-8">
-              <View className="flex-row gap-3 mb-6">
-                {(!user?.dob || user?.dob === "") && (
-                  <TouchableOpacity onPress={() => openDatePicker('dob')} className="relative flex-1">
-                    <View className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
-                      <Cake size={18} color="#f472b6" />
-                    </View>
-                    <View className="w-full pl-9 pr-2 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-start items-center">
-                      <Text numberOfLines={1} adjustsFontSizeToFit className={`text-xs font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {dob ? format(new Date(dob), 'dd MMM, yy') : 'Birthday'}
-                      </Text>
-                    </View>
-                    <View className="absolute -top-2 left-3 bg-white px-1.5 rounded-full border border-pink-100">
-                      <Text className="text-[9px] font-bold uppercase text-pink-500 font-sans">Birthday</Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
+              {isDobMissing && (
+                <TouchableOpacity onPress={() => openDatePicker('dob')} className="relative mb-4">
+                  <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+                    <Cake size={20} color="#f472b6" />
+                  </View>
+                  {/* ★ Fixed height h-14 added here ★ */}
+                  <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
+                    <Text className={`text-sm font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+  {dob ? format(new Date(dob), 'MMMM do, yyyy') : 'Select Birthday'}
+</Text>
+                    <ChevronRight size={16} color="#9ca3af" />
+                  </View>
+                  <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-pink-100">
+                    <Text className="text-[10px] font-bold uppercase text-pink-500 font-sans">Your Birthday</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
-                {(!user?.anniversary || user?.anniversary === "") && (
-                  <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative flex-1">
-                    <View className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
-                      <Heart size={18} color="#f43f5e" />
-                    </View>
-                    <View className="w-full pl-9 pr-2 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-start items-center">
-                      <Text numberOfLines={1} adjustsFontSizeToFit className={`text-xs font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {anniversary ? format(new Date(anniversary), 'dd MMM, yy') : 'Anniversary'}
-                      </Text>
-                    </View>
-                    <View className="absolute -top-2 left-3 bg-white px-1.5 rounded-full border border-red-100">
-                      <Text className="text-[9px] font-bold uppercase text-red-500 font-sans">Anniv.</Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-              </View>
+              {isAnnivMissing && (
+                <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative mb-2">
+                  <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+                    <Heart size={20} color="#f43f5e" />
+                  </View>
+                  {/* ★ Fixed height h-14 added here ★ */}
+                  <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
+                    <Text className={`text-sm font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+  {anniversary ? format(new Date(anniversary), 'MMMM do, yyyy') : 'Select Anniversary'}
+</Text>
+                    <ChevronRight size={16} color="#9ca3af" />
+                  </View>
+                  <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-red-100">
+                    <Text className="text-[10px] font-bold uppercase text-red-500 font-sans">Anniversary</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
-              <View className="mt-2">
+              <View className="mt-6">
                 <TouchableOpacity
                   onPress={handleSaveDates}
                   disabled={isSavingDates || (!dob && !anniversary)}
@@ -755,29 +668,37 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Date Picker Modal */}
+      {/* ★ Android-এ Modal ছাড়া সরাসরি DatePicker রেন্ডার করা হয়েছে ★ */}
       {activeDatePicker && (
-        <Modal transparent={true} animationType="slide">
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 }}>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
-                onChange={onDateSelected}
-                maximumDate={new Date()}
-              />
-              {Platform.OS === 'ios' && (
+        Platform.OS === 'ios' ? (
+          <Modal transparent={true} animationType="slide">
+            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: insets.bottom + 16 }}>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={onDateSelected}
+                  maximumDate={new Date()}
+                />
                 <TouchableOpacity
                   onPress={() => setActiveDatePicker(null)}
-                  style={{ marginTop: 16, alignItems: 'center', padding: 12, backgroundColor: '#f97316', borderRadius: 12 }}
+                  style={{ marginTop: 16, alignItems: 'center', padding: 14, backgroundColor: '#f97316', borderRadius: 12 }}
                 >
-                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Done</Text>
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Done</Text>
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display="calendar"
+            onChange={onDateSelected}
+            maximumDate={new Date()}
+          />
+        )
       )}
     </View>
   );
