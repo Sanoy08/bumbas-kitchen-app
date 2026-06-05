@@ -3,12 +3,17 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import {
-  Briefcase, Cake, ChevronDown, Gift, Leaf, MapPin, Mic,
+  Briefcase, Cake, ChevronDown,
+  ChevronRight,
+  Gift,
+  Heart,
+  Leaf, MapPin, Mic,
   PartyPopper, Percent, Search, ShieldCheck, SlidersHorizontal,
-  TrainFront, Truck, User, ChevronRight, Heart, Sparkles
+  Sparkles,
+  TrainFront, Truck, User
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, ScrollView, Switch, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -312,11 +317,12 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
-  // Date popup logic (same as Next.js)
+  // ★★★ FIXED: Explicitly check if undefined, null or empty string ★★★
   useEffect(() => {
     if (user) {
-      const missingDob = !user.dob;
-      const missingAnniversary = !user.anniversary;
+      const missingDob = !user.dob || user.dob === "";
+      const missingAnniversary = !user.anniversary || user.anniversary === "";
+      
       AsyncStorage.getItem('skippedDatePopup').then((hasSkipped) => {
         if ((missingDob || missingAnniversary) && !hasSkipped) {
           setTimeout(() => setShowDatePopup(true), 2000);
@@ -361,7 +367,6 @@ export default function HomeScreen() {
 
   const openDatePicker = (type: 'dob' | 'anniversary') => {
     setActiveDatePicker(type);
-    // Pre-fill with existing date or today
     if (type === 'dob' && dob) {
       setTempDate(new Date(dob));
     } else if (type === 'anniversary' && anniversary) {
@@ -373,7 +378,7 @@ export default function HomeScreen() {
 
   const onDateSelected = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
-      setActiveDatePicker(null); // close picker on Android after selection
+      setActiveDatePicker(null); 
     }
     if (selectedDate) {
       const formatted = selectedDate.toISOString().split('T')[0];
@@ -384,11 +389,13 @@ export default function HomeScreen() {
       }
     }
     if (Platform.OS === 'ios') {
-      // On iOS we keep picker open until user closes it via a "Done" button? 
-      // We'll close after selection for simplicity.
       setActiveDatePicker(null);
     }
   };
+
+  // Helper values for UI
+  const isDobMissing = !user?.dob || user?.dob === "";
+  const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
 
   const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
   const filteredProducts = activeCategory !== "All"
@@ -610,7 +617,7 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* ★★★ FIXED DATE POPUP (Same logic as Next.js) ★★★ */}
+      {/* ★★★ FIXED DATE POPUP ★★★ */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
@@ -632,7 +639,7 @@ export default function HomeScreen() {
 
             {/* Body with birthday/anniversary rows */}
             <View className="bg-white rounded-t-[2rem] -mt-6 p-6 pt-8 space-y-5">
-              {!user?.dob && (
+              {isDobMissing && (
                 <TouchableOpacity onPress={() => openDatePicker('dob')} className="relative">
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Cake size={20} color="#f472b6" />
@@ -649,7 +656,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               )}
 
-              {!user?.anniversary && (
+              {isAnnivMissing && (
                 <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative mt-2">
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Heart size={20} color="#f43f5e" />
@@ -669,8 +676,8 @@ export default function HomeScreen() {
               <View className="flex-col gap-3 mt-8">
                 <TouchableOpacity
                   onPress={handleSaveDates}
-                  disabled={isSavingDates || (!dob && !anniversary && !user?.dob && !user?.anniversary)}
-                  className={`w-full h-14 rounded-2xl items-center justify-center shadow-xl ${isSavingDates || (!dob && !anniversary && !user?.dob && !user?.anniversary) ? 'bg-gray-400' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}
+                  disabled={isSavingDates || (!dob && !anniversary && isDobMissing && isAnnivMissing)}
+                  className={`w-full h-14 rounded-2xl items-center justify-center shadow-xl ${isSavingDates || (!dob && !anniversary && isDobMissing && isAnnivMissing) ? 'bg-gray-400' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}
                 >
                   {isSavingDates ? (
                     <ActivityIndicator color="white" />
