@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import {
@@ -145,7 +146,6 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => (
   </ScrollView>
 );
 
-// --- Get Short Address for Header ---
 const getDisplayAddress = (user: any) => {
   if (!user || !user.savedAddresses || user.savedAddresses.length === 0) {
     return "Select Location";
@@ -170,42 +170,19 @@ export default function HomeScreen() {
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
 
-  // Date picker state
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
 
-  // Refs
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const categoryContainerRef = useRef<View>(null);
   const categoryY = useSharedValue(0);
   const scrollY = useSharedValue(0);
-  const minScrollY = useSharedValue(0);
 
-  // Scroll handler
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
     },
   });
-
-  const enforceScrollBoundary = () => {
-    if (activeCategory === "All") return;
-    if (!scrollViewRef.current) return;
-    
-    categoryContainerRef.current?.measureLayout(
-      scrollViewRef.current as any,
-      (x, y) => {
-        const stickyHeaderHeight = insets.top + 90;
-        const lockPosition = y - stickyHeaderHeight + 10;
-        minScrollY.value = lockPosition;
-        const currentOffset = scrollY.value;
-        if (currentOffset < lockPosition) {
-          scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
-        }
-      },
-      () => {}
-    );
-  };
 
   const handleScrollEndDrag = (event: any) => {
     if (activeCategory === "All") return;
@@ -261,7 +238,6 @@ export default function HomeScreen() {
     adjustScrollForCategory();
   }, [activeCategory]);
 
-  // Animated Header Styles
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
     return {
@@ -298,7 +274,6 @@ export default function HomeScreen() {
     };
   });
 
-  // Fetch data
   useEffect(() => {
     const fetchHomeData = async () => {
       const cachedData = await AsyncStorage.getItem('bumbas_home_data');
@@ -317,7 +292,6 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
-  // ★★★ FIXED: Explicitly check if undefined, null or empty string ★★★
   useEffect(() => {
     if (user) {
       const missingDob = !user.dob || user.dob === "";
@@ -380,7 +354,8 @@ export default function HomeScreen() {
     if (Platform.OS === 'android') {
       setActiveDatePicker(null); 
     }
-    if (selectedDate) {
+    // Cancel button in Android triggers "dismissed"
+    if (event.type !== 'dismissed' && selectedDate) {
       const formatted = selectedDate.toISOString().split('T')[0];
       if (activeDatePicker === 'dob') {
         setDob(formatted);
@@ -388,12 +363,8 @@ export default function HomeScreen() {
         setAnniversary(formatted);
       }
     }
-    if (Platform.OS === 'ios') {
-      setActiveDatePicker(null);
-    }
   };
 
-  // Helper values for UI
   const isDobMissing = !user?.dob || user?.dob === "";
   const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
 
@@ -617,76 +588,79 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* ★★★ FIXED DATE POPUP ★★★ */}
+      {/* ★★★ FIXED DATE POPUP (Solid Colors & Fixed Heights) ★★★ */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
-            {/* Header with gradient and gift icon */}
-            <View className="relative bg-gradient-to-br from-amber-100 via-orange-50 to-rose-100 p-8 pb-10 items-center overflow-hidden">
-              <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-300/40 rounded-full blur-2xl" />
-              <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-300/40 rounded-full blur-2xl" />
-              <View className="relative z-10 w-20 h-20 bg-white/80 backdrop-blur-md rounded-full items-center justify-center mb-4 shadow-xl border border-white/50">
-                <Gift size={40} color="#f97316" />
+            
+            {/* Header with solid colors */}
+            <View className="relative bg-orange-50 p-8 pb-10 items-center overflow-hidden">
+              <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-200/50 rounded-full" />
+              <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />
+              <View className="relative z-10 w-20 h-20 bg-white rounded-full items-center justify-center mb-4 shadow-sm border border-orange-100">
+                <Gift size={40} color="#ea580c" />
                 <Sparkles size={24} color="#fbbf24" style={{ position: 'absolute', top: -5, right: -5 }} />
               </View>
-              <Text className="text-2xl font-black text-center bg-gradient-to-r from-orange-600 to-rose-600 bg-clip-text text-transparent drop-shadow-sm pb-1 font-sans">
+              <Text className="text-2xl font-black text-center text-orange-600 font-sans mb-1">
                 A Special Gift! 🎁
               </Text>
-              <Text className="text-sm text-gray-700 font-medium text-center px-2 mt-2 leading-relaxed">
-                Add your special dates and get a <Text className="font-black text-rose-600 bg-white/60 px-2 py-0.5 rounded-md">Flat 5% OFF</Text> on your celebration days!
+              <Text className="text-sm text-gray-700 font-medium text-center px-2 mt-2 leading-relaxed font-sans">
+                Add your special dates and get a <Text className="font-bold text-rose-600 bg-white px-2 py-0.5 rounded shadow-sm">Flat 5% OFF</Text> on your celebration days!
               </Text>
             </View>
 
-            {/* Body with birthday/anniversary rows */}
-            <View className="bg-white rounded-t-[2rem] -mt-6 p-6 pt-8 space-y-5">
+            {/* Body */}
+            <View className="bg-white rounded-t-[2rem] -mt-6 p-6 pt-8">
               {isDobMissing && (
-                <TouchableOpacity onPress={() => openDatePicker('dob')} className="relative">
+                <TouchableOpacity onPress={() => openDatePicker('dob')} className="relative mb-4">
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Cake size={20} color="#f472b6" />
                   </View>
-                  <View className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
-                    <Text className={`text-sm font-bold ${dob ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {dob ? new Date(dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select Birthday'}
-                    </Text>
+                  {/* ★ Fixed height h-14 added here ★ */}
+                  <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
+                    <Text className={`text-sm font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+  {dob ? format(new Date(dob), 'MMMM do, yyyy') : 'Select Birthday'}
+</Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-pink-100">
-                    <Text className="text-[10px] font-bold uppercase text-pink-500">Your Birthday</Text>
+                    <Text className="text-[10px] font-bold uppercase text-pink-500 font-sans">Your Birthday</Text>
                   </View>
                 </TouchableOpacity>
               )}
 
               {isAnnivMissing && (
-                <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative mt-2">
+                <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative mb-2">
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Heart size={20} color="#f43f5e" />
                   </View>
-                  <View className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
-                    <Text className={`text-sm font-bold ${anniversary ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {anniversary ? new Date(anniversary).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select Anniversary'}
-                    </Text>
+                  {/* ★ Fixed height h-14 added here ★ */}
+                  <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
+                    <Text className={`text-sm font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+  {anniversary ? format(new Date(anniversary), 'MMMM do, yyyy') : 'Select Anniversary'}
+</Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-red-100">
-                    <Text className="text-[10px] font-bold uppercase text-red-500">Anniversary</Text>
+                    <Text className="text-[10px] font-bold uppercase text-red-500 font-sans">Anniversary</Text>
                   </View>
                 </TouchableOpacity>
               )}
 
-              <View className="flex-col gap-3 mt-8">
+              <View className="mt-6">
                 <TouchableOpacity
                   onPress={handleSaveDates}
-                  disabled={isSavingDates || (!dob && !anniversary && isDobMissing && isAnnivMissing)}
-                  className={`w-full h-14 rounded-2xl items-center justify-center shadow-xl ${isSavingDates || (!dob && !anniversary && isDobMissing && isAnnivMissing) ? 'bg-gray-400' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}
+                  disabled={isSavingDates || (!dob && !anniversary)}
+                  className={`w-full h-14 rounded-2xl items-center justify-center shadow-sm ${isSavingDates || (!dob && !anniversary) ? 'bg-gray-300' : 'bg-orange-500'}`}
                 >
                   {isSavingDates ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text className="text-white font-black text-base tracking-wide">Claim 5% Discount</Text>
+                    <Text className="text-white font-bold text-base font-sans tracking-wide">Claim 5% Discount</Text>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleSkipPopup} className="py-3">
-                  <Text className="text-gray-400 font-semibold text-center">Maybe Later</Text>
+                <TouchableOpacity onPress={handleSkipPopup} className="py-4 mt-1">
+                  <Text className="text-gray-400 font-semibold font-sans text-center">Maybe Later</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -694,29 +668,37 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Date Picker Modal (using native DateTimePicker) */}
+      {/* ★ Android-এ Modal ছাড়া সরাসরি DatePicker রেন্ডার করা হয়েছে ★ */}
       {activeDatePicker && (
-        <Modal transparent={true} animationType="slide">
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 }}>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
-                onChange={onDateSelected}
-                maximumDate={new Date()}
-              />
-              {Platform.OS === 'ios' && (
+        Platform.OS === 'ios' ? (
+          <Modal transparent={true} animationType="slide">
+            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: insets.bottom + 16 }}>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={onDateSelected}
+                  maximumDate={new Date()}
+                />
                 <TouchableOpacity
                   onPress={() => setActiveDatePicker(null)}
-                  style={{ marginTop: 16, alignItems: 'center', padding: 12, backgroundColor: '#f97316', borderRadius: 12 }}
+                  style={{ marginTop: 16, alignItems: 'center', padding: 14, backgroundColor: '#f97316', borderRadius: 12 }}
                 >
-                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Done</Text>
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Done</Text>
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display="calendar"
+            onChange={onDateSelected}
+            maximumDate={new Date()}
+          />
+        )
       )}
     </View>
   );
