@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/store/authStore';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, useFonts } from '@expo-google-fonts/poppins';
+import { Toaster } from 'sonner-native'; // ← ইমপোর্ট
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -129,6 +130,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
+      <Toaster />
       <Stack screenOptions={{ headerShown: false }} />
 
       {/* --- ১. ONBOARDING SCREEN OVERLAY --- */}
