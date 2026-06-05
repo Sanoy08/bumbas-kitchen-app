@@ -14,7 +14,7 @@ import {
   TrainFront, Truck, User
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -23,6 +23,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { toast } from 'sonner-native'; // ★ Sonner যুক্ত করা হয়েছে
 
 import { ProductCard } from '@/components/shop/ProductCard';
 import { SpecialDishCard } from '@/components/shop/SpecialDishCard';
@@ -321,14 +322,14 @@ export default function HomeScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        Alert.alert("Success", "Special dates saved successfully! 🎉");
+        toast.success("Special dates saved successfully! 🎉"); // ★ Alert এর বদলে Toast
         await login(data.user);
         setShowDatePopup(false);
       } else {
-        Alert.alert("Error", data.error || "Failed to save");
+        toast.error(data.error || "Failed to save"); // ★ Alert এর বদলে Toast
       }
     } catch (e) {
-      Alert.alert("Error", "An error occurred");
+      toast.error("An error occurred while saving."); // ★ Alert এর বদলে Toast
     } finally {
       setIsSavingDates(false);
     }
@@ -588,12 +589,12 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* ★★★ FIXED DATE POPUP (Solid Colors & Fixed Heights) ★★★ */}
+      {/* ★★★ FIXED DATE POPUP (Side by side layout) ★★★ */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
             
-            {/* Header with solid colors */}
+            {/* Header */}
             <View className="relative bg-orange-50 p-8 pb-10 items-center overflow-hidden">
               <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-200/50 rounded-full" />
               <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />
