@@ -1,13 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import {
   Briefcase, Cake, ChevronDown, Gift, Leaf, MapPin, Mic,
   PartyPopper, Percent, Search, ShieldCheck, SlidersHorizontal,
-  TrainFront, Truck, User
+  TrainFront, Truck, User, ChevronRight, Heart, Sparkles
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, ScrollView, Switch, Text, TouchableOpacity, View, Platform } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -164,12 +165,16 @@ export default function HomeScreen() {
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
 
+  // Date picker state
+  const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
+  const [tempDate, setTempDate] = useState(new Date());
+
   // Refs
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const categoryContainerRef = useRef<View>(null);
   const categoryY = useSharedValue(0);
   const scrollY = useSharedValue(0);
-  const minScrollY = useSharedValue(0); // minimum allowed scroll offset (lock position)
+  const minScrollY = useSharedValue(0);
 
   // Scroll handler
   const scrollHandler = useAnimatedScrollHandler({
@@ -178,28 +183,16 @@ export default function HomeScreen() {
     },
   });
 
-  // When scroll ends, enforce min bound if category is not "All"
   const enforceScrollBoundary = () => {
     if (activeCategory === "All") return;
     if (!scrollViewRef.current) return;
     
-    // Get current scroll position (we can't directly get from ref easily, so we'll use a workaround)
-    // Better: use onScroll to track, but for boundary enforcement we need a robust way.
-    // We'll use measure to get the min allowed offset and then scrollTo if needed.
     categoryContainerRef.current?.measureLayout(
       scrollViewRef.current as any,
       (x, y) => {
-        const stickyHeaderHeight = insets.top + 90; // height of header after collapse (approx)
-        const lockPosition = y - stickyHeaderHeight + 10; // where category bar sits under header
+        const stickyHeaderHeight = insets.top + 90;
+        const lockPosition = y - stickyHeaderHeight + 10;
         minScrollY.value = lockPosition;
-        // Check current scroll offset (we can use scrollY.value, but that's animated value)
-        // We'll do a direct native method to get offset and compare.
-        scrollViewRef.current?.getScrollableNode()?.measureInWindow((_x, pageY) => {
-          // Not reliable for content offset. Instead, we can use scrollTo with condition.
-          // Simpler: force scroll to lock position if we detect it's above.
-          // We'll call this after any scroll event via onScrollEndDrag.
-        });
-        // Force scroll to lock position if current offset is less than lockPosition
         const currentOffset = scrollY.value;
         if (currentOffset < lockPosition) {
           scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
@@ -209,7 +202,6 @@ export default function HomeScreen() {
     );
   };
 
-  // Called after dragging ends
   const handleScrollEndDrag = (event: any) => {
     if (activeCategory === "All") return;
     const currentOffset = event.nativeEvent.contentOffset.y;
@@ -242,13 +234,10 @@ export default function HomeScreen() {
     );
   };
 
-  // Scroll to lock position when category changes (non-All) and also scroll to top when All
   const adjustScrollForCategory = () => {
     if (activeCategory === "All") {
-      // Allow full scroll, no lock. Optionally scroll to top to show hero.
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     } else {
-      // Scroll to lock position (category bar under header)
       setTimeout(() => {
         categoryContainerRef.current?.measureLayout(
           scrollViewRef.current as any,
@@ -267,7 +256,7 @@ export default function HomeScreen() {
     adjustScrollForCategory();
   }, [activeCategory]);
 
-  // Animated Header Styles (unchanged)
+  // Animated Header Styles
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
     return {
@@ -323,7 +312,7 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
-  // Date popup
+  // Date popup logic (same as Next.js)
   useEffect(() => {
     if (user) {
       const missingDob = !user.dob;
@@ -362,6 +351,42 @@ export default function HomeScreen() {
       Alert.alert("Error", "An error occurred");
     } finally {
       setIsSavingDates(false);
+    }
+  };
+
+  const handleSkipPopup = async () => {
+    await AsyncStorage.setItem('skippedDatePopup', 'true');
+    setShowDatePopup(false);
+  };
+
+  const openDatePicker = (type: 'dob' | 'anniversary') => {
+    setActiveDatePicker(type);
+    // Pre-fill with existing date or today
+    if (type === 'dob' && dob) {
+      setTempDate(new Date(dob));
+    } else if (type === 'anniversary' && anniversary) {
+      setTempDate(new Date(anniversary));
+    } else {
+      setTempDate(new Date());
+    }
+  };
+
+  const onDateSelected = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setActiveDatePicker(null); // close picker on Android after selection
+    }
+    if (selectedDate) {
+      const formatted = selectedDate.toISOString().split('T')[0];
+      if (activeDatePicker === 'dob') {
+        setDob(formatted);
+      } else if (activeDatePicker === 'anniversary') {
+        setAnniversary(formatted);
+      }
+    }
+    if (Platform.OS === 'ios') {
+      // On iOS we keep picker open until user closes it via a "Done" button? 
+      // We'll close after selection for simplicity.
+      setActiveDatePicker(null);
     }
   };
 
@@ -429,7 +454,7 @@ export default function HomeScreen() {
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
       >
-        {/* Hero Section - Always present but may be locked out */}
+        {/* Hero Section */}
         <View className="bg-white pb-2 relative">
           {homeData.heroSlides.length > 0 && (
             <AutoCarousel
@@ -456,7 +481,7 @@ export default function HomeScreen() {
           <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
 
-        {/* Rest of content (unchanged) */}
+        {/* Rest of content */}
         <View className="bg-white pb-24">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row px-4 py-4" contentContainerStyle={{ paddingRight: 20 }}>
             <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
@@ -585,40 +610,107 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Special Dates Modal */}
+      {/* ★★★ FIXED DATE POPUP (Same logic as Next.js) ★★★ */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
-            <View className="bg-orange-50 p-6 items-center">
-              <Gift size={40} color="#f97316" />
-              <Text className="text-xl font-bold text-orange-600 mt-3 font-sans">A Special Gift! 🎁</Text>
-              <Text className="text-sm text-center text-gray-600 mt-2 font-sans">
-                Add your special dates and get a Flat 5% OFF on your celebration days!
+            {/* Header with gradient and gift icon */}
+            <View className="relative bg-gradient-to-br from-amber-100 via-orange-50 to-rose-100 p-8 pb-10 items-center overflow-hidden">
+              <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-300/40 rounded-full blur-2xl" />
+              <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-300/40 rounded-full blur-2xl" />
+              <View className="relative z-10 w-20 h-20 bg-white/80 backdrop-blur-md rounded-full items-center justify-center mb-4 shadow-xl border border-white/50">
+                <Gift size={40} color="#f97316" />
+                <Sparkles size={24} color="#fbbf24" style={{ position: 'absolute', top: -5, right: -5 }} />
+              </View>
+              <Text className="text-2xl font-black text-center bg-gradient-to-r from-orange-600 to-rose-600 bg-clip-text text-transparent drop-shadow-sm pb-1 font-sans">
+                A Special Gift! 🎁
+              </Text>
+              <Text className="text-sm text-gray-700 font-medium text-center px-2 mt-2 leading-relaxed">
+                Add your special dates and get a <Text className="font-black text-rose-600 bg-white/60 px-2 py-0.5 rounded-md">Flat 5% OFF</Text> on your celebration days!
               </Text>
             </View>
-            <View className="p-6 space-y-4">
+
+            {/* Body with birthday/anniversary rows */}
+            <View className="bg-white rounded-t-[2rem] -mt-6 p-6 pt-8 space-y-5">
               {!user?.dob && (
-                <View>
-                  <Text className="text-xs font-bold text-pink-500 mb-1 uppercase font-sans">Your Birthday</Text>
-                  <View className="flex-row items-center border-2 border-gray-100 rounded-xl px-4 py-3 bg-gray-50">
+                <TouchableOpacity onPress={() => openDatePicker('dob')} className="relative">
+                  <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Cake size={20} color="#f472b6" />
-                    <Text className="ml-3 text-gray-400 font-medium font-sans">Use profile section to add Date</Text>
                   </View>
-                </View>
+                  <View className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
+                    <Text className={`text-sm font-bold ${dob ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {dob ? new Date(dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select Birthday'}
+                    </Text>
+                    <ChevronRight size={16} color="#9ca3af" />
+                  </View>
+                  <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-pink-100">
+                    <Text className="text-[10px] font-bold uppercase text-pink-500">Your Birthday</Text>
+                  </View>
+                </TouchableOpacity>
               )}
-              <TouchableOpacity
-                onPress={handleSaveDates}
-                className="w-full bg-orange-500 h-14 rounded-xl items-center justify-center mt-4 shadow-sm"
-              >
-                {isSavingDates ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-base font-sans">Claim 5% Discount</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowDatePopup(false)} className="items-center py-3">
-                <Text className="text-gray-400 font-semibold font-sans">Maybe Later</Text>
-              </TouchableOpacity>
+
+              {!user?.anniversary && (
+                <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative mt-2">
+                  <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+                    <Heart size={20} color="#f43f5e" />
+                  </View>
+                  <View className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
+                    <Text className={`text-sm font-bold ${anniversary ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {anniversary ? new Date(anniversary).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select Anniversary'}
+                    </Text>
+                    <ChevronRight size={16} color="#9ca3af" />
+                  </View>
+                  <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-red-100">
+                    <Text className="text-[10px] font-bold uppercase text-red-500">Anniversary</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              <View className="flex-col gap-3 mt-8">
+                <TouchableOpacity
+                  onPress={handleSaveDates}
+                  disabled={isSavingDates || (!dob && !anniversary && !user?.dob && !user?.anniversary)}
+                  className={`w-full h-14 rounded-2xl items-center justify-center shadow-xl ${isSavingDates || (!dob && !anniversary && !user?.dob && !user?.anniversary) ? 'bg-gray-400' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}
+                >
+                  {isSavingDates ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white font-black text-base tracking-wide">Claim 5% Discount</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSkipPopup} className="py-3">
+                  <Text className="text-gray-400 font-semibold text-center">Maybe Later</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
       </Modal>
+
+      {/* Date Picker Modal (using native DateTimePicker) */}
+      {activeDatePicker && (
+        <Modal transparent={true} animationType="slide">
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 }}>
+              <DateTimePicker
+                value={tempDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+                onChange={onDateSelected}
+                maximumDate={new Date()}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  onPress={() => setActiveDatePicker(null)}
+                  style={{ marginTop: 16, alignItems: 'center', padding: 12, backgroundColor: '#f97316', borderRadius: 12 }}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Done</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }

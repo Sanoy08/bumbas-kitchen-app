@@ -1,5 +1,4 @@
 // src/app/(shop)/account/orders/index.tsx
-
 import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -21,6 +20,9 @@ import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
 import { optimizeImageUrl } from '@/lib/imageUtils';
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+
+// ★ নতুন ইনভয়েস জেনারেটর ইমপোর্ট করা হলো
+import { generateInvoice } from '@/lib/invoiceGenerator';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 
@@ -53,6 +55,7 @@ export default function AccountOrdersScreen() {
   // Modal State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); // ★ লোডিং স্টেট
 
   useEffect(() => {
     if (isInitialized && !user) {
@@ -97,10 +100,16 @@ export default function AccountOrdersScreen() {
     return { bg: 'bg-gray-100', text: 'text-gray-700' };
   };
 
+  // ★ নতুন ডাউনলোড লজিক
   const handleDownloadInvoice = async (order: Order) => {
-    // মোবাইল অ্যাপে পিডিএফ জেনারেট করার জন্য expo-print/expo-sharing লাগে।
-    // আপাতত এখানে একটি অ্যালার্ট দেওয়া হলো।
-    Alert.alert("Coming Soon", "Invoice download feature will be available in the next update!");
+    setIsDownloading(true);
+    try {
+      await generateInvoice(order);
+    } catch (e) {
+      Alert.alert("Error", "Failed to generate invoice");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (!isInitialized || isLoading) {
@@ -207,12 +216,11 @@ export default function AccountOrdersScreen() {
         </View>
       </ScrollView>
 
-      {/* --- 3. Order Details Modal (Bottom Sheet Style) --- */}
+      {/* --- 3. Order Details Modal --- */}
       <Modal visible={isModalOpen} animationType="slide" transparent={true} onRequestClose={() => setIsModalOpen(false)}>
         <View className="flex-1 justify-end bg-black/50">
           <View className="bg-white rounded-t-3xl h-[85%] overflow-hidden">
             
-            {/* Modal Header */}
             <View className="flex-row items-center justify-between p-5 border-b border-gray-100 bg-white z-10 shadow-sm">
               <View>
                 <View className="flex-row items-center gap-3 mb-1">
@@ -232,12 +240,10 @@ export default function AccountOrdersScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Modal Content */}
             <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
               {selectedOrder && (
                 <View className="space-y-6">
                   
-                  {/* Items List */}
                   <View>
                     <Text className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3 font-sans">Items Ordered</Text>
                     <View className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
@@ -265,7 +271,6 @@ export default function AccountOrdersScreen() {
                     </View>
                   </View>
 
-                  {/* Delivery Info */}
                   <View className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                     <Text className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-4 font-sans">Delivery Info</Text>
                     
@@ -290,7 +295,6 @@ export default function AccountOrdersScreen() {
                     </View>
                   </View>
 
-                  {/* Bill Details */}
                   <View className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mb-4">
                     <View className="flex-row justify-between mb-2">
                       <Text className="text-sm text-gray-500 font-medium font-sans">Subtotal</Text>
@@ -309,14 +313,20 @@ export default function AccountOrdersScreen() {
                     </View>
                   </View>
 
-                  {/* Download Invoice Button */}
                   <TouchableOpacity 
                     onPress={() => handleDownloadInvoice(selectedOrder)}
+                    disabled={isDownloading}
                     activeOpacity={0.8}
-                    className="w-full h-14 bg-gray-900 rounded-xl flex-row items-center justify-center shadow-md mb-6"
+                    className={`w-full h-14 rounded-xl flex-row items-center justify-center shadow-md mb-6 ${isDownloading ? 'bg-gray-700' : 'bg-gray-900'}`}
                   >
-                    <Download size={18} color="#ffffff" className="mr-2" />
-                    <Text className="text-white font-bold text-base font-sans">Download Invoice</Text>
+                    {isDownloading ? (
+                      <ActivityIndicator color="#ffffff" />
+                    ) : (
+                      <>
+                        <Download size={18} color="#ffffff" className="mr-2" />
+                        <Text className="text-white font-bold text-base font-sans">Download Invoice</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
 
                 </View>
