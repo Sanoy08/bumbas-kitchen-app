@@ -51,8 +51,22 @@ export default function LoginScreen() {
   const [limitData, setLimitData] = useState({ ipLeft: 5, phoneLeft: 3, isBlocked: false, resetTime: '', reason: '' });
   const [showBlockPopup, setShowBlockPopup] = useState(false);
   
+  // Determine default bottom offset based on step (without keyboard)
+  const getDefaultBottom = (currentStep: 'phone' | 'otp') => {
+    return currentStep === 'phone' ? 20 : 52; // OTP step lifts sheet higher by default
+  };
+
   // Animated value for bottom sheet position
-  const animatedBottom = useRef(new Animated.Value(20)).current;
+  const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
+
+  // When step changes, animate to the new default bottom position
+  useEffect(() => {
+    Animated.timing(animatedBottom, {
+      toValue: getDefaultBottom(step),
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [step]);
 
   // Keyboard handling with step-aware offset
   useEffect(() => {
@@ -72,8 +86,9 @@ export default function LoginScreen() {
       }).start();
     };
     const keyboardWillHide = () => {
+      // Return to step-specific default position
       Animated.timing(animatedBottom, {
-        toValue: 20,
+        toValue: getDefaultBottom(step),
         duration: 250,
         useNativeDriver: false,
       }).start();
@@ -89,7 +104,7 @@ export default function LoginScreen() {
       showListener.remove();
       hideListener.remove();
     };
-  }, [animatedBottom, step]); // step added to dependency
+  }, [animatedBottom, step]);
 
   const scrollToInput = (yPosition: number) => {
     scrollViewRef.current?.scrollTo({ y: yPosition - 20, animated: true });
