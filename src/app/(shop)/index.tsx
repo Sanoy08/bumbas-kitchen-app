@@ -311,6 +311,12 @@ export default function HomeScreen() {
   }, [user, hasSkippedSession]);
 
   const handleSaveDates = async () => {
+    // ★ কন্ডিশন ১: DOB না থাকলে এরর টোস্ট (যদি ইউজার আগে থেকেই DOB না পেয়ে থাকে)
+    if (isDobMissing && !dob) {
+      toast.error("Please add your Birthday first.");
+      return;
+    }
+
     setIsSavingDates(true);
     try {
       const nameParts = user?.name ? user.name.trim().split(' ') : ['User', ''];
@@ -318,7 +324,7 @@ export default function HomeScreen() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName: nameParts[0],
+          firstName: nameParts,
           lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '.',
           dob: dob || user?.dob,
           anniversary: anniversary || user?.anniversary
@@ -326,16 +332,19 @@ export default function HomeScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-    setShowDatePopup(false); // আগে Modal টা ক্লোজ হবে
-    setTimeout(() => {
-      toast.success("Special dates saved successfully! 🎉"); // তারপর টোস্ট দেখাবে
-    }, 300);
-    await login(data.user);
-  } else {
-        toast.error(data.error || "Failed to save"); // ★ Alert-এর বদলে Toast
+        // ★ কন্ডিশন ২: যদি ক্লেম সাকসেসফুল হয়, তবে সেশনের জন্য স্কিপ করে দেওয়া হলো
+        setHasSkippedSession(true);
+        setShowDatePopup(false); 
+        
+        setTimeout(() => {
+          toast.success("Special dates saved successfully! 🎉");
+        }, 300);
+        await login(data.user);
+      } else {
+        toast.error(data.error || "Failed to save");
       }
     } catch (e) {
-      toast.error("An error occurred"); // ★ Alert-এর বদলে Toast
+      toast.error("An error occurred");
     } finally {
       setIsSavingDates(false);
     }
