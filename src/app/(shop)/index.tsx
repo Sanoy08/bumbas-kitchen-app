@@ -14,7 +14,7 @@ import {
   TrainFront, Truck, User
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -23,6 +23,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { toast } from 'sonner-native'; // ★ Sonner Import করা হলো
 
 import { ProductCard } from '@/components/shop/ProductCard';
 import { SpecialDishCard } from '@/components/shop/SpecialDishCard';
@@ -325,14 +326,16 @@ export default function HomeScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        Alert.alert("Success", "Special dates saved successfully! 🎉");
-        await login(data.user);
-        setShowDatePopup(false);
-      } else {
-        Alert.alert("Error", data.error || "Failed to save");
+    setShowDatePopup(false); // আগে Modal টা ক্লোজ হবে
+    setTimeout(() => {
+      toast.success("Special dates saved successfully! 🎉"); // তারপর টোস্ট দেখাবে
+    }, 300);
+    await login(data.user);
+  } else {
+        toast.error(data.error || "Failed to save"); // ★ Alert-এর বদলে Toast
       }
     } catch (e) {
-      Alert.alert("Error", "An error occurred");
+      toast.error("An error occurred"); // ★ Alert-এর বদলে Toast
     } finally {
       setIsSavingDates(false);
     }
