@@ -170,6 +170,9 @@ export default function HomeScreen() {
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
 
+  // ★ New state for session-only skip
+  const [hasSkippedSession, setHasSkippedSession] = useState(false);
+
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
 
@@ -292,18 +295,19 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
+  // ★ Modified: No persistent skip, only session skip
   useEffect(() => {
     if (user) {
       const missingDob = !user.dob || user.dob === "";
       const missingAnniversary = !user.anniversary || user.anniversary === "";
       
-      AsyncStorage.getItem('skippedDatePopup').then((hasSkipped) => {
-        if ((missingDob || missingAnniversary) && !hasSkipped) {
-          setTimeout(() => setShowDatePopup(true), 2000);
-        }
-      });
+      // Show popup only if both fields are missing AND user hasn't skipped in this session
+      if ((missingDob || missingAnniversary) && !hasSkippedSession) {
+        const timer = setTimeout(() => setShowDatePopup(true), 2000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [user]);
+  }, [user, hasSkippedSession]);
 
   const handleSaveDates = async () => {
     setIsSavingDates(true);
@@ -334,8 +338,9 @@ export default function HomeScreen() {
     }
   };
 
-  const handleSkipPopup = async () => {
-    await AsyncStorage.setItem('skippedDatePopup', 'true');
+  // ★ Skip only this session (no storage)
+  const handleSkipPopup = () => {
+    setHasSkippedSession(true);
     setShowDatePopup(false);
   };
 
@@ -354,7 +359,6 @@ export default function HomeScreen() {
     if (Platform.OS === 'android') {
       setActiveDatePicker(null); 
     }
-    // Cancel button in Android triggers "dismissed"
     if (event.type !== 'dismissed' && selectedDate) {
       const formatted = selectedDate.toISOString().split('T')[0];
       if (activeDatePicker === 'dob') {
@@ -588,12 +592,11 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* ★★★ FIXED DATE POPUP (Solid Colors & Fixed Heights) ★★★ */}
+      {/* ★★★ DATE POPUP (Session-only skip) ★★★ */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
             
-            {/* Header with solid colors */}
             <View className="relative bg-orange-50 p-8 pb-10 items-center overflow-hidden">
               <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-200/50 rounded-full" />
               <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />
@@ -609,18 +612,16 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            {/* Body */}
             <View className="bg-white rounded-t-[2rem] -mt-6 p-6 pt-8">
               {isDobMissing && (
                 <TouchableOpacity onPress={() => openDatePicker('dob')} className="relative mb-4">
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Cake size={20} color="#f472b6" />
                   </View>
-                  {/* ★ Fixed height h-14 added here ★ */}
                   <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
                     <Text className={`text-sm font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
-  {dob ? format(new Date(dob), 'MMMM do, yyyy') : 'Select Birthday'}
-</Text>
+                      {dob ? format(new Date(dob), 'MMMM do, yyyy') : 'Select Birthday'}
+                    </Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-pink-100">
@@ -634,11 +635,10 @@ export default function HomeScreen() {
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Heart size={20} color="#f43f5e" />
                   </View>
-                  {/* ★ Fixed height h-14 added here ★ */}
                   <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
                     <Text className={`text-sm font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
-  {anniversary ? format(new Date(anniversary), 'MMMM do, yyyy') : 'Select Anniversary'}
-</Text>
+                      {anniversary ? format(new Date(anniversary), 'MMMM do, yyyy') : 'Select Anniversary'}
+                    </Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-red-100">
@@ -668,7 +668,7 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* ★ Android-এ Modal ছাড়া সরাসরি DatePicker রেন্ডার করা হয়েছে ★ */}
+      {/* Date Picker Modal */}
       {activeDatePicker && (
         Platform.OS === 'ios' ? (
           <Modal transparent={true} animationType="slide">
