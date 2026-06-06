@@ -84,36 +84,48 @@ export default function AccountScreen() {
   }, [user, isInitialized]);
 
   const onProfileSubmit = async () => {
-    if (!user) return;
-    setIsSaving(true);
-    try {
-      const nameParts = user.name ? user.name.split(' ') : ['User', ''];
-      
-      const payload = {
-        firstName: nameParts,
-        lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '.',
-        dob: dob,
-        anniversary: anniversary,
-      };
-      
-      const res = await fetch(`${API_URL}/auth/update-profile`, { 
-        method: 'PUT', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(payload) 
-      });
-      
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Failed to update profile");
-      
-      await login(resData.user);
-      Alert.alert("Success", "Profile Updated Successfully! 🎉");
-      setIsEditProfileOpen(false);
-    } catch (e: any) { 
-      Alert.alert("Error", e.message); 
-    } finally {
-      setIsSaving(false);
+  if (!user) return;
+  setIsSaving(true);
+  try {
+    // ✅ সুরক্ষিতভাবে নাম স্ট্রিং এ রূপান্তর
+    let firstName = "User";
+    let lastName = ".";
+    
+    if (user.name && typeof user.name === 'string') {
+      const parts = user.name.trim().split(/\s+/); // একাধিক স্পেস হ্যান্ডেল
+      firstName = parts[0] || "User";
+      lastName = parts.slice(1).join(' ') || ".";
+    } else if (user.firstName && typeof user.firstName === 'string') {
+      // ব্যাকআপ: যদি ইউজার অবজেক্টে firstName আলাদা থাকে
+      firstName = user.firstName;
+      lastName = user.lastName || ".";
     }
-  };
+
+    const payload = {
+      firstName: firstName,    // ✅ এখন string
+      lastName: lastName,      // ✅ string
+      dob: dob,
+      anniversary: anniversary,
+    };
+    
+    const res = await fetch(`${API_URL}/auth/update-profile`, { 
+      method: 'PUT', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(payload) 
+    });
+    
+    const resData = await res.json();
+    if (!res.ok) throw new Error(resData.error || "Failed to update profile");
+    
+    await login(resData.user);
+    Alert.alert("Success", "Profile Updated Successfully! 🎉");
+    setIsEditProfileOpen(false);
+  } catch (e: any) { 
+    Alert.alert("Error", e.message); 
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const confirmLogout = () => {
     Alert.alert(
@@ -227,7 +239,11 @@ export default function AccountScreen() {
             <View className="flex-row gap-4 mb-6">
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">First Name</Text>
-                <TextInput value={user?.name?.split(' ')} editable={false} className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-500 font-medium font-sans" />
+                <TextInput 
+  value={user?.name ? user.name.split(' ')[0] : 'User'} 
+  editable={false} 
+  className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-500 font-medium font-sans" 
+/>
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">Last Name</Text>
