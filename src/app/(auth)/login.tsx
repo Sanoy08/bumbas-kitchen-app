@@ -1,24 +1,39 @@
-// src\app\(auth)\login.tsx
-
+// src/app/(auth)/login.tsx
 import { useAuthStore } from '@/store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';
-import { AlertOctagon, ArrowLeft, ArrowRight, Clock, LockKeyhole, Phone, RefreshCw, ShieldAlert } from 'lucide-react-native';
+import { AlertOctagon, ArrowLeft, Clock, RefreshCw, ShieldAlert } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Keyboard,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import * as z from 'zod';
 
-// Zod Schema
 const phoneSchema = z.object({
   phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian Mobile Number'),
 });
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const HERO_IMAGE_URL = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1000&auto=format&fit=crop';
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const { control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(phoneSchema),
@@ -26,17 +41,39 @@ export default function LoginScreen() {
   });
 
   const phoneValue = watch('phone');
-
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef<Array<TextInput | null>>([]);
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
-
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [canResend, setCanResend] = useState(false);
-
   const [limitData, setLimitData] = useState({ ipLeft: 5, phoneLeft: 3, isBlocked: false, resetTime: '', reason: '' });
   const [showBlockPopup, setShowBlockPopup] = useState(false);
+  const [sheetBottomOffset, setSheetBottomOffset] = useState(20);
+
+  useEffect(() => {
+    const keyboardWillShow = (e: any) => {
+      setSheetBottomOffset(e.endCoordinates.height * 0.8 - 70);
+    };
+    const keyboardWillHide = () => {
+      setSheetBottomOffset(20);
+    };
+
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showListener = Keyboard.addListener(showEvent, keyboardWillShow);
+    const hideListener = Keyboard.addListener(hideEvent, keyboardWillHide);
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
+
+  const scrollToInput = (yPosition: number) => {
+    scrollViewRef.current?.scrollTo({ y: yPosition - 20, animated: true });
+  };
 
   const fetchLimit = async (phoneVal: string = '') => {
     try {
@@ -52,7 +89,7 @@ export default function LoginScreen() {
   };
 
   useEffect(() => { fetchLimit(); }, []);
-  useEffect(() => { if (phoneValue.length === 10) fetchLimit(phoneValue); }, [phoneValue]);
+  useEffect(() => { if (phoneValue?.length === 10) fetchLimit(phoneValue); }, [phoneValue]);
 
   useEffect(() => {
     if (step === 'otp' && timeLeft > 0) {
@@ -84,17 +121,9 @@ export default function LoginScreen() {
         body: JSON.stringify({ phone: phoneValue, otp: otpValue }),
       });
       const data = await res.json();
-
       if (data.success) {
         await login(data.user, data.token);
-        Alert.alert('Success', 'Welcome back!');
-        
-        if (data.user.role === 'admin') {
-          // নেটিভ অ্যাপে অ্যাডমিন ড্যাশবোর্ড থাকলে সেখানে রাউট করুন
-          router.replace('/admin');
-        } else {
-          router.replace('/'); // হোম স্ক্রিন
-        }
+        router.replace('/');
       } else {
         Alert.alert('Error', data.error || 'Invalid OTP');
         setIsLoading(false);
@@ -110,7 +139,6 @@ export default function LoginScreen() {
     const newOtp = [...otp];
     newOtp[index] = value.substring(value.length - 1);
     setOtp(newOtp);
-
     if (value && index < 5) inputRefs.current[index + 1]?.focus();
     const combinedOtp = newOtp.join('');
     if (combinedOtp.length === 6 && index === 5 && value) verifyOtpLogic(combinedOtp);
@@ -127,7 +155,6 @@ export default function LoginScreen() {
       setShowBlockPopup(true);
       return;
     }
-
     setIsLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/phone/send`, {
@@ -135,9 +162,7 @@ export default function LoginScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: data.phone }),
       });
-      
       const responseData = await res.json();
-
       if (responseData.success) {
         setStep('otp');
         setCanResend(false);
@@ -159,80 +184,98 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 bg-white">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
-        <View className="w-full max-w-sm mx-auto space-y-8">
-          
-          <View className="items-center mb-4">
-            <View className="h-24 w-24 bg-primary/10 rounded-full items-center justify-center relative">
-              <LockKeyhole size={40} color="#e11d48" />
-            </View>
-          </View>
+    <View style={styles.container}>
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: HERO_IMAGE_URL }} style={styles.heroImage} resizeMode="cover" />
+        <View style={styles.overlay} />
+      </View>
 
-          <View className="space-y-2 mb-6 items-center">
-            <Text className="text-3xl font-bold text-gray-900">
-              Welcome <Text className="text-primary">Back</Text>
-            </Text>
-            <Text className="text-base text-gray-500 text-center mt-2">
-              {step === 'phone' ? 'Sign in with your phone number' : `Enter code sent to +91 ${phoneValue}`}
-            </Text>
-          </View>
-
+      <View style={[styles.bottomSheet, { bottom: sheetBottomOffset }]}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
           {step === 'phone' ? (
-            <View className="space-y-5">
-              <View className="space-y-2">
-                <Text className="text-sm font-medium text-gray-900 mb-2">Phone Number</Text>
-                <View className="relative justify-center">
-                  <View className="absolute left-3 z-10">
-                    <Phone size={18} color="#9ca3af" />
-                  </View>
+            <View style={styles.phoneStepContainer}>
+              <View>
+                <Text className="text-center text-gray-500 font-medium text-base mb-6">
+                  Log in or sign up
+                </Text>
+
+                <View className="space-y-2">
                   <Controller
                     control={control}
                     name="phone"
                     render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        className={`h-12 border ${errors.phone ? 'border-red-500' : 'border-gray-200'} bg-white pl-10 pr-4 text-base rounded-xl`}
-                        keyboardType="numeric"
-                        maxLength={10}
-                        placeholder="9876543210"
-                        onBlur={onBlur}
-                        onChangeText={(text) => onChange(text.replace(/\D/g, ''))}
-                        value={value}
-                        editable={!isLoading}
-                      />
+                      <View
+                        className={`flex-row items-center border ${errors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl bg-white overflow-hidden h-14`}
+                      >
+                        <View className="flex-row items-center px-4 bg-gray-50 border-r border-gray-300 h-full">
+                          <Text className="text-xl mr-1">🇮🇳</Text>
+                          <Text className="text-gray-600 font-medium text-base ml-1">+91</Text>
+                        </View>
+                        <TextInput
+                          className="flex-1 px-4 text-base text-gray-900 h-full font-medium tracking-widest"
+                          keyboardType="numeric"
+                          maxLength={10}
+                          placeholder="Enter Phone Number"
+                          placeholderTextColor="#9ca3af"
+                          onBlur={onBlur}
+                          onChangeText={(text) => onChange(text.replace(/\D/g, ''))}
+                          value={value}
+                          editable={!isLoading}
+                          onFocus={(event) => {
+                            event.currentTarget.measure((fx, fy, width, height, px, py) => {
+                              scrollToInput(py);
+                            });
+                          }}
+                        />
+                      </View>
                     )}
                   />
+                  {errors.phone && <Text className="text-red-500 text-xs mt-1 px-1">{errors.phone.message}</Text>}
+                  {phoneValue?.length === 10 && !limitData.isBlocked && (
+                    <View className="flex-row items-center mt-2 px-1">
+                      <ShieldAlert size={14} color={limitData.phoneLeft === 0 ? "#ef4444" : "#6b7280"} />
+                      <Text className={`text-xs ml-1 font-medium ${limitData.phoneLeft === 0 ? "text-red-500" : "text-gray-500"}`}>
+                        {limitData.phoneLeft} attempts left for this number
+                      </Text>
+                    </View>
+                  )}
                 </View>
-                {errors.phone && <Text className="text-red-500 text-xs mt-1">{errors.phone.message}</Text>}
-                
-                {phoneValue.length === 10 && !limitData.isBlocked && (
-                  <View className="flex-row items-center mt-2">
-                    <ShieldAlert size={14} color={limitData.phoneLeft === 0 ? "#ef4444" : "#6b7280"} />
-                    <Text className={`text-xs ml-1 font-medium ${limitData.phoneLeft === 0 ? "text-red-500" : "text-gray-500"}`}>
-                      {limitData.phoneLeft} attempts left for this number
-                    </Text>
-                  </View>
-                )}
+
+                <TouchableOpacity
+                  onPress={handleSubmit(onPhoneSubmit)}
+                  disabled={isLoading}
+                  className="h-14 w-full bg-[#ef4444] items-center justify-center rounded-xl mt-6"
+                >
+                  {isLoading ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-lg">Continue</Text>}
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                onPress={handleSubmit(onPhoneSubmit)}
-                disabled={isLoading}
-                className="h-12 w-full bg-primary items-center justify-center rounded-xl flex-row shadow-sm mt-4"
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Text className="text-white font-medium text-base mr-2">Get OTP</Text>
-                    <ArrowRight size={18} color="#fff" />
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={styles.signupContainer}>
+                <Text className="text-sm text-gray-500">Don't have an account? </Text>
+                <Link href="/(auth)/register" asChild>
+                  <TouchableOpacity>
+                    <Text className="text-[#ef4444] font-bold">Sign up free</Text>
+                  </TouchableOpacity>
+                </Link>
+              </View>
             </View>
           ) : (
             <View className="space-y-6">
-              <View className="flex-row justify-center space-x-2 sm:space-x-3 mb-4">
+              <Text className="text-center text-gray-800 font-bold text-xl mb-1">
+                Verify your number
+              </Text>
+              <Text className="text-center text-gray-500 text-sm mb-6">
+                We have sent a verification code to{'\n'}
+                <Text className="font-bold text-gray-700">+91 {phoneValue}</Text>
+              </Text>
+
+              <View className="flex-row justify-center space-x-2 sm:space-x-3 mb-6">
                 {otp.map((digit, index) => (
                   <TextInput
                     key={index}
@@ -243,60 +286,53 @@ export default function LoginScreen() {
                     onChangeText={(val) => handleOtpChange(index, val)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
                     editable={!isLoading}
-                    className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl bg-white text-gray-900 mx-1"
-                    style={{ borderColor: digit ? '#e11d48' : '#e5e7eb' }}
+                    className="w-12 h-14 text-center text-2xl font-bold border-2 rounded-xl bg-white text-gray-900 mx-1"
+                    style={{ borderColor: digit ? '#ef4444' : '#e5e7eb' }}
+                    onFocus={(event) => {
+                      event.currentTarget.measure((fx, fy, width, height, px, py) => {
+                        scrollToInput(py);
+                      });
+                    }}
                   />
                 ))}
               </View>
 
-              <View className="flex-row items-center justify-between mb-6 px-2">
+              <View className="flex-row items-center justify-between mb-8 px-2">
                 <Text className="text-sm text-gray-500">Didn't receive code?</Text>
                 {canResend ? (
                   <TouchableOpacity onPress={() => onPhoneSubmit({ phone: phoneValue })} className="flex-row items-center">
-                    <RefreshCw size={14} color="#e11d48" />
-                    <Text className="text-primary font-medium ml-1">Resend</Text>
+                    <RefreshCw size={14} color="#ef4444" />
+                    <Text className="text-[#ef4444] font-bold ml-1">Resend</Text>
                   </TouchableOpacity>
                 ) : (
-                  <Text className="text-gray-400 font-medium">Resend in 00:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}</Text>
+                  <Text className="text-gray-400 font-medium">Resend SMS in {timeLeft}s</Text>
                 )}
               </View>
 
-              <View className="flex-row space-x-3">
+              <View className="flex-row space-x-3 pb-4">
                 <TouchableOpacity
                   onPress={() => setStep('phone')}
                   disabled={isLoading}
-                  className="h-12 w-1/3 rounded-xl border border-gray-200 items-center justify-center flex-row bg-gray-50 mr-2"
+                  className="h-14 w-1/3 rounded-xl border border-gray-200 items-center justify-center flex-row bg-gray-50 mr-2"
                 >
-                  <ArrowLeft size={16} color="#4b5563" />
-                  <Text className="text-gray-600 ml-1 font-medium">Back</Text>
+                  <ArrowLeft size={18} color="#4b5563" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => verifyOtpLogic(otp.join(''))}
                   disabled={isLoading}
-                  className="h-12 flex-1 bg-primary items-center justify-center rounded-xl shadow-sm"
+                  className="h-14 flex-1 bg-[#ef4444] items-center justify-center rounded-xl shadow-sm"
                 >
-                  {isLoading ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-medium text-base">Verify & Login</Text>}
+                  {isLoading ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-lg">Verify & Login</Text>}
                 </TouchableOpacity>
               </View>
             </View>
           )}
+        </ScrollView>
+      </View>
 
-          <View className="mt-8 items-center flex-row justify-center">
-            <Text className="text-sm text-gray-500">Don't have an account? </Text>
-            <Link href="/(auth)/register" asChild>
-              <TouchableOpacity>
-                <Text className="text-primary font-semibold">Sign up free</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
-
-        </View>
-      </ScrollView>
-
-      {/* Block Popup Modal */}
       <Modal visible={showBlockPopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/50 px-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-sm items-center">
+          <View className="bg-white rounded-3xl p-6 w-full max-w-sm items-center">
             <View className="h-16 w-16 bg-red-100 rounded-full items-center justify-center mb-4">
               <AlertOctagon size={32} color="#dc2626" />
             </View>
@@ -305,16 +341,65 @@ export default function LoginScreen() {
               {limitData.reason} To protect your account from spam, we've temporarily paused OTPs.
             </Text>
             <View className="bg-gray-50 border border-gray-200 w-full rounded-xl p-4 items-center mb-6">
-              <Clock size={20} color="#9ca3af" className="mb-1" />
+              <Clock size={20} color="#9ca3af" />
               <Text className="text-xs text-gray-500 uppercase font-bold tracking-wider mt-1">Try again at</Text>
               <Text className="text-lg font-bold text-gray-800 mt-1">{formatResetTime(limitData.resetTime)}</Text>
             </View>
-            <TouchableOpacity onPress={() => setShowBlockPopup(false)} className="w-full h-12 bg-gray-900 rounded-xl items-center justify-center">
-              <Text className="text-white font-medium text-base">I Understand</Text>
+            <TouchableOpacity onPress={() => setShowBlockPopup(false)} className="w-full h-14 bg-gray-900 rounded-xl items-center justify-center">
+              <Text className="text-white font-bold text-lg">I Understand</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  imageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: screenWidth * (4 / 3),
+    overflow: 'hidden',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  bottomSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '80%',
+    // Shadow removed completely
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  phoneStepContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  signupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 100,       // moved further down
+  },
+});
