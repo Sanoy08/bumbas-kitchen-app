@@ -1,5 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { format } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   Cake,
   ChevronRight,
@@ -18,14 +20,16 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/store/authStore';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 
 // --- Reusable Menu Item Component ---
@@ -61,6 +65,7 @@ const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false 
 export default function AccountScreen() {
   const { user, login, logout, isInitialized } = useAuthStore();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   
   const [walletBalance, setWalletBalance] = useState(0);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -69,6 +74,10 @@ export default function AccountScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [dob, setDob] = useState("");
   const [anniversary, setAnniversary] = useState("");
+
+  // Date picker states
+  const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
+  const [tempDate, setTempDate] = useState(new Date());
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -83,49 +92,72 @@ export default function AccountScreen() {
     if (user.wallet?.currentBalance) setWalletBalance(user.wallet.currentBalance);
   }, [user, isInitialized]);
 
-  const onProfileSubmit = async () => {
-  if (!user) return;
-  setIsSaving(true);
-  try {
-    // ✅ সুরক্ষিতভাবে নাম স্ট্রিং এ রূপান্তর
-    let firstName = "User";
-    let lastName = ".";
-    
-    if (user.name && typeof user.name === 'string') {
-      const parts = user.name.trim().split(/\s+/); // একাধিক স্পেস হ্যান্ডেল
-      firstName = parts[0] || "User";
-      lastName = parts.slice(1).join(' ') || ".";
-    } else if (user.firstName && typeof user.firstName === 'string') {
-      // ব্যাকআপ: যদি ইউজার অবজেক্টে firstName আলাদা থাকে
-      firstName = user.firstName;
-      lastName = user.lastName || ".";
+  const openDatePicker = (type: 'dob' | 'anniversary') => {
+    setActiveDatePicker(type);
+    if (type === 'dob' && dob) {
+      setTempDate(new Date(dob));
+    } else if (type === 'anniversary' && anniversary) {
+      setTempDate(new Date(anniversary));
+    } else {
+      setTempDate(new Date());
     }
+  };
 
-    const payload = {
-      firstName: firstName,    // ✅ এখন string
-      lastName: lastName,      // ✅ string
-      dob: dob,
-      anniversary: anniversary,
-    };
-    
-    const res = await fetch(`${API_URL}/auth/update-profile`, { 
-      method: 'PUT', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify(payload) 
-    });
-    
-    const resData = await res.json();
-    if (!res.ok) throw new Error(resData.error || "Failed to update profile");
-    
-    await login(resData.user);
-    Alert.alert("Success", "Profile Updated Successfully! 🎉");
-    setIsEditProfileOpen(false);
-  } catch (e: any) { 
-    Alert.alert("Error", e.message); 
-  } finally {
-    setIsSaving(false);
-  }
-};
+  const onDateSelected = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setActiveDatePicker(null);
+    }
+    if (event.type !== 'dismissed' && selectedDate) {
+      const formatted = selectedDate.toISOString().split('T')[0];
+      if (activeDatePicker === 'dob') {
+        setDob(formatted);
+      } else if (activeDatePicker === 'anniversary') {
+        setAnniversary(formatted);
+      }
+    }
+  };
+
+  const onProfileSubmit = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      let firstName = "User";
+      let lastName = ".";
+      
+      if (user.name && typeof user.name === 'string') {
+        const parts = user.name.trim().split(/\s+/);
+        firstName = parts[0] || "User";
+        lastName = parts.slice(1).join(' ') || ".";
+      } else if (user.firstName && typeof user.firstName === 'string') {
+        firstName = user.firstName;
+        lastName = user.lastName || ".";
+      }
+
+      const payload = {
+        firstName: firstName,
+        lastName: lastName,
+        dob: dob,
+        anniversary: anniversary,
+      };
+      
+      const res = await fetch(`${API_URL}/auth/update-profile`, { 
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload) 
+      });
+      
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Failed to update profile");
+      
+      await login(resData.user);
+      Alert.alert("Success", "Profile Updated Successfully! 🎉");
+      setIsEditProfileOpen(false);
+    } catch (e: any) { 
+      Alert.alert("Error", e.message); 
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const confirmLogout = () => {
     Alert.alert(
@@ -214,7 +246,6 @@ export default function AccountScreen() {
         </View>
 
         {/* --- MENU LIST --- */}
-        {/* ★ এখানে Alert সরিয়ে router.push অ্যাড করা হয়েছে ★ */}
         <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/(shop)/account/orders')} />
         <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => Alert.alert("Addresses Page Coming Soon")} />
         <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/(shop)/account/wallet')} />
@@ -239,15 +270,19 @@ export default function AccountScreen() {
             <View className="flex-row gap-4 mb-6">
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">First Name</Text>
-                <TextInput 
-  value={user?.name ? user.name.split(' ')[0] : 'User'} 
-  editable={false} 
-  className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-500 font-medium font-sans" 
-/>
+                <View className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5">
+                  <Text className="text-gray-500 font-medium font-sans">
+                    {user?.name ? user.name.split(' ')[0] : 'User'}
+                  </Text>
+                </View>
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">Last Name</Text>
-                <TextInput value={user?.name?.split(' ').slice(1).join(' ')} editable={false} className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-500 font-medium font-sans" />
+                <View className="bg-gray-100 border border-gray-200 rounded-xl px-4 py-3.5">
+                  <Text className="text-gray-500 font-medium font-sans">
+                    {user?.name ? user.name.split(' ').slice(1).join(' ') : '.'}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -258,35 +293,37 @@ export default function AccountScreen() {
               </View>
 
               <View className="mb-4">
-                <Text className="text-xs font-bold text-gray-500 mb-2 uppercase font-sans">Birthday (YYYY-MM-DD)</Text>
-                <View className={`flex-row items-center bg-white border border-gray-200 rounded-xl px-4 py-3 ${hasDob ? 'opacity-60' : ''}`}>
+                <Text className="text-xs font-bold text-gray-500 mb-2 uppercase font-sans">Birthday</Text>
+                <TouchableOpacity 
+                  onPress={() => openDatePicker('dob')} 
+                  disabled={hasDob}
+                  activeOpacity={0.7}
+                  className={`flex-row items-center bg-white border border-gray-200 rounded-xl px-4 py-3 ${hasDob ? 'opacity-60' : ''}`}
+                >
                   <Cake size={18} color="#ec4899" />
-                  <TextInput 
-                    value={dob} 
-                    onChangeText={setDob} 
-                    editable={!hasDob} 
-                    placeholder="e.g. 1998-05-24" 
-                    placeholderTextColor="#9ca3af"
-                    className="flex-1 ml-3 font-medium text-gray-900 font-sans" 
-                  />
+                  <Text className="flex-1 ml-3 font-medium text-gray-900 font-sans">
+                    {dob ? format(new Date(dob), 'MMMM do, yyyy') : 'Select Birthday'}
+                  </Text>
                   {hasDob && <Lock size={14} color="#9ca3af" />}
-                </View>
+                  {!hasDob && <ChevronRight size={16} color="#9ca3af" />}
+                </TouchableOpacity>
               </View>
 
               <View>
-                <Text className="text-xs font-bold text-gray-500 mb-2 uppercase font-sans">Anniversary (YYYY-MM-DD)</Text>
-                <View className={`flex-row items-center bg-white border border-gray-200 rounded-xl px-4 py-3 ${hasAnniversary ? 'opacity-60' : ''}`}>
+                <Text className="text-xs font-bold text-gray-500 mb-2 uppercase font-sans">Anniversary</Text>
+                <TouchableOpacity 
+                  onPress={() => openDatePicker('anniversary')} 
+                  disabled={hasAnniversary}
+                  activeOpacity={0.7}
+                  className={`flex-row items-center bg-white border border-gray-200 rounded-xl px-4 py-3 ${hasAnniversary ? 'opacity-60' : ''}`}
+                >
                   <Heart size={18} color="#ef4444" />
-                  <TextInput 
-                    value={anniversary} 
-                    onChangeText={setAnniversary} 
-                    editable={!hasAnniversary} 
-                    placeholder="e.g. 2022-12-10" 
-                    placeholderTextColor="#9ca3af"
-                    className="flex-1 ml-3 font-medium text-gray-900 font-sans" 
-                  />
+                  <Text className="flex-1 ml-3 font-medium text-gray-900 font-sans">
+                    {anniversary ? format(new Date(anniversary), 'MMMM do, yyyy') : 'Select Anniversary'}
+                  </Text>
                   {hasAnniversary && <Lock size={14} color="#9ca3af" />}
-                </View>
+                  {!hasAnniversary && <ChevronRight size={16} color="#9ca3af" />}
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -300,6 +337,39 @@ export default function AccountScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Date Picker Modal for iOS/Android */}
+      {activeDatePicker && (
+        Platform.OS === 'ios' ? (
+          <Modal transparent animationType="slide">
+            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: insets.bottom + 16 }}>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={onDateSelected}
+                  maximumDate={new Date()}
+                />
+                <TouchableOpacity
+                  onPress={() => setActiveDatePicker(null)}
+                  style={{ marginTop: 16, alignItems: 'center', padding: 14, backgroundColor: '#f97316', borderRadius: 12 }}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display="calendar"
+            onChange={onDateSelected}
+            maximumDate={new Date()}
+          />
+        )
+      )}
     </View>
   );
 }
