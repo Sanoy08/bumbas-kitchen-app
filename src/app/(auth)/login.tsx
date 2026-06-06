@@ -54,13 +54,21 @@ export default function LoginScreen() {
   // Animated value for bottom sheet position
   const animatedBottom = useRef(new Animated.Value(20)).current;
 
+  // Keyboard handling with step-aware offset
   useEffect(() => {
     const keyboardWillShow = (e: any) => {
-      const targetBottom = e.endCoordinates.height * 0.8 - 70;
+      let targetBottom;
+      if (step === 'otp') {
+        // OTP step: lift sheet more so OTP inputs are clearly above keyboard
+        targetBottom = e.endCoordinates.height - 30;
+      } else {
+        // Phone step: keep original calculation (slightly less lift)
+        targetBottom = e.endCoordinates.height * 0.8 - 70;
+      }
       Animated.timing(animatedBottom, {
         toValue: targetBottom,
         duration: 250,
-        useNativeDriver: false, // 'bottom' is not a transform property, so use native driver false
+        useNativeDriver: false,
       }).start();
     };
     const keyboardWillHide = () => {
@@ -81,7 +89,7 @@ export default function LoginScreen() {
       showListener.remove();
       hideListener.remove();
     };
-  }, [animatedBottom]);
+  }, [animatedBottom, step]); // step added to dependency
 
   const scrollToInput = (yPosition: number) => {
     scrollViewRef.current?.scrollTo({ y: yPosition - 20, animated: true });
