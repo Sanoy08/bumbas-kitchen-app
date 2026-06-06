@@ -1,3 +1,4 @@
+import { AlertProvider } from '@/components/ui/CustomAlert';
 import { useAuthStore } from '@/store/authStore';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, useFonts } from '@expo-google-fonts/poppins';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,9 +8,9 @@ import { StatusBar } from 'expo-status-bar';
 import LottieView from 'lottie-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Text, TouchableOpacity, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler'; // ★ নতুন ইমপোর্ট
 import "../../global.css";
 
 // নেটিভ স্প্ল্যাশ স্ক্রিনটিকে হোল্ড করে রাখা হচ্ছে
@@ -129,86 +130,86 @@ export default function RootLayout() {
   }
 
   return (
-    // ★ GestureHandlerRootView দিয়ে পুরো অ্যাপকে Wrap করা হলো
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
-        
-        {/* Main App Navigation */}
-        <Stack screenOptions={{ headerShown: false }} />
+        {/* ★ Custom Alert Provider পুরো অ্যাপকে র‍্যাপ করছে ★ */}
+        <AlertProvider>
+          <StatusBar style="dark" />
+          
+          {/* Main App Navigation */}
+          <Stack screenOptions={{ headerShown: false }} />
 
-        {/* --- ১. ONBOARDING SCREEN OVERLAY --- */}
-        {isFirstRun && (
-          <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#FFFFFF', elevation: 15 }}>
-            <TouchableOpacity onPress={finishOnboarding} className="absolute top-14 right-6 p-4 z-50">
-              <Text className="text-slate-400 font-bold text-lg font-sans">Skip</Text>
-            </TouchableOpacity>
-
-            <View className="flex-1 justify-center items-center pb-20">
-              <Animated.View 
-                style={{ opacity: contentFadeAnim, transform: [{ translateY: contentTranslateY }], alignItems: 'center', width: '100%' }}
-              >
-                <LottieView
-                  source={ONBOARDING_STEPS[onboardStep].animation}
-                  autoPlay
-                  loop
-                  style={{ width: width * 1.1, height: width * 1.1, marginBottom: -30 }} 
-                  resizeMode="cover"
-                />
-                <Text className="text-[28px] font-bold text-slate-900 mt-2 px-8 text-center font-sans leading-tight">
-                  {ONBOARDING_STEPS[onboardStep].title}
-                </Text>
-                <Text className="text-[17px] text-slate-500 font-medium text-center mt-3 px-10 leading-relaxed font-sans">
-                  {ONBOARDING_STEPS[onboardStep].desc}
-                </Text>
-              </Animated.View>
-            </View>
-
-            <View className="absolute bottom-12 w-full px-8">
-              <TouchableOpacity 
-                activeOpacity={0.8}
-                onPress={handleNextStep}
-                className="w-full h-14 rounded-full items-center justify-center shadow-lg"
-                style={{ backgroundColor: '#6a9c27', elevation: 10, shadowColor: '#6a9c27', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
-              >
-                <Text className="text-white font-bold text-lg font-sans">
-                  {ONBOARDING_STEPS[onboardStep].btnText}
-                </Text>
+          {/* --- ১. ONBOARDING SCREEN OVERLAY --- */}
+          {isFirstRun && (
+            <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#FFFFFF', elevation: 15 }}>
+              <TouchableOpacity onPress={finishOnboarding} className="absolute top-14 right-6 p-4 z-50">
+                <Text className="text-slate-400 font-bold text-lg font-sans">Skip</Text>
               </TouchableOpacity>
-            </View>
-          </Animated.View>
-        )}
 
-        {/* --- ২. SPLASH SCREEN OVERLAY --- */}
-        {!isFirstRun && showSplash && (
-          <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#F8F9FA', elevation: 15, justifyContent: 'center', alignItems: 'center' }}>
-            <LottieView
-              source={require('../../assets/animations/splash.json')}
-              autoPlay
-              loop
-              style={{ width: width * 1.2, height: width * 1.2 }} 
-              resizeMode="cover"
-            />
-          </Animated.View>
-        )}
+              <View className="flex-1 justify-center items-center pb-20">
+                <Animated.View 
+                  style={{ opacity: contentFadeAnim, transform: [{ translateY: contentTranslateY }], alignItems: 'center', width: '100%' }}
+                >
+                  <LottieView
+                    source={ONBOARDING_STEPS[onboardStep].animation}
+                    autoPlay
+                    loop
+                    style={{ width: width * 1.1, height: width * 1.1, marginBottom: -30 }} 
+                    resizeMode="cover"
+                  />
+                  <Text className="text-[28px] font-bold text-slate-900 mt-2 px-8 text-center font-sans leading-tight">
+                    {ONBOARDING_STEPS[onboardStep].title}
+                  </Text>
+                  <Text className="text-[17px] text-slate-500 font-medium text-center mt-3 px-10 leading-relaxed font-sans">
+                    {ONBOARDING_STEPS[onboardStep].desc}
+                  </Text>
+                </Animated.View>
+              </View>
 
-        {/* ★ Toaster-কে সবার নিচে রাখতে হবে যাতে এটি সব স্ক্রিনের উপরে শো করে ★ */}
-        {/* ★ Toaster-কে সবার নিচে রাখতে হবে এবং কাস্টমাইজ করা হলো ★ */}
-        <Toaster 
-          position="bottom-center"
-          theme="light"
-          toastOptions={{
-            style: {
-              backgroundColor: '#FFFFFF',
-              borderColor: '#E5E7EB', // হালকা বর্ডার
-            },
-            titleStyle: {
-              color: '#111827', // গাঢ় টেক্সট কালার
-              fontWeight: 'bold',
-            }
-          }}
-        />
-        
+              <View className="absolute bottom-12 w-full px-8">
+                <TouchableOpacity 
+                  activeOpacity={0.8}
+                  onPress={handleNextStep}
+                  className="w-full h-14 rounded-full items-center justify-center shadow-lg"
+                  style={{ backgroundColor: '#6a9c27', elevation: 10, shadowColor: '#6a9c27', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
+                >
+                  <Text className="text-white font-bold text-lg font-sans">
+                    {ONBOARDING_STEPS[onboardStep].btnText}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* --- ২. SPLASH SCREEN OVERLAY --- */}
+          {!isFirstRun && showSplash && (
+            <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#F8F9FA', elevation: 15, justifyContent: 'center', alignItems: 'center' }}>
+              <LottieView
+                source={require('../../assets/animations/splash.json')}
+                autoPlay
+                loop
+                style={{ width: width * 1.2, height: width * 1.2 }} 
+                resizeMode="cover"
+              />
+            </Animated.View>
+          )}
+
+          {/* ★ Toaster - সবথেকে নিচে, কিন্তু AlertProvider-এর ভিতরেই রাখা হয়েছে যাতে সব স্ক্রিনে কাজ করে ★ */}
+          <Toaster 
+            position="bottom-center"
+            theme="light"
+            toastOptions={{
+              style: {
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E5E7EB',
+              },
+              titleStyle: {
+                color: '#111827',
+                fontWeight: 'bold',
+              }
+            }}
+          />
+        </AlertProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

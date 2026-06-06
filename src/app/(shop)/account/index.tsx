@@ -18,7 +18,6 @@ import {
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -30,6 +29,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
 import { useAuthStore } from '@/store/authStore';
+import { useAlert } from '@/components/ui/CustomAlert'; // ★ Custom Alert import
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 
@@ -67,6 +67,7 @@ export default function AccountScreen() {
   const { user, login, logout, isInitialized } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert(); // ★ Custom alert hook
   
   const [walletBalance, setWalletBalance] = useState(0);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -118,14 +119,14 @@ export default function AccountScreen() {
     }
   };
 
-  // ★ Same validation as HomeScreen
+  // Validation flags
   const isDobMissing = !user?.dob || user?.dob === "";
   const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
 
   const onProfileSubmit = async () => {
     if (!user) return;
 
-    // ★★ CRITICAL: Cannot save Anniversary without Birthday ★★
+    // Cannot save Anniversary without Birthday
     if (isDobMissing && !dob) {
       toast.error("Please add your Birthday first.");
       return;
@@ -171,23 +172,20 @@ export default function AccountScreen() {
     }
   };
 
+  // ★★★ Custom Alert দিয়ে Logout confirmation ★★★
   const confirmLogout = () => {
-    Alert.alert(
-      "Are you sure?",
-      "You will be logged out of your account. You need to sign in again to access your orders.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Log Out", 
-          style: "destructive", 
-          onPress: async () => {
-            await logout();
-            router.replace('/(auth)/login');
-            toast.success("Logged out successfully");
-          } 
-        }
-      ]
-    );
+    showAlert({
+      title: "Are you sure?",
+      message: "You will be logged out of your account. You need to sign in again to access your orders.",
+      confirmText: "Log Out",
+      cancelText: "Cancel",
+      confirmButtonStyle: "destructive",
+      onConfirm: async () => {
+        await logout();
+        router.replace('/(auth)/login');
+        toast.success("Logged out successfully");
+      },
+    });
   };
 
   const getInitials = (name: string) => name ? name.split(' ').map(n => n).join('').toUpperCase().substring(0, 2) : 'U';
