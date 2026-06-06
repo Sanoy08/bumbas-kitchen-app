@@ -8,6 +8,7 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   Image,
   Keyboard,
@@ -49,14 +50,25 @@ export default function LoginScreen() {
   const [canResend, setCanResend] = useState(false);
   const [limitData, setLimitData] = useState({ ipLeft: 5, phoneLeft: 3, isBlocked: false, resetTime: '', reason: '' });
   const [showBlockPopup, setShowBlockPopup] = useState(false);
-  const [sheetBottomOffset, setSheetBottomOffset] = useState(20);
+  
+  // Animated value for bottom sheet position
+  const animatedBottom = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     const keyboardWillShow = (e: any) => {
-      setSheetBottomOffset(e.endCoordinates.height * 0.8 - 70);
+      const targetBottom = e.endCoordinates.height * 0.8 - 70;
+      Animated.timing(animatedBottom, {
+        toValue: targetBottom,
+        duration: 250,
+        useNativeDriver: false, // 'bottom' is not a transform property, so use native driver false
+      }).start();
     };
     const keyboardWillHide = () => {
-      setSheetBottomOffset(20);
+      Animated.timing(animatedBottom, {
+        toValue: 20,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
     };
 
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -69,7 +81,7 @@ export default function LoginScreen() {
       showListener.remove();
       hideListener.remove();
     };
-  }, []);
+  }, [animatedBottom]);
 
   const scrollToInput = (yPosition: number) => {
     scrollViewRef.current?.scrollTo({ y: yPosition - 20, animated: true });
@@ -190,7 +202,7 @@ export default function LoginScreen() {
         <View style={styles.overlay} />
       </View>
 
-      <View style={[styles.bottomSheet, { bottom: sheetBottomOffset }]}>
+      <Animated.View style={[styles.bottomSheet, { bottom: animatedBottom }]}>
         <ScrollView
           ref={scrollViewRef}
           contentContainerStyle={styles.scrollContent}
@@ -328,7 +340,7 @@ export default function LoginScreen() {
             </View>
           )}
         </ScrollView>
-      </View>
+      </Animated.View>
 
       <Modal visible={showBlockPopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/50 px-4">
@@ -387,7 +399,6 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     maxHeight: '80%',
-    // Shadow removed completely
   },
   scrollContent: {
     flexGrow: 1,
@@ -400,6 +411,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 100,       // moved further down
+    marginTop: 100,
   },
 });
