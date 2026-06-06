@@ -27,13 +27,13 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { toast } from 'sonner-native'; // ★ Toast import
+import { toast } from 'sonner-native';
 
 import { useAuthStore } from '@/store/authStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 
-// --- Reusable Menu Item Component (unchanged) ---
+// --- Reusable Menu Item Component ---
 const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false }: any) => (
   <TouchableOpacity 
     onPress={onPress} 
@@ -118,8 +118,19 @@ export default function AccountScreen() {
     }
   };
 
+  // ★ Same validation as HomeScreen
+  const isDobMissing = !user?.dob || user?.dob === "";
+  const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
+
   const onProfileSubmit = async () => {
     if (!user) return;
+
+    // ★★ CRITICAL: Cannot save Anniversary without Birthday ★★
+    if (isDobMissing && !dob) {
+      toast.error("Please add your Birthday first.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       let firstName = "User";
@@ -137,8 +148,8 @@ export default function AccountScreen() {
       const payload = {
         firstName: firstName,
         lastName: lastName,
-        dob: dob,
-        anniversary: anniversary,
+        dob: dob || user?.dob,
+        anniversary: anniversary || user?.anniversary,
       };
       
       const res = await fetch(`${API_URL}/auth/update-profile`, { 
@@ -151,19 +162,16 @@ export default function AccountScreen() {
       if (!res.ok) throw new Error(resData.error || "Failed to update profile");
       
       await login(resData.user);
-      toast.success("Profile Updated Successfully! 🎉");  // ★ Toast success
+      toast.success("Profile Updated Successfully! 🎉");
       setIsEditProfileOpen(false);
     } catch (e: any) { 
-      toast.error(e.message || "An error occurred");      // ★ Toast error
+      toast.error(e.message || "An error occurred");
     } finally {
       setIsSaving(false);
     }
   };
 
   const confirmLogout = () => {
-    // Logout alert রাখতে পারেন বা toast দিয়ে করতে পারেন
-    // তবে logout এর আগে confirmation দরকার তাই Alert ব্যবহার করাই ভালো
-    // কিন্তু আপনি চাইলে toast + custom modal দিতে পারেন; এখানে Alert রাখলাম কারণ এটি গুরুত্বপূর্ণ
     Alert.alert(
       "Are you sure?",
       "You will be logged out of your account. You need to sign in again to access your orders.",
@@ -261,7 +269,7 @@ export default function AccountScreen() {
         </View>
       </ScrollView>
 
-      {/* --- EDIT PROFILE MODAL (unchanged) --- */}
+      {/* --- EDIT PROFILE MODAL --- */}
       <Modal visible={isEditProfileOpen} animationType="slide" presentationStyle="formSheet">
         <View className="flex-1 bg-white">
           <View className="flex-row items-center justify-between p-4 border-b border-gray-100 mt-4">
@@ -297,6 +305,7 @@ export default function AccountScreen() {
                 <Text className="font-semibold text-sm text-gray-700 ml-2 font-sans">Special Dates</Text>
               </View>
 
+              {/* Birthday Field */}
               <View className="mb-4">
                 <Text className="text-xs font-bold text-gray-500 mb-2 uppercase font-sans">Birthday</Text>
                 <TouchableOpacity 
@@ -314,13 +323,14 @@ export default function AccountScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Anniversary Field - disabled if Birthday missing AND user has no stored dob */}
               <View>
                 <Text className="text-xs font-bold text-gray-500 mb-2 uppercase font-sans">Anniversary</Text>
                 <TouchableOpacity 
                   onPress={() => openDatePicker('anniversary')} 
-                  disabled={hasAnniversary}
+                  disabled={hasAnniversary || (isDobMissing && !dob)}
                   activeOpacity={0.7}
-                  className={`flex-row items-center bg-white border border-gray-200 rounded-xl px-4 py-3 ${hasAnniversary ? 'opacity-60' : ''}`}
+                  className={`flex-row items-center bg-white border border-gray-200 rounded-xl px-4 py-3 ${(hasAnniversary || (isDobMissing && !dob)) ? 'opacity-60' : ''}`}
                 >
                   <Heart size={18} color="#ef4444" />
                   <Text className="flex-1 ml-3 font-medium text-gray-900 font-sans">
@@ -329,6 +339,11 @@ export default function AccountScreen() {
                   {hasAnniversary && <Lock size={14} color="#9ca3af" />}
                   {!hasAnniversary && <ChevronRight size={16} color="#9ca3af" />}
                 </TouchableOpacity>
+                {(isDobMissing && !dob && !hasAnniversary) && (
+                  <Text className="text-xs text-rose-500 mt-1 ml-1 font-sans">
+                    * Add your birthday first to set anniversary
+                  </Text>
+                )}
               </View>
             </View>
 
@@ -343,7 +358,7 @@ export default function AccountScreen() {
         </View>
       </Modal>
 
-      {/* Date Picker Modal for iOS/Android (unchanged) */}
+      {/* Date Picker Modal for iOS/Android */}
       {activeDatePicker && (
         Platform.OS === 'ios' ? (
           <Modal transparent animationType="slide">
