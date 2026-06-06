@@ -1,4 +1,4 @@
-// src\app\(shop)\index.tsx
+// src/app/(shop)/index.tsx
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -128,26 +128,55 @@ const AutoCarousel = ({ data, renderItem, autoPlayDelay = 4000, isAutoPlay = fal
   );
 };
 
-const CategoryList = ({ activeCategory, setActiveCategory }: any) => (
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2" contentContainerStyle={{ paddingRight: 20 }}>
-    {CATEGORIES.map((cat, idx) => {
-      const isActive = activeCategory === cat.name;
-      return (
-        <TouchableOpacity 
-          key={idx} 
-          onPress={() => setActiveCategory(cat.name)} 
-          className={`items-center mx-2 pb-0 ${isActive ? 'border-b-[3px] border-primary' : ''}`}
-          activeOpacity={0.7}
-        >
-          <View className={`h-16 w-16 rounded-full mb-1.5 overflow-hidden items-center justify-center border-2 ${isActive ? 'border-primary' : 'border-gray-200 bg-gray-50'}`}>
-            <Image source={cat.image} style={{ width: '100%', height: '100%', borderRadius: 32 }} contentFit="cover" />
-          </View>
-          <Text className={`text-xs ${isActive ? 'font-bold text-gray-900' : 'font-medium text-gray-600'} font-sans`}>{cat.name}</Text>
-        </TouchableOpacity>
-      )
-    })}
-  </ScrollView>
-);
+// ★ CategoryList-এ Auto-Center Scroll Logic যুক্ত করা হলো ★
+const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [scrollViewWidth, setScrollViewWidth] = useState(0);
+  const itemLayouts = useRef<{ [key: string]: { x: number; width: number } }>({});
+
+  useEffect(() => {
+    const layout = itemLayouts.current[activeCategory];
+    if (layout && scrollViewWidth > 0) {
+      // Calculate offset to center the selected category
+      const offsetX = layout.x + layout.width / 2 - scrollViewWidth / 2;
+      scrollViewRef.current?.scrollTo({ x: Math.max(0, offsetX), animated: true });
+    }
+  }, [activeCategory, scrollViewWidth]);
+
+  return (
+    <ScrollView 
+      ref={scrollViewRef}
+      horizontal 
+      showsHorizontalScrollIndicator={false} 
+      className="px-2" 
+      contentContainerStyle={{ paddingRight: 20 }}
+      onLayout={(e) => setScrollViewWidth(e.nativeEvent.layout.width)}
+    >
+      {CATEGORIES.map((cat, idx) => {
+        const isActive = activeCategory === cat.name;
+        return (
+          <TouchableOpacity 
+            key={idx} 
+            onLayout={(e) => {
+              itemLayouts.current[cat.name] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
+            }}
+            onPress={() => setActiveCategory(cat.name)} 
+            className={`items-center mx-2 pb-0 ${isActive ? 'border-b-[3px] border-primary' : ''}`}
+            activeOpacity={0.7}
+          >
+            <View className={`h-16 w-16 rounded-full mb-1.5 overflow-hidden items-center justify-center border-2 ${isActive ? 'border-primary' : 'border-gray-200 bg-gray-50'}`}>
+              <Image source={cat.image} style={{ width: '100%', height: '100%', borderRadius: 32 }} contentFit="cover" />
+            </View>
+            <Text className={`text-xs ${isActive ? 'font-bold text-gray-900' : 'font-medium text-gray-600'} font-sans`}>{cat.name}</Text>
+          </TouchableOpacity>
+        )
+      })}
+    </ScrollView>
+  );
+};
 
 const getDisplayAddress = (user: any) => {
   if (!user || !user.savedAddresses || user.savedAddresses.length === 0) {

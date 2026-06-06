@@ -1,4 +1,4 @@
-// src\store\authStore.ts
+// src/store/authStore.ts
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
@@ -16,6 +16,7 @@ export type User = {
   wallet?: any;
   dob?: string;
   anniversary?: string;
+  savedAddresses?: any[]; // ★ Added
 };
 
 interface AuthState {
