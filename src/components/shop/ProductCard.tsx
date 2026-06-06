@@ -1,3 +1,5 @@
+// src\components\shop\ProductCard.tsx
+
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';

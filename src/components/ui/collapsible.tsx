@@ -1,3 +1,5 @@
+// src\components\ui\collapsible.tsx
+
 import { SymbolView } from 'expo-symbols';
 import { PropsWithChildren, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
@@ -63,3 +65,4 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
 });
+

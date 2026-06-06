@@ -1,3 +1,5 @@
+// src\components\hint-row.tsx
+
 import type { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 
@@ -33,3 +35,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
   },
 });
+

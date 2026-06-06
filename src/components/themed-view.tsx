@@ -1,3 +1,5 @@
+// src\components\themed-view.tsx
+
 import { View, type ViewProps } from 'react-native';
 
 import { ThemeColor } from '@/constants/theme';
@@ -14,3 +16,4 @@ export function ThemedView({ style, lightColor, darkColor, type, ...otherProps }
 
   return <View style={[{ backgroundColor: theme[type ?? 'background'] }, style]} {...otherProps} />;
 }
+

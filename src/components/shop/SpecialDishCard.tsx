@@ -1,3 +1,5 @@
+// src\components\shop\SpecialDishCard.tsx
+
 // src/components/shop/SpecialDishCard.tsx
 
 import { formatPrice } from '@/lib/utils';

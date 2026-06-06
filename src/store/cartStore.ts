@@ -1,3 +1,5 @@
+// src\store\cartStore.ts
+
 // src/store/cartStore.ts
 
 import type { CartItem, Product } from '@/lib/types';

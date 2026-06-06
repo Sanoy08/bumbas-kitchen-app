@@ -1,3 +1,5 @@
+// src\components\ui\CustomAlert.tsx
+
 // src/components/ui/CustomAlert.tsx
 import React, { createContext, useContext, useState, useRef } from 'react';
 import { Modal, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';

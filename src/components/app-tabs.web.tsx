@@ -1,3 +1,5 @@
+// src\components\app-tabs.web.tsx
+
 import {
   Tabs,
   TabList,
@@ -113,3 +115,4 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.three,
   },
 });
+

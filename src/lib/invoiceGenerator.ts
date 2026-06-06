@@ -1,3 +1,5 @@
+// src\lib\invoiceGenerator.ts
+
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Print from 'expo-print';

@@ -1,3 +1,5 @@
+// src\app\(shop)\account\addresses\index.tsx
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Switch, Platform } from 'react-native';
 import { useRouter } from 'expo-router';

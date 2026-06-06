@@ -1,3 +1,5 @@
+// src\components\animated-icon.tsx
+
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
@@ -130,3 +132,4 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
 });
+

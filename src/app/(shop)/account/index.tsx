@@ -1,3 +1,5 @@
+// src\app\(shop)\account\index.tsx
+
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';

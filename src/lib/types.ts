@@ -1,3 +1,5 @@
+// src\lib\types.ts
+
 export type Image = {
   id: string;
   url: string;

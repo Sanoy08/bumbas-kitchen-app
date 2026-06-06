@@ -1,3 +1,5 @@
+// src\components\animated-icon.web.tsx
+
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Keyframe, Easing } from 'react-native-reanimated';
@@ -106,3 +108,4 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
 });
+

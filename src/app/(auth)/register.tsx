@@ -1,3 +1,5 @@
+// src\app\(auth)\register.tsx
+
 import { useAuthStore } from '@/store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';

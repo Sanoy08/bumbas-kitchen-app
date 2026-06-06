@@ -1,3 +1,5 @@
+// src\lib\imageUtils.ts
+
 const PROXY_DOMAIN = 'https://images.bumbaskitchen.app';
 
 export function optimizeImageUrl(url: string | undefined | null): string {

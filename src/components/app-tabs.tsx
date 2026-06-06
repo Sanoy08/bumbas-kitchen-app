@@ -1,3 +1,5 @@
+// src\components\app-tabs.tsx
+
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useColorScheme } from 'react-native';
 
@@ -30,3 +32,4 @@ export default function AppTabs() {
     </NativeTabs>
   );
 }
+

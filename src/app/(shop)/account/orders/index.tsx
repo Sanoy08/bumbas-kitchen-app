@@ -1,3 +1,5 @@
+// src\app\(shop)\account\orders\index.tsx
+
 // src/app/(shop)/account/orders/index.tsx
 import { format } from 'date-fns';
 import { Image } from 'expo-image';

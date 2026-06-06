@@ -1,3 +1,5 @@
+// src\app\(shop)\_layout.tsx
+
 import { Tabs } from 'expo-router';
 import { Home, ShoppingCart, User, Utensils } from 'lucide-react-native';
 
