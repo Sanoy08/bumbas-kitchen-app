@@ -2,24 +2,22 @@ import { useRouter } from 'expo-router';
 import { AlertCircle, Briefcase, Home, Info, Loader2, MapPin, Pencil, Plus, Search, Trash2, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
 import { useAlert } from '@/components/ui/CustomAlert';
+import WebViewMapPicker from '@/components/shop/WebViewMapPicker';
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 const PRESET_LABELS = ["Home", "Work", "Office", "Mom's Place", "Other"];
 
-// --- Custom Hook for Debounce ---
+// Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
     return () => clearTimeout(handler);
   }, [value, delay]);
   return debouncedValue;
@@ -51,7 +49,7 @@ export default function AccountAddressesScreen() {
     name: '', 
     address: '', 
     isDefault: false,
-    coordinates: null as { lat: number, lng: number } | null,
+    coordinates: null as { lat: number; lng: number } | null,
     distanceText: '',
     deliveryFee: 0
   });
@@ -79,7 +77,7 @@ export default function AccountAddressesScreen() {
     try {
       const res = await fetch(`${API_URL}/user/addresses`);
       const data = await res.json();
-      if (data.success) setAddresses(data.addresses);
+      if (data.success) setAddresses(data.addresses || []);
     } catch (error) { 
       console.log(error); 
     } finally { 
@@ -103,8 +101,17 @@ export default function AccountAddressesScreen() {
     fetchLocations();
   }, [debouncedSearch]);
 
+  // When user taps on a search suggestion
+  const handleSelectSearchItem = async (item: any) => {
+    setSearchQuery(item.main_text);
+    setShowSuggestions(false);
+    // Directly call reverse geocode to get address and distance
+    await handleLocationSelect(item.lat, item.lon, item.description);
+  };
+
   const handleLocationSelect = async (lat: number, lng: number, addressStr?: string) => {
     try {
+      toast.loading("Calculating delivery distance...", { id: 'dist' });
       setOutOfRange(false);
       
       if (!addressStr) {
@@ -122,7 +129,7 @@ export default function AccountAddressesScreen() {
         
         if(distKm > 50) {
           setOutOfRange(true);
-          toast.error(`Outside 50km delivery range! (${data.distanceText})`);
+          toast.error(`Distance: ${data.distanceText}. Outside 50km delivery range!`, { id: 'dist', duration: 4000 });
           setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: 0 }));
           return;
         }
@@ -133,19 +140,13 @@ export default function AccountAddressesScreen() {
         }
         
         setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: fee }));
-        toast.success(`Distance calculated: ${data.distanceText}`);
+        toast.success(`Distance: ${data.distanceText}. Delivery Fee: ${fee === 0 ? 'FREE' : formatPrice(fee)}`, { id: 'dist' });
       } else {
-        toast.error("Failed to calculate distance.");
+        toast.error("Failed to calculate distance.", { id: 'dist' });
       }
     } catch(e) {
-      toast.error("Error calculating distance.");
+      toast.error("Error calculating distance.", { id: 'dist' });
     }
-  };
-
-  const handleSelectSearchItem = (item: any) => {
-    setSearchQuery(item.main_text); 
-    setShowSuggestions(false);
-    handleLocationSelect(item.lat, item.lon, item.description);
   };
 
   const handleOpenDialog = (address?: Address) => {
@@ -153,8 +154,12 @@ export default function AccountAddressesScreen() {
     if (address && id) {
       setEditingId(id);
       setFormData({
-        name: address.name, address: address.address, isDefault: address.isDefault,
-        coordinates: address.coordinates || null, distanceText: address.distanceText || '', deliveryFee: address.deliveryFee || 0
+        name: address.name || '',
+        address: address.address,
+        isDefault: address.isDefault,
+        coordinates: address.coordinates || null,
+        distanceText: address.distanceText || '',
+        deliveryFee: address.deliveryFee || 0
       });
     } else {
       setEditingId(null);
@@ -224,15 +229,15 @@ export default function AccountAddressesScreen() {
     });
   };
 
-  const getIcon = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes('home')) return <Home size={20} color="#e11d48" />;
-    if (n.includes('work') || n.includes('office')) return <Briefcase size={20} color="#e11d48" />;
+  const getIcon = (name: string | undefined) => {
+    const safeName = (name || "").toLowerCase();
+    if (safeName.includes('home')) return <Home size={20} color="#e11d48" />;
+    if (safeName.includes('work') || safeName.includes('office')) return <Briefcase size={20} color="#e11d48" />;
     return <MapPin size={20} color="#e11d48" />;
   };
 
   if (isLoading || !isInitialized) {
-    return <View className="flex-1 justify-center items-center bg-gray-50"><Loader2 size={32} color="#e11d48" /></View>;
+    return <View className="flex-1 justify-center items-center bg-gray-50"><ActivityIndicator size="large" color="#e11d48" /></View>;
   }
 
   return (
@@ -253,6 +258,7 @@ export default function AccountAddressesScreen() {
           <View className="gap-y-4">
             {addresses.map(addr => {
               const addrId = addr.id || addr._id;
+              if (!addrId) return null;
               return (
                 <View key={addrId} className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
                   <View className="flex-row justify-between items-start">
@@ -262,16 +268,19 @@ export default function AccountAddressesScreen() {
                       </View>
                       <View className="flex-1">
                         <View className="flex-row items-center gap-2 mb-1 flex-wrap">
-                          <Text className="font-bold text-lg text-gray-900 font-sans">{addr.name}</Text>
+                          <Text className="font-bold text-lg text-gray-900 font-sans">
+                            {addr.name || "Address"}
+                          </Text>
                           {addr.isDefault && (
                             <View className="bg-green-100 px-2 py-0.5 rounded border border-green-200">
                               <Text className="text-[10px] font-bold text-green-700 uppercase font-sans">Default</Text>
                             </View>
                           )}
                         </View>
-                        <Text className="text-sm text-gray-500 font-medium leading-5 font-sans mb-3">{addr.address}</Text>
+                        <Text className="text-sm text-gray-500 font-medium leading-5 font-sans mb-3">
+                          {addr.address || "No address provided"}
+                        </Text>
                         
-                        {/* Delivery Info */}
                         <View className="flex-row items-center gap-2 flex-wrap">
                           {addr.distanceText && (
                             <View className="bg-gray-100 px-2 py-1 rounded-md">
@@ -287,12 +296,11 @@ export default function AccountAddressesScreen() {
                       </View>
                     </View>
 
-                    {/* Actions */}
                     <View className="flex-col gap-2">
                       <TouchableOpacity onPress={() => handleOpenDialog(addr)} className="p-2.5 bg-gray-50 rounded-xl">
                         <Pencil size={18} color="#4b5563" />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => addrId && confirmDelete(addrId)} className="p-2.5 bg-red-50 rounded-xl">
+                      <TouchableOpacity onPress={() => confirmDelete(addrId)} className="p-2.5 bg-red-50 rounded-xl">
                         <Trash2 size={18} color="#dc2626" />
                       </TouchableOpacity>
                     </View>
@@ -319,7 +327,6 @@ export default function AccountAddressesScreen() {
       {/* --- ADD / EDIT MODAL --- */}
       <Modal visible={isDialogOpen} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setIsDialogOpen(false)}>
         <View className="flex-1 bg-gray-50">
-          
           <View className="flex-row items-center justify-between p-4 border-b border-gray-200 bg-white">
             <Text className="text-xl font-bold text-gray-900 font-sans">{editingId ? 'Edit Address' : 'Add New Address'}</Text>
             <TouchableOpacity onPress={() => setIsDialogOpen(false)} className="p-2 bg-gray-100 rounded-full">
@@ -387,41 +394,24 @@ export default function AccountAddressesScreen() {
                 )}
               </View>
 
-              {/* Native Map View */}
-              <View className="h-48 w-full rounded-2xl overflow-hidden border border-gray-200 mb-3 bg-gray-100">
-                <MapView
-                  style={{ flex: 1 }}
-                  region={formData.coordinates ? {
-                    latitude: formData.coordinates.lat,
-                    longitude: formData.coordinates.lng,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  } : {
-                    latitude: 22.7533, // Default fallback (e.g., Kolkata)
-                    longitude: 88.2255,
-                    latitudeDelta: 0.1,
-                    longitudeDelta: 0.1,
-                  }}
-                  onPress={(e) => handleLocationSelect(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
-                >
-                  {formData.coordinates && (
-                    <Marker coordinate={{ latitude: formData.coordinates.lat, longitude: formData.coordinates.lng }} />
-                  )}
-                </MapView>
-              </View>
+              {/* ★ WebView Map Picker (No API Key Needed) ★ */}
+              <WebViewMapPicker 
+                onLocationSelect={handleLocationSelect} 
+                selectedLocation={formData.coordinates} 
+              />
 
               {/* Warning Tip */}
-              <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex-row items-start mb-3">
+              <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex-row items-start mt-4">
                 <Info size={20} color="#ca8a04" className="mt-0.5 mr-3 shrink-0" />
                 <View className="flex-1 pr-2">
                   <Text className="text-xs font-bold text-yellow-800 font-sans mb-0.5">Delivery tip:</Text>
-                  <Text className="text-xs text-yellow-700 font-medium leading-relaxed font-sans">Please ensure the map pin is placed at your exact location. Tap on the map to pin.</Text>
+                  <Text className="text-xs text-yellow-700 font-medium leading-relaxed font-sans">Tap on map to place pin, or drag the existing pin. We'll auto-calculate delivery fee.</Text>
                 </View>
               </View>
 
               {/* Distance Result */}
               {formData.distanceText !== '' && (
-                <View className={`p-3 rounded-xl border flex-row items-center ${outOfRange ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                <View className={`p-3 rounded-xl border flex-row items-center mt-3 ${outOfRange ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                   <AlertCircle size={20} color={outOfRange ? '#dc2626' : '#16a34a'} className="mr-3" />
                   <View>
                     <Text className={`text-sm font-bold font-sans ${outOfRange ? 'text-red-700' : 'text-green-700'}`}>
@@ -476,7 +466,6 @@ export default function AccountAddressesScreen() {
           </ScrollView>
         </View>
       </Modal>
-
     </View>
   );
 }
