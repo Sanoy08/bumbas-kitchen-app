@@ -258,7 +258,7 @@ export default function AccountScreen() {
 
         {/* --- MENU LIST --- */}
         <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/(shop)/account/orders')} />
-        <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => toast.info("Addresses Page Coming Soon")} />
+        <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => router.push('/(shop)/account/addresses')} />
         <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/(shop)/account/wallet')} />
         <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => toast.info("Coupons Page Coming Soon")} />
 
