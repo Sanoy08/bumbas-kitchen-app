@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { toast } from 'sonner-native'; // ★ Sonner Toast যোগ করা হলো
 import * as z from 'zod';
 
 const phoneSchema = z.object({
@@ -158,13 +159,14 @@ export default function LoginScreen() {
       const data = await res.json();
       if (data.success) {
         await login(data.user, data.token);
+        toast.success("Welcome back! 🎉"); // ★ Welcome back toast
         router.replace('/');
       } else {
-        Alert.alert('Error', data.error || 'Invalid OTP');
+        toast.error(data.error || 'Invalid OTP'); // ★ Error toast
         setIsLoading(false);
       }
     } catch (error) {
-      Alert.alert('Error', 'Login failed');
+      toast.error('Login failed. Please try again.'); // ★ Error toast
       setIsLoading(false);
     }
   };
@@ -204,15 +206,16 @@ export default function LoginScreen() {
         setTimeLeft(30);
         setOtp(['', '', '', '', '', '']);
         fetchLimit(data.phone);
+        toast.success('OTP sent successfully!'); // ★ Success toast
       } else {
-        Alert.alert('Error', responseData.error || 'Failed to send OTP');
+        toast.error(responseData.error || 'Failed to send OTP'); // ★ Error toast
         if (responseData.isBlocked || res.status === 429) {
           setLimitData(prev => ({ ...prev, isBlocked: true, reason: responseData.error, resetTime: responseData.resetTime }));
           setShowBlockPopup(true);
         }
       }
     } catch (error) {
-      Alert.alert('Error', 'Connection failed');
+      toast.error('Connection failed. Please check your internet.'); // ★ Error toast
     } finally {
       setIsLoading(false);
     }
@@ -237,7 +240,7 @@ export default function LoginScreen() {
             <View style={styles.phoneStepContainer}>
               <View>
                 <Text className="text-center text-gray-500 font-medium text-base mb-6">
-                  Log in or sign up
+                  Log in
                 </Text>
 
                 <View className="space-y-2">
