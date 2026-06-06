@@ -27,12 +27,13 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { toast } from 'sonner-native'; // ★ Toast import
 
 import { useAuthStore } from '@/store/authStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 
-// --- Reusable Menu Item Component ---
+// --- Reusable Menu Item Component (unchanged) ---
 const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false }: any) => (
   <TouchableOpacity 
     onPress={onPress} 
@@ -150,16 +151,19 @@ export default function AccountScreen() {
       if (!res.ok) throw new Error(resData.error || "Failed to update profile");
       
       await login(resData.user);
-      Alert.alert("Success", "Profile Updated Successfully! 🎉");
+      toast.success("Profile Updated Successfully! 🎉");  // ★ Toast success
       setIsEditProfileOpen(false);
     } catch (e: any) { 
-      Alert.alert("Error", e.message); 
+      toast.error(e.message || "An error occurred");      // ★ Toast error
     } finally {
       setIsSaving(false);
     }
   };
 
   const confirmLogout = () => {
+    // Logout alert রাখতে পারেন বা toast দিয়ে করতে পারেন
+    // তবে logout এর আগে confirmation দরকার তাই Alert ব্যবহার করাই ভালো
+    // কিন্তু আপনি চাইলে toast + custom modal দিতে পারেন; এখানে Alert রাখলাম কারণ এটি গুরুত্বপূর্ণ
     Alert.alert(
       "Are you sure?",
       "You will be logged out of your account. You need to sign in again to access your orders.",
@@ -171,6 +175,7 @@ export default function AccountScreen() {
           onPress: async () => {
             await logout();
             router.replace('/(auth)/login');
+            toast.success("Logged out successfully");
           } 
         }
       ]
@@ -234,7 +239,7 @@ export default function AccountScreen() {
             <Text className="text-[10px] text-gray-500 font-medium font-sans mt-0.5">Available Balance</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => Alert.alert("Coming Soon")} activeOpacity={0.8} className="flex-1 bg-blue-50 border border-blue-100 p-4 rounded-2xl relative overflow-hidden">
+          <TouchableOpacity onPress={() => toast.info("Coming Soon")} activeOpacity={0.8} className="flex-1 bg-blue-50 border border-blue-100 p-4 rounded-2xl relative overflow-hidden">
             <View className="absolute top-2 right-2 opacity-10"><TicketPercent size={48} color="#2563eb" /></View>
             <View className="flex-row items-center mb-2">
               <View className="p-1.5 bg-white rounded-lg"><TicketPercent size={14} color="#2563eb" /></View>
@@ -247,16 +252,16 @@ export default function AccountScreen() {
 
         {/* --- MENU LIST --- */}
         <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/(shop)/account/orders')} />
-        <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => Alert.alert("Addresses Page Coming Soon")} />
+        <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => toast.info("Addresses Page Coming Soon")} />
         <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/(shop)/account/wallet')} />
-        <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => Alert.alert("Coupons Page Coming Soon")} />
+        <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => toast.info("Coupons Page Coming Soon")} />
 
         <View className="mt-4">
           <MenuItem icon={LogOut} title="Log Out" subtitle="Sign out of your account" isDestructive onPress={confirmLogout} />
         </View>
       </ScrollView>
 
-      {/* --- EDIT PROFILE MODAL --- */}
+      {/* --- EDIT PROFILE MODAL (unchanged) --- */}
       <Modal visible={isEditProfileOpen} animationType="slide" presentationStyle="formSheet">
         <View className="flex-1 bg-white">
           <View className="flex-row items-center justify-between p-4 border-b border-gray-100 mt-4">
@@ -338,7 +343,7 @@ export default function AccountScreen() {
         </View>
       </Modal>
 
-      {/* Date Picker Modal for iOS/Android */}
+      {/* Date Picker Modal for iOS/Android (unchanged) */}
       {activeDatePicker && (
         Platform.OS === 'ios' ? (
           <Modal transparent animationType="slide">
