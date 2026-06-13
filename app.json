@@ -4,7 +4,7 @@
     "slug": "bumbas-kitchen",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon1.png",
     "scheme": "bumbaskitchenapp",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -32,7 +32,7 @@
         {
           "backgroundColor": "#208AEF",
           "android": {
-            "image": "./assets/images/splash-icon.png",
+            "image": "./assets/images/splash1.png",
             "imageWidth": 76
           }
         }
@@ -46,6 +46,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "40acdafb-c0f4-4185-a987-1f04ce8c59d8"
+      }
     }
   }
 }
