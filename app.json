@@ -4,19 +4,23 @@
     "slug": "bumbas-kitchen",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon1.png",
+    "icon": "./assets/LOGO.png",
     "scheme": "bumbaskitchenapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/LOGO.png"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "REQUEST_INSTALL_PACKAGES"
+      ],
+      "gradleProperties": {
+        "reactNativeArchitectures": "arm64-v8a"
+      },
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/LOGO.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.bumbaskitchen.app"
@@ -30,11 +34,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash1.png",
-            "imageWidth": 76
-          }
+          "backgroundColor": "#F8F9FA",
+          "image": "./assets/LOGO.png",
+          "imageWidth": 200
         }
       ],
       "expo-status-bar",

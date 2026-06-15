@@ -1,4 +1,4 @@
-// src\app\_layout.tsx
+// src/app/_layout.tsx
 
 import { AlertProvider } from '@/components/ui/CustomAlert';
 import { useAuthStore } from '@/store/authStore';
@@ -14,6 +14,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import "../../global.css";
+
+// ★ ১. AppUpdater Import Kora Holo
+import { AppUpdater } from '@/components/AppUpdater';
 
 // নেটিভ স্প্ল্যাশ স্ক্রিনটিকে হোল্ড করে রাখা হচ্ছে
 SplashScreen.preventAutoHideAsync();
@@ -60,14 +63,14 @@ export default function RootLayout() {
   const contentFadeAnim = useRef(new Animated.Value(1)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
 
-  // ১. ফার্স্ট রান এবং অথ ইনিশিয়ালাইজ চেক করা
+  // ১. ফার্স্ট রান এবং অথ ইনিশিয়ালাইজ চেক করা
   useEffect(() => {
     initAuth();
     const checkFirstRun = async () => {
       const firstRun = await AsyncStorage.getItem('isFirstRun');
       if (firstRun === null) {
         setIsFirstRun(true);
-        setShowSplash(false); // First run হলে স্প্ল্যাশ না দেখিয়ে অনবোর্ডিং দেখাবো
+        setShowSplash(false); // First run হলে স্প্ল্যাশ না দেখিয়ে অনবোর্ডিং দেখাবো
       } else {
         setIsFirstRun(false);
       }
@@ -196,7 +199,10 @@ export default function RootLayout() {
             </Animated.View>
           )}
 
-          {/* ★ Toaster - সবথেকে নিচে, কিন্তু AlertProvider-এর ভিতরেই রাখা হয়েছে যাতে সব স্ক্রিনে কাজ করে ★ */}
+          {/* ★ ২. AppUpdater Component Add Kora Holo ★ */}
+          <AppUpdater />
+
+          {/* ★ Toaster - সবথেকে নিচে, কিন্তু AlertProvider-এর ভিতরেই রাখা হয়েছে যাতে সব স্ক্রিনে কাজ করে ★ */}
           <Toaster 
             position="bottom-center"
             theme="light"
