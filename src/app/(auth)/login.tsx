@@ -159,8 +159,9 @@ export default function LoginScreen() {
       const data = await res.json();
       if (data.success) {
         await login(data.user, data.token);
-        toast.success("Welcome back! 🎉"); // ★ Welcome back toast
-        router.replace('/');
+        toast.success("Welcome back! 🎉"); 
+        // router.replace('/') er bodole nicher ta din:
+        router.replace('/(shop)');
       } else {
         toast.error(data.error || 'Invalid OTP'); // ★ Error toast
         setIsLoading(false);
