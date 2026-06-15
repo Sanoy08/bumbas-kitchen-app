@@ -3,7 +3,7 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const path = require('path');
 const readline = require('readline');
-require('dotenv').config(); // jodi .env thake
+require('dotenv').config(); 
 const { MongoClient } = require('mongodb');
 
 const rl = readline.createInterface({
@@ -13,8 +13,10 @@ const rl = readline.createInterface({
 
 const gradlePath = path.join(__dirname, 'android/app/build.gradle');
 const sourceApk = path.join(__dirname, 'android/app/build/outputs/apk/release/app-release.apk');
-// Nicher path-ta apnar jekhane APK save korte chan sekhane point korben
-const destApk = path.join(__dirname, 'release/bumbas-kitchen.apk'); 
+
+// ★ apnar backend (site) folder er path
+const backendRepoPath = path.join(__dirname, '../site');
+const destApk = path.join(backendRepoPath, 'public/bumbas-kitchen.apk'); 
 
 const startProcess = async () => {
     try {
@@ -34,7 +36,7 @@ const startProcess = async () => {
 
 const runBuildProcess = async (commitMsg) => {
     try {
-        console.log("\n🚀 Starting Fast Auto-Build & Push Process...");
+        console.log("\n🚀 Starting Fast Auto-Build & Dual-Push Process...");
 
         // ১. Output folder na thakle toiri kora
         const destDir = path.dirname(destApk);
@@ -44,7 +46,7 @@ const runBuildProcess = async (commitMsg) => {
 
         // ২. পুরনো APK ডিলিট করা
         if (fs.existsSync(destApk)) {
-            console.log("🗑️  Removing old APK...");
+            console.log("🗑️  Removing old APK from backend public folder...");
             fs.unlinkSync(destApk);
         }
 
@@ -67,36 +69,38 @@ const runBuildProcess = async (commitMsg) => {
 
         console.log(`📦 Bumping Version: ${currentName} -> ${newName} (Code: ${newCode})`);
 
-        gradleContent = gradleContent.replace(/versionCode \d+/, `versionCode ${newCode}`);
-        gradleContent = gradleContent.replace(/versionName "[^"]+"/, `versionName "${newName}"`);
-        fs.writeFileSync(gradlePath, gradleContent);
-
         // ৪. ★ MongoDB তে ভার্সন আপডেট করা ★
         console.log("\n💾 Updating version in MongoDB...");
         await updateVersionInDB(newName);
 
-        // ৫. APK বিল্ড করা (Without Clean - for fast build)
+        // ৫. APK বিল্ড করা 
         console.log("\n🔨 Building APK natively (Please wait...)...");
         const isWindows = process.platform === "win32";
-        // Shudhu assembleRelease, kono clean nei
         const buildCmd = isWindows ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease';
         execSync(buildCmd, { stdio: 'inherit' });
 
-        // ৬. APK ফাইল মুভ করা
+        // ৬. APK ফাইল Backend এ মুভ করা
         if (fs.existsSync(sourceApk)) {
             fs.copyFileSync(sourceApk, destApk);
-            console.log(`✅ New APK copied to ${destApk}`);
+            console.log(`✅ New APK copied to: ${destApk}`);
         } else {
             throw new Error("APK generation failed!");
         }
 
-        // ৭. গিট কমিট এবং পুশ
-        console.log("\n☁️  Pushing to GitHub...");
+        // ৭. App প্রজেক্ট গিটহাবে পুশ করা
+        console.log("\n☁️  Pushing App to GitHub...");
         execSync('git add .', { stdio: 'inherit' });
         execSync(`git commit -m "${commitMsg} (v${newName})"`, { stdio: 'inherit' });
         execSync('git push', { stdio: 'inherit' });
 
-        console.log("\n🎉 SUCCESS! React Native App updated, DB synced & Pushed to GitHub!");
+        // ৮. ★ Backend (site) প্রজেক্ট গিটহাবে পুশ করা (APK আপডেটের জন্য) ★
+        console.log("\n🚀 Pushing Backend (site) to GitHub to deploy new APK...");
+        const cdCommand = isWindows ? `cd /d "${backendRepoPath}"` : `cd "${backendRepoPath}"`;
+        execSync(`${cdCommand} && git add public/bumbas-kitchen.apk`, { stdio: 'inherit' });
+        execSync(`${cdCommand} && git commit -m "Auto-update APK to v${newName}"`, { stdio: 'inherit' });
+        execSync(`${cdCommand} && git push`, { stdio: 'inherit' });
+
+        console.log("\n🎉 SUCCESS! App Updated, DB Synced, and New APK pushed to Backend Vercel/Hostinger!");
         process.exit(0);
 
     } catch (error) {
@@ -122,11 +126,7 @@ async function updateVersionInDB(newVersion) {
             { $set: { androidVersion: newVersion } }
         );
 
-        if (result.matchedCount === 0) {
-            console.warn("⚠️ Warning: No settings document found with type: 'general'.");
-        } else {
-            console.log(`✅ MongoDB Updated: androidVersion set to ${newVersion}`);
-        }
+        console.log(`✅ MongoDB Updated: androidVersion set to ${newVersion}`);
 
     } catch (error) {
         console.error("❌ DB Update Failed:", error.message);

@@ -140,7 +140,7 @@ export function AppUpdater() {
           </Text>
 
           <Text className="text-2xl font-bold tracking-tight text-gray-900 mb-1">
-            New Update
+            New Updateeeeeee
           </Text>
           <Text className="text-sm text-gray-500 mb-6 text-center">
             Version {updateInfo.latestVersion} is required to continue using Bumba's Kitchen.
