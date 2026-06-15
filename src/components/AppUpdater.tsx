@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
-import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 
 export function AppUpdater() {
   const [showUpdate, setShowUpdate] = useState(false);
@@ -11,35 +11,40 @@ export function AppUpdater() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadedUri, setDownloadedUri] = useState<string | null>(null);
+  const [downloadedMB, setDownloadedMB] = useState(0); // File size na pele MB dekhabar jonno
 
   useEffect(() => {
     const checkUpdate = async () => {
       try {
-        // App.json theke current version nilam (e.g., "1.0.0")
-        const currentVersion = Constants.expoConfig?.version || '1.0.0';
+        const currentVersion = Application.nativeApplicationVersion || '1.0.0';
 
-        // Apnar API theke latest data check korchi
         const res = await fetch(`https://www.bumbaskitchen.app/api/app-version?t=${new Date().getTime()}`);
         const data = await res.json();
 
-        if (data.success && data.latestVersion) {
+        if (data.success && data.latestVersion && data.apkUrl) {
+          
+          // ★ FIX 1: URL absolute (https://...) kora holo
+          let finalApkUrl = data.apkUrl;
+          if (finalApkUrl.startsWith('/')) {
+            finalApkUrl = `https://www.bumbaskitchen.app${finalApkUrl}`;
+          }
+
           if (isNewerVersion(currentVersion, data.latestVersion)) {
             setUpdateInfo({ 
                 latestVersion: data.latestVersion, 
-                apkUrl: data.apkUrl 
+                apkUrl: finalApkUrl 
             });
             setShowUpdate(true);
           }
         }
       } catch (error) {
-        console.error("Update check failed", error);
+        console.log("Update check failed", error);
       }
     };
 
     checkUpdate();
   }, []);
 
-  // Version match korar chotto logic
   const isNewerVersion = (oldVer: string, newVer: string) => {
     const oldParts = oldVer.split('.').map(Number);
     const newParts = newVer.split('.').map(Number);
@@ -58,28 +63,55 @@ export function AppUpdater() {
       return;
     }
 
+    if (!updateInfo.apkUrl) {
+      alert("Error: Update link is broken!");
+      return;
+    }
+
     setIsDownloading(true);
+    setDownloadProgress(0);
+    setDownloadedMB(0);
+
     const fileUri = FileSystem.documentDirectory + 'bumbas-kitchen-update.apk';
+
+    // ★ FIX 2: Purano corrupted file thakle aage delete kore nibe
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(fileUri);
+      }
+    } catch(e) {}
 
     const downloadResumable = FileSystem.createDownloadResumable(
       updateInfo.apkUrl,
       fileUri,
       {},
       (downloadInfo) => {
-        const progress = downloadInfo.totalBytesWritten / downloadInfo.totalBytesExpectedToWrite;
-        setDownloadProgress(progress);
+        // ★ FIX 3: Vercel er Content-Length issue fix
+        if (downloadInfo.totalBytesExpectedToWrite > 0) {
+          const progress = downloadInfo.totalBytesWritten / downloadInfo.totalBytesExpectedToWrite;
+          setDownloadProgress(progress);
+        } else {
+          // Jodi server theke total size na ashe, tahole koto MB download holo seta hishab korbe
+          const mb = downloadInfo.totalBytesWritten / (1024 * 1024);
+          setDownloadedMB(mb);
+          // Fake progress bar (upto 95%)
+          setDownloadProgress((prev) => (prev < 0.95 ? prev + 0.01 : 0.95)); 
+        }
       }
     );
 
     try {
       const result = await downloadResumable.downloadAsync();
       if (result?.uri) {
+        setDownloadProgress(1);
         setDownloadedUri(result.uri);
         installUpdate(result.uri);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Download failed! Please check your internet connection.');
+      // ★ Exact error msg dekhabe ebar
+      alert(`Download Failed!\nError: ${e.message}`); 
     } finally {
       setIsDownloading(false);
     }
@@ -95,7 +127,7 @@ export function AppUpdater() {
       });
     } catch (error) {
       console.error("Installation Error:", error);
-      alert('Install korte somossa hocche.');
+      alert('Install korte somossa hocche. Apnar phone er settings e "Install Unknown Apps" allow kora ache kina check korun.');
     }
   };
 
@@ -118,8 +150,12 @@ export function AppUpdater() {
             {isDownloading ? (
               <View className="w-full space-y-2">
                 <View className="flex-row justify-between px-1 mb-2">
-                  <Text className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Downloading</Text>
-                  <Text className="text-[11px] font-bold text-red-500 uppercase">{Math.round(downloadProgress * 100)}%</Text>
+                  <Text className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                    {downloadedMB > 0 ? `Downloading... ${downloadedMB.toFixed(1)} MB` : 'Downloading'}
+                  </Text>
+                  <Text className="text-[11px] font-bold text-red-500 uppercase">
+                    {downloadedMB > 0 ? '' : `${Math.round(downloadProgress * 100)}%`}
+                  </Text>
                 </View>
                 <View className="w-full h-2.5 bg-red-100 rounded-full overflow-hidden">
                   <View 
