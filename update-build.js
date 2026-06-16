@@ -13,10 +13,9 @@ const rl = readline.createInterface({
 
 const gradlePath = path.join(__dirname, 'android/app/build.gradle');
 const sourceApk = path.join(__dirname, 'android/app/build/outputs/apk/release/app-release.apk');
-const appJsonPath = path.join(__dirname, 'app.json'); // ★ app.json এর পাথ
-const packageJsonPath = path.join(__dirname, 'package.json'); // ★ package.json এর পাথ
+const appJsonPath = path.join(__dirname, 'app.json');
+const packageJsonPath = path.join(__dirname, 'package.json');
 
-// ★ apnar backend (site) folder er path
 const backendRepoPath = path.join(__dirname, '../site');
 
 const startProcess = async () => {
@@ -39,7 +38,7 @@ const runBuildProcess = async (commitMsg) => {
     try {
         console.log("\n🚀 Starting Fast Auto-Build & Dual-Push Process...");
 
-        // ১. Gradle ফাইল আপডেট (ভার্সন বের করা)
+        // ১. Gradle ফাইল থেকে ভার্সন বের করা
         let gradleContent = fs.readFileSync(gradlePath, 'utf8');
         const codeMatch = gradleContent.match(/versionCode (\d+)/);
         const nameMatch = gradleContent.match(/versionName "([^"]+)"/);
@@ -50,7 +49,6 @@ const runBuildProcess = async (commitMsg) => {
         const currentName = nameMatch[1];
         const newCode = currentCode + 1;
         
-        // ভার্সন নেম লজিক (1.0.0 -> 1.0.1)
         const nameParts = currentName.split('.').map(Number);
         if(nameParts.length === 2) nameParts.push(0);
         nameParts[nameParts.length - 1] += 1;
@@ -58,22 +56,27 @@ const runBuildProcess = async (commitMsg) => {
 
         console.log(`📦 Bumping Version: ${currentName} -> ${newName} (Code: ${newCode})`);
 
-        // ★ ২. app.json এবং package.json আপডেট করা ★
+        // ★★★ FIX: এই ৩টে লাইন আমি আগেরবার দিতে ভুলে গেছিলাম! (Gradle ফাইল সেভ করা) ★★★
+        gradleContent = gradleContent.replace(/versionCode \d+/, `versionCode ${newCode}`);
+        gradleContent = gradleContent.replace(/versionName "[^"]+"/, `versionName "${newName}"`);
+        fs.writeFileSync(gradlePath, gradleContent);
+
+        // ২. app.json এবং package.json আপডেট করা
         if (fs.existsSync(appJsonPath)) {
             let appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
-            appJson.expo.version = newName; // app.json এ নতুন ভার্সন বসাচ্ছে
+            appJson.expo.version = newName;
             fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2));
             console.log(`📄 Updated app.json version to ${newName}`);
         }
 
         if (fs.existsSync(packageJsonPath)) {
             let packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-            packageJson.version = newName; // package.json এ নতুন ভার্সন বসাচ্ছে
+            packageJson.version = newName;
             fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
             console.log(`📦 Updated package.json version to ${newName}`);
         }
 
-        // ৩. ডাইনামিক ফাইল নেম তৈরি করা (Caching এড়াতে)
+        // ৩. ডাইনামিক ফাইল নেম তৈরি করা
         const apkFileName = `bumbas-kitchen-v${newName}.apk`;
         const destApk = path.join(backendRepoPath, `public/${apkFileName}`); 
         const publicDir = path.join(backendRepoPath, 'public');
@@ -90,7 +93,7 @@ const runBuildProcess = async (commitMsg) => {
             }
         });
 
-        // ৫. ★ MongoDB তে ভার্সন এবং নতুন URL আপডেট করা ★
+        // ৫. MongoDB তে ভার্সন এবং নতুন URL আপডেট করা
         console.log("\n💾 Updating version & URL in MongoDB...");
         await updateVersionInDB(newName, `/${apkFileName}`);
 
@@ -114,14 +117,12 @@ const runBuildProcess = async (commitMsg) => {
         execSync(`git commit -m "${commitMsg} (v${newName})"`, { stdio: 'inherit' });
         execSync('git push', { stdio: 'inherit' });
 
-        // ৯. ★ Backend (site) প্রজেক্ট গিটহাবে পুশ করা ★
+        // ৯. Backend (site) প্রজেক্ট গিটহাবে পুশ করা
         console.log("\n🚀 Pushing Backend (site) to GitHub to deploy new APK...");
         const cdCommand = isWindows ? `cd /d "${backendRepoPath}"` : `cd "${backendRepoPath}"`;
         
-        // নতুন ফাইল অ্যাড করা এবং ডিলিট হওয়া পুরনো ফাইল গিট থেকে সরানো
         execSync(`${cdCommand} && git add public/${apkFileName}`, { stdio: 'inherit' });
         execSync(`${cdCommand} && git add -u public/`, { stdio: 'inherit' }); 
-        
         execSync(`${cdCommand} && git commit -m "Auto-update APK to v${newName}"`, { stdio: 'inherit' });
         execSync(`${cdCommand} && git push`, { stdio: 'inherit' });
 
@@ -146,12 +147,9 @@ async function updateVersionInDB(newVersion, newApkUrl) {
         const db = client.db('BumbasKitchenDB'); 
         const settingsCollection = db.collection('settings');
 
-        const result = await settingsCollection.updateOne(
+        await settingsCollection.updateOne(
             { type: "general" }, 
-            { $set: { 
-                androidVersion: newVersion,
-                apkUrl: newApkUrl // ★ URL টাও ডাটাবেসে আপডেট হয়ে যাবে
-            } }
+            { $set: { androidVersion: newVersion, apkUrl: newApkUrl } }
         );
 
         console.log(`✅ MongoDB Updated: androidVersion = ${newVersion}, apkUrl = ${newApkUrl}`);
