@@ -13,6 +13,8 @@ const rl = readline.createInterface({
 
 const gradlePath = path.join(__dirname, 'android/app/build.gradle');
 const sourceApk = path.join(__dirname, 'android/app/build/outputs/apk/release/app-release.apk');
+const appJsonPath = path.join(__dirname, 'app.json'); // ★ app.json এর পাথ
+const packageJsonPath = path.join(__dirname, 'package.json'); // ★ package.json এর পাথ
 
 // ★ apnar backend (site) folder er path
 const backendRepoPath = path.join(__dirname, '../site');
@@ -56,7 +58,22 @@ const runBuildProcess = async (commitMsg) => {
 
         console.log(`📦 Bumping Version: ${currentName} -> ${newName} (Code: ${newCode})`);
 
-        // ★ ২. ডাইনামিক ফাইল নেম তৈরি করা (Caching এড়াতে)
+        // ★ ২. app.json এবং package.json আপডেট করা ★
+        if (fs.existsSync(appJsonPath)) {
+            let appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+            appJson.expo.version = newName; // app.json এ নতুন ভার্সন বসাচ্ছে
+            fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2));
+            console.log(`📄 Updated app.json version to ${newName}`);
+        }
+
+        if (fs.existsSync(packageJsonPath)) {
+            let packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+            packageJson.version = newName; // package.json এ নতুন ভার্সন বসাচ্ছে
+            fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+            console.log(`📦 Updated package.json version to ${newName}`);
+        }
+
+        // ৩. ডাইনামিক ফাইল নেম তৈরি করা (Caching এড়াতে)
         const apkFileName = `bumbas-kitchen-v${newName}.apk`;
         const destApk = path.join(backendRepoPath, `public/${apkFileName}`); 
         const publicDir = path.join(backendRepoPath, 'public');
@@ -65,7 +82,7 @@ const runBuildProcess = async (commitMsg) => {
             fs.mkdirSync(publicDir, { recursive: true });
         }
 
-        // ★ ৩. পুরনো সব APK ফাইল public ফোল্ডার থেকে ডিলিট করে দেওয়া
+        // ৪. পুরনো সব APK ফাইল public ফোল্ডার থেকে ডিলিট করে দেওয়া
         console.log("🗑️  Removing old APKs from backend public folder...");
         fs.readdirSync(publicDir).forEach(file => {
             if (file.startsWith('bumbas-kitchen') && file.endsWith('.apk')) {
@@ -73,17 +90,17 @@ const runBuildProcess = async (commitMsg) => {
             }
         });
 
-        // ৪. ★ MongoDB তে ভার্সন এবং নতুন URL আপডেট করা ★
+        // ৫. ★ MongoDB তে ভার্সন এবং নতুন URL আপডেট করা ★
         console.log("\n💾 Updating version & URL in MongoDB...");
         await updateVersionInDB(newName, `/${apkFileName}`);
 
-        // ৫. APK বিল্ড করা 
+        // ৬. APK বিল্ড করা 
         console.log("\n🔨 Building APK natively (Please wait...)...");
         const isWindows = process.platform === "win32";
         const buildCmd = isWindows ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease';
         execSync(buildCmd, { stdio: 'inherit' });
 
-        // ৬. APK ফাইল Backend এ মুভ করা
+        // ৭. APK ফাইল Backend এ মুভ করা
         if (fs.existsSync(sourceApk)) {
             fs.copyFileSync(sourceApk, destApk);
             console.log(`✅ New APK copied to: ${destApk}`);
@@ -91,13 +108,13 @@ const runBuildProcess = async (commitMsg) => {
             throw new Error("APK generation failed!");
         }
 
-        // ৭. App প্রজেক্ট গিটহাবে পুশ করা
+        // ৮. App প্রজেক্ট গিটহাবে পুশ করা
         console.log("\n☁️  Pushing App to GitHub...");
         execSync('git add .', { stdio: 'inherit' });
         execSync(`git commit -m "${commitMsg} (v${newName})"`, { stdio: 'inherit' });
         execSync('git push', { stdio: 'inherit' });
 
-        // ৮. ★ Backend (site) প্রজেক্ট গিটহাবে পুশ করা ★
+        // ৯. ★ Backend (site) প্রজেক্ট গিটহাবে পুশ করা ★
         console.log("\n🚀 Pushing Backend (site) to GitHub to deploy new APK...");
         const cdCommand = isWindows ? `cd /d "${backendRepoPath}"` : `cd "${backendRepoPath}"`;
         

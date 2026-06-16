@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bumba's Kitchen",
     "slug": "bumbas-kitchen",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/LOGO.png",
     "scheme": "bumbaskitchenapp",
@@ -60,7 +60,10 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/40acdafb-c0f4-4185-a987-1f04ce8c59d8"
+      "url": "https://u.expo.dev/40acdafb-c0f4-4185-a987-1f04ce8c59d8",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     }
   }
 }
