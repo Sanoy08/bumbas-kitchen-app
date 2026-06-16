@@ -16,7 +16,6 @@ const sourceApk = path.join(__dirname, 'android/app/build/outputs/apk/release/ap
 
 // ★ apnar backend (site) folder er path
 const backendRepoPath = path.join(__dirname, '../site');
-const destApk = path.join(backendRepoPath, 'public/bumbas-kitchen.apk'); 
 
 const startProcess = async () => {
     try {
@@ -38,19 +37,7 @@ const runBuildProcess = async (commitMsg) => {
     try {
         console.log("\n🚀 Starting Fast Auto-Build & Dual-Push Process...");
 
-        // ১. Output folder na thakle toiri kora
-        const destDir = path.dirname(destApk);
-        if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-        }
-
-        // ২. পুরনো APK ডিলিট করা
-        if (fs.existsSync(destApk)) {
-            console.log("🗑️  Removing old APK from backend public folder...");
-            fs.unlinkSync(destApk);
-        }
-
-        // ৩. Gradle ফাইল আপডেট (ভার্সন বের করা)
+        // ১. Gradle ফাইল আপডেট (ভার্সন বের করা)
         let gradleContent = fs.readFileSync(gradlePath, 'utf8');
         const codeMatch = gradleContent.match(/versionCode (\d+)/);
         const nameMatch = gradleContent.match(/versionName "([^"]+)"/);
@@ -69,9 +56,26 @@ const runBuildProcess = async (commitMsg) => {
 
         console.log(`📦 Bumping Version: ${currentName} -> ${newName} (Code: ${newCode})`);
 
-        // ৪. ★ MongoDB তে ভার্সন আপডেট করা ★
-        console.log("\n💾 Updating version in MongoDB...");
-        await updateVersionInDB(newName);
+        // ★ ২. ডাইনামিক ফাইল নেম তৈরি করা (Caching এড়াতে)
+        const apkFileName = `bumbas-kitchen-v${newName}.apk`;
+        const destApk = path.join(backendRepoPath, `public/${apkFileName}`); 
+        const publicDir = path.join(backendRepoPath, 'public');
+
+        if (!fs.existsSync(publicDir)) {
+            fs.mkdirSync(publicDir, { recursive: true });
+        }
+
+        // ★ ৩. পুরনো সব APK ফাইল public ফোল্ডার থেকে ডিলিট করে দেওয়া
+        console.log("🗑️  Removing old APKs from backend public folder...");
+        fs.readdirSync(publicDir).forEach(file => {
+            if (file.startsWith('bumbas-kitchen') && file.endsWith('.apk')) {
+                fs.unlinkSync(path.join(publicDir, file));
+            }
+        });
+
+        // ৪. ★ MongoDB তে ভার্সন এবং নতুন URL আপডেট করা ★
+        console.log("\n💾 Updating version & URL in MongoDB...");
+        await updateVersionInDB(newName, `/${apkFileName}`);
 
         // ৫. APK বিল্ড করা 
         console.log("\n🔨 Building APK natively (Please wait...)...");
@@ -93,10 +97,14 @@ const runBuildProcess = async (commitMsg) => {
         execSync(`git commit -m "${commitMsg} (v${newName})"`, { stdio: 'inherit' });
         execSync('git push', { stdio: 'inherit' });
 
-        // ৮. ★ Backend (site) প্রজেক্ট গিটহাবে পুশ করা (APK আপডেটের জন্য) ★
+        // ৮. ★ Backend (site) প্রজেক্ট গিটহাবে পুশ করা ★
         console.log("\n🚀 Pushing Backend (site) to GitHub to deploy new APK...");
         const cdCommand = isWindows ? `cd /d "${backendRepoPath}"` : `cd "${backendRepoPath}"`;
-        execSync(`${cdCommand} && git add public/bumbas-kitchen.apk`, { stdio: 'inherit' });
+        
+        // নতুন ফাইল অ্যাড করা এবং ডিলিট হওয়া পুরনো ফাইল গিট থেকে সরানো
+        execSync(`${cdCommand} && git add public/${apkFileName}`, { stdio: 'inherit' });
+        execSync(`${cdCommand} && git add -u public/`, { stdio: 'inherit' }); 
+        
         execSync(`${cdCommand} && git commit -m "Auto-update APK to v${newName}"`, { stdio: 'inherit' });
         execSync(`${cdCommand} && git push`, { stdio: 'inherit' });
 
@@ -109,7 +117,7 @@ const runBuildProcess = async (commitMsg) => {
     }
 };
 
-async function updateVersionInDB(newVersion) {
+async function updateVersionInDB(newVersion, newApkUrl) {
     let client;
     try {
         const uri = process.env.MONGODB_URI;
@@ -123,10 +131,13 @@ async function updateVersionInDB(newVersion) {
 
         const result = await settingsCollection.updateOne(
             { type: "general" }, 
-            { $set: { androidVersion: newVersion } }
+            { $set: { 
+                androidVersion: newVersion,
+                apkUrl: newApkUrl // ★ URL টাও ডাটাবেসে আপডেট হয়ে যাবে
+            } }
         );
 
-        console.log(`✅ MongoDB Updated: androidVersion set to ${newVersion}`);
+        console.log(`✅ MongoDB Updated: androidVersion = ${newVersion}, apkUrl = ${newApkUrl}`);
 
     } catch (error) {
         console.error("❌ DB Update Failed:", error.message);

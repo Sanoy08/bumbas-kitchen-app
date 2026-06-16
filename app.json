@@ -13,6 +13,7 @@
     "android": {
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
+        "REQUEST_INSTALL_PACKAGES",
         "REQUEST_INSTALL_PACKAGES"
       ],
       "gradleProperties": {
@@ -54,6 +55,12 @@
       "eas": {
         "projectId": "40acdafb-c0f4-4185-a987-1f04ce8c59d8"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/40acdafb-c0f4-4185-a987-1f04ce8c59d8"
     }
   }
 }
