@@ -18,7 +18,11 @@
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_UPDATES_ENABLED": "true",
+        "EXPO_NO_TELEMETRY": "true"
+      }
     }
   },
   "submit": {
