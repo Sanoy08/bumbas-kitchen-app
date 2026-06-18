@@ -177,7 +177,7 @@ export function AppUpdater() {
       <View className="flex-1 justify-center items-center bg-black/60 px-4">
         <View className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-sm items-center shadow-2xl">
           <Text className="bg-red-50 text-red-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest mt-2 mb-4">
-            Action Required
+            Action Requiredddd
           </Text>
 
           <Text className="text-2xl font-bold tracking-tight text-gray-900 mb-1">
