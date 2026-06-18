@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bumba's Kitchen",
     "slug": "bumbas-kitchen",
-    "version": "1.0.9",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/LOGO.png",
     "scheme": "bumbaskitchenapp",
@@ -54,18 +54,6 @@
       "router": {},
       "eas": {
         "projectId": "40acdafb-c0f4-4185-a987-1f04ce8c59d8"
-      }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/40acdafb-c0f4-4185-a987-1f04ce8c59d8",
-      "requestHeaders": {
-        "expo-channel-name": "production"
       }
     }
   }

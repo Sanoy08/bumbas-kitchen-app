@@ -1,28 +1,20 @@
 {
   "cli": {
-    "version": ">= 20.1.0",
-    "appVersionSource": "remote"
+    "version": ">= 20.1.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "channel": "development"
+      "distribution": "internal"
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "channel": "preview"
+      }
     },
     "production": {
-      "autoIncrement": true,
-      "channel": "production",
-      "env": {
-        "EXPO_UPDATES_ENABLED": "true",
-        "EXPO_NO_TELEMETRY": "true"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {

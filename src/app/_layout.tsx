@@ -14,7 +14,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import "../../global.css";
-import * as Updates from 'expo-updates';
 import { Alert } from 'react-native';
 
 // ★ ১. AppUpdater Import Kora Holo
@@ -219,31 +218,6 @@ export default function RootLayout() {
               }
             }}
           />
-        {/* ★ OTA DEBUGGER BUTTON ★ */}
-          <TouchableOpacity 
-            onPress={async () => {
-              try {
-                Alert.alert("OTA Debug", "1. Checking Cloud for Updates...");
-                const update = await Updates.checkForUpdateAsync();
-                
-                if (update.isAvailable) {
-                  Alert.alert("OTA Debug", "2. Update Found! Downloading JS bundle...");
-                  await Updates.fetchUpdateAsync();
-                  
-                  Alert.alert("OTA Debug", "3. Download Success! Restarting App...");
-                  await Updates.reloadAsync();
-                } else {
-                  Alert.alert("OTA Debug", "No OTA Update available on cloud. App is up-to-date.");
-                }
-              } catch (error: any) {
-                Alert.alert("OTA Error!", `Karon: ${error.message || error}`);
-              }
-            }}
-            style={{ position: 'absolute', bottom: 100, right: 20, backgroundColor: 'black', padding: 15, borderRadius: 50, zIndex: 9999, elevation: 20 }}
-          >
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>OTA Debug</Text>
-          </TouchableOpacity>
-
         </AlertProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
