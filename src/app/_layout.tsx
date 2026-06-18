@@ -214,7 +214,7 @@ export default function RootLayout() {
               },
               titleStyle: {
                 color: '#111827',
-                fontWeight: 'bold',
+                fontWeight: 'regular',
               }
             }}
           />

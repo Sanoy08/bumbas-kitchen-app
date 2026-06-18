@@ -1,22 +1,21 @@
-// src\app\(shop)\account\addresses\index.tsx
+// src/app/(shop)/account/addresses/index.tsx
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Switch, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MapPin, Plus, Loader2, Trash2, Pencil, Home, Briefcase, Search, AlertCircle, Info, X } from 'lucide-react-native';
+import { AlertCircle, Briefcase, Home, Info, Loader2, MapPin, Pencil, Plus, Search, Trash2, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
-// ★ UrlTile ইমপোর্ট করা হলো
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+// ★ react-native-maps সরিয়ে WebView আনা হলো
+import { WebView } from 'react-native-webview';
 
-import { useAuthStore } from '@/store/authStore';
 import { useAlert } from '@/components/ui/CustomAlert';
 import { formatPrice } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 const PRESET_LABELS = ["Home", "Work", "Office", "Mom's Place", "Other"];
 
-// --- Custom Hook for Debounce ---
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
@@ -50,6 +49,8 @@ export default function AccountAddressesScreen() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
+  const [isMapReady, setIsMapReady] = useState(false);
+  
   const [formData, setFormData] = useState({ 
     name: '', 
     address: '', 
@@ -77,6 +78,15 @@ export default function AccountAddressesScreen() {
       fetchAddresses();
     }
   }, [isInitialized, user]);
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      const timer = setTimeout(() => setIsMapReady(true), 300);
+      return () => clearTimeout(timer);
+    } else {
+      setIsMapReady(false);
+    }
+  }, [isDialogOpen]);
 
   const fetchAddresses = async () => {
     try {
@@ -234,12 +244,64 @@ export default function AccountAddressesScreen() {
     return <MapPin size={20} color="#e11d48" />;
   };
 
+  // ★ WebView থেকে মেসেজ রিসিভ করার ফাংশন
+  const handleMapMessage = (event: any) => {
+    try {
+      const { lat, lng } = JSON.parse(event.nativeEvent.data);
+      handleLocationSelect(lat, lng);
+    } catch (e) {
+      console.log("Map Error:", e);
+    }
+  };
+
+  // ★ Leaflet HTML (সম্পূর্ণ লোকাল এবং ফ্রি)
+  const defaultLat = formData.coordinates?.lat || 22.717958;
+  const defaultLng = formData.coordinates?.lng || 88.260207;
+  
+  const mapHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <style>
+        body { padding: 0; margin: 0; }
+        #map { width: 100vw; height: 100vh; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        var map = L.map('map', { zoomControl: false }).setView([${defaultLat}, ${defaultLng}], 15);
+        
+        // Google Hybrid Tiles (No API key required here)
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          maxZoom: 20
+        }).addTo(map);
+
+        var marker = L.marker([${defaultLat}, ${defaultLng}], {draggable: true}).addTo(map);
+
+        map.on('click', function(e) {
+          marker.setLatLng(e.latlng);
+          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng }));
+        });
+
+        marker.on('dragend', function(e) {
+          var position = marker.getLatLng();
+          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: position.lat, lng: position.lng }));
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
   if (isLoading || !isInitialized) {
     return <View className="flex-1 justify-center items-center bg-gray-50"><Loader2 size={32} color="#e11d48" /></View>;
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <Text className="text-2xl font-bold text-gray-900 font-sans mb-1">My Addresses</Text>
         <Text className="text-sm text-gray-500 font-medium font-sans mb-6">Manage delivery locations & check delivery fees.</Text>
@@ -316,10 +378,9 @@ export default function AccountAddressesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* --- ADD / EDIT MODAL --- */}
-      <Modal visible={isDialogOpen} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setIsDialogOpen(false)}>
-        <View className="flex-1 bg-gray-50">
-          
+      {/* --- ADD / EDIT ABSOLUTE VIEW --- */}
+      {isDialogOpen && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#f9fafb', zIndex: 100, paddingTop: insets.top }]}>
           <View className="flex-row items-center justify-between p-4 border-b border-gray-200 bg-white">
             <Text className="text-xl font-bold text-gray-900 font-sans">{editingId ? 'Edit Address' : 'Add New Address'}</Text>
             <TouchableOpacity onPress={() => setIsDialogOpen(false)} className="p-2 bg-gray-100 rounded-full">
@@ -385,39 +446,21 @@ export default function AccountAddressesScreen() {
                 )}
               </View>
 
-              {/* ★ MAGIC FIX: mapType="none" & UrlTile দিয়ে Free Google Maps যুক্ত করা হলো ★ */}
-              <View className="h-64 w-full rounded-2xl overflow-hidden border border-gray-200 mb-3 bg-gray-100 relative">
-                <MapView
-                  style={{ flex: 1 }}
-                  mapType={Platform.OS === 'android' ? 'none' : 'standard'}
-                  region={formData.coordinates ? {
-                    latitude: formData.coordinates.lat,
-                    longitude: formData.coordinates.lng,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  } : {
-                    latitude: 22.717958, // Default (Janai)
-                    longitude: 88.260207,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  onPress={(e) => handleLocationSelect(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
-                >
-                  <UrlTile
-                    urlTemplate="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-                    maximumZ={20}
-                    flipY={false}
+              {/* ★ Webview Leaflet Map ★ */}
+              <View className="h-64 w-full rounded-2xl overflow-hidden border border-gray-200 mb-3 bg-gray-100 relative justify-center items-center">
+                {!isMapReady ? (
+                  <ActivityIndicator size="large" color="#e11d48" />
+                ) : (
+                  <WebView
+                    style={{ flex: 1, width: '100%' }}
+                    source={{ html: mapHtml }}
+                    onMessage={handleMapMessage}
+                    scrollEnabled={false}
+                    showsVerticalScrollIndicator={false}
+                    showsHorizontalScrollIndicator={false}
                   />
-                  {formData.coordinates && (
-                    <Marker 
-                      draggable
-                      coordinate={{ latitude: formData.coordinates.lat, longitude: formData.coordinates.lng }} 
-                      onDragEnd={(e) => handleLocationSelect(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
-                    />
-                  )}
-                </MapView>
+                )}
                 
-                {/* Floating instruction over the map */}
                 <View className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-black/70 px-3 py-1 rounded-full pointer-events-none">
                   <Text className="text-white text-[10px] font-medium font-sans">Tap or Drag the pin to exact location</Text>
                 </View>
@@ -483,7 +526,7 @@ export default function AccountAddressesScreen() {
             
           </ScrollView>
         </View>
-      </Modal>
+      )}
 
     </View>
   );

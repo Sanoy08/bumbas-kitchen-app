@@ -69,18 +69,13 @@ const TESTIMONIALS = [
 ];
 
 // --- Helper Components ---
+// ★ Changed: Image is now strictly square (aspectRatio: 1)
 const AutoScaledImage = ({ url, isFullWidth = true }: { url: string, isFullWidth?: boolean }) => {
-  const [ratio, setRatio] = useState(2);
   return (
     <Image
       source={{ uri: url }}
-      style={{ width: isFullWidth ? windowWidth : windowWidth - 32, aspectRatio: ratio }}
+      style={{ width: isFullWidth ? windowWidth : windowWidth - 32, aspectRatio: 1 }}
       contentFit="cover"
-      onLoad={(e) => {
-        if (e.source.width && e.source.height) {
-          setRatio(e.source.width / e.source.height);
-        }
-      }}
     />
   );
 };
@@ -225,7 +220,8 @@ export default function HomeScreen() {
     categoryContainerRef.current?.measureLayout(
       scrollViewRef.current as any,
       (x, y) => {
-        const stickyHeaderHeight = insets.top + 90;
+        // ★ Changed: insets.top + 90 থেকে insets.top + 60 করা হয়েছে গ্যাপ কমানোর জন্য
+        const stickyHeaderHeight = insets.top + 60;
         const lockPosition = y - stickyHeaderHeight + 10;
         if (currentOffset < lockPosition) {
           scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
@@ -241,7 +237,8 @@ export default function HomeScreen() {
     categoryContainerRef.current?.measureLayout(
       scrollViewRef.current as any,
       (x, y) => {
-        const stickyHeaderHeight = insets.top + 90;
+        // ★ Changed: insets.top + 90 থেকে insets.top + 60
+        const stickyHeaderHeight = insets.top + 60;
         const lockPosition = y - stickyHeaderHeight + 10;
         if (currentOffset < lockPosition) {
           scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
@@ -259,7 +256,8 @@ export default function HomeScreen() {
         categoryContainerRef.current?.measureLayout(
           scrollViewRef.current as any,
           (x, y) => {
-            const stickyHeaderHeight = insets.top + 90;
+            // ★ Changed: insets.top + 90 থেকে insets.top + 60
+            const stickyHeaderHeight = insets.top + 60;
             const lockPosition = y - stickyHeaderHeight + 10;
             scrollViewRef.current?.scrollTo({ y: Math.max(0, lockPosition), animated: true });
           },
@@ -294,7 +292,8 @@ export default function HomeScreen() {
   });
 
   const stickyCategoryStyle = useAnimatedStyle(() => {
-    const collapsedHeaderHeight = insets.top + 90;
+    // ★ Changed: insets.top + 90 থেকে insets.top + 60 করা হয়েছে গ্যাপ ঠিক করতে
+    const collapsedHeaderHeight = insets.top + 60;
     const triggerY = categoryY.value - collapsedHeaderHeight;
     const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
     return {
