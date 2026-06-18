@@ -537,7 +537,7 @@ export default function HomeScreen() {
 
           {activeCategory === "All" ? (
             <View className="px-4 pt-2 pb-4">
-              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Recommenddddddded For You</Text>
+              <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">Recommended For You</Text>
               {homeData.bestsellers && homeData.bestsellers.length > 0 ? (
                 <View className="flex-row flex-wrap justify-between">
                   {homeData.bestsellers.map((item: any) => (

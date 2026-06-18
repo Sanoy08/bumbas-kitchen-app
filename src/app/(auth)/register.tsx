@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
 import { toast } from 'sonner-native';
 import * as z from 'zod';
 
@@ -52,13 +53,11 @@ export default function RegisterScreen() {
   const [limitData, setLimitData] = useState({ ipLeft: 5, phoneLeft: 3, isBlocked: false, resetTime: '', reason: '' });
   const [showBlockPopup, setShowBlockPopup] = useState(false);
 
-  // Bottom sheet animated position (same logic as login)
   const getDefaultBottom = (currentStep: 'details' | 'otp') => {
     return currentStep === 'details' ? 20 : 52;
   };
   const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
 
-  // Animate when step changes
   useEffect(() => {
     Animated.timing(animatedBottom, {
       toValue: getDefaultBottom(step),
@@ -67,7 +66,6 @@ export default function RegisterScreen() {
     }).start();
   }, [step]);
 
-  // Keyboard handling (same as login)
   useEffect(() => {
     const keyboardWillShow = (e: any) => {
       let targetBottom;
@@ -128,10 +126,38 @@ export default function RegisterScreen() {
     } else if (timeLeft === 0) setCanResend(true);
   }, [timeLeft, step]);
 
+  // ★ Auto OTP Retrieval Logic ★
   useEffect(() => {
     if (step === 'otp') {
       const timer = setTimeout(() => inputRefs.current[0]?.focus(), 100);
-      return () => clearTimeout(timer);
+
+      if (Platform.OS === 'android') {
+        RNOtpVerify.getOtp()
+          .then(() => {
+            RNOtpVerify.addListener((message: string) => {
+              try {
+                if (message) {
+                  const match = message.match(/(\d{6})/); // ৬ ডিজিটের OTP খুঁজবে
+                  if (match && match[0]) {
+                    const otpCode = match[0];
+                    setOtp(otpCode.split('')); 
+                    Keyboard.dismiss();
+                    verifyRegisterLogic(otpCode); // অটোমেটিক ভেরিফাই
+                    RNOtpVerify.removeListener();
+                  }
+                }
+              } catch (error) {
+                console.log('Auto OTP Error:', error);
+              }
+            });
+          })
+          .catch(console.log);
+      }
+
+      return () => {
+        clearTimeout(timer);
+        if (Platform.OS === 'android') RNOtpVerify.removeListener();
+      };
     }
   }, [step]);
 
@@ -217,13 +243,11 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Fixed background image */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: HERO_IMAGE_URL }} style={styles.heroImage} resizeMode="cover" />
         <View style={styles.overlay} />
       </View>
 
-      {/* Animated Bottom Sheet */}
       <Animated.View style={[styles.bottomSheet, { bottom: animatedBottom }]}>
         <ScrollView
           ref={scrollViewRef}
@@ -239,7 +263,6 @@ export default function RegisterScreen() {
                   Create your account
                 </Text>
 
-                {/* Name field */}
                 <View className="space-y-2 mb-4">
                   <Controller
                     control={control}
@@ -271,48 +294,50 @@ export default function RegisterScreen() {
                   {errors.name && <Text className="text-red-500 text-xs mt-1 px-1">{errors.name.message}</Text>}
                 </View>
 
-                {/* Phone field with flag icon */}
-<View className="space-y-2">
-  <Controller
-    control={control}
-    name="phone"
-    render={({ field: { onChange, onBlur, value } }) => (
-      <View
-        className={`flex-row items-center border ${errors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl bg-white overflow-hidden h-14`}
-      >
-        <View className="flex-row items-center px-4 bg-gray-50 border-r border-gray-300 h-full">
-          <Text className="text-xl mr-1">🇮🇳</Text>
-          <Text className="text-gray-600 font-medium text-base ml-1">+91</Text>
-        </View>
-        <TextInput
-          className="flex-1 px-4 text-base text-gray-900 h-full font-medium tracking-widest"
-          keyboardType="numeric"
-          maxLength={10}
-          placeholder="Enter Phone Number"
-          placeholderTextColor="#9ca3af"
-          onBlur={onBlur}
-          onChangeText={(text) => onChange(text.replace(/\D/g, ''))}
-          value={value}
-          editable={!isLoading}
-          onFocus={(event) => {
-            event.currentTarget.measure((fx, fy, width, height, px, py) => {
-              scrollToInput(py);
-            });
-          }}
-        />
-      </View>
-    )}
-  />
-  {errors.phone && <Text className="text-red-500 text-xs mt-1 px-1">{errors.phone.message}</Text>}
-  {phoneValue?.length === 10 && !limitData.isBlocked && (
-    <View className="flex-row items-center mt-2 px-1">
-      <ShieldAlert size={14} color={limitData.phoneLeft === 0 ? "#ef4444" : "#6b7280"} />
-      <Text className={`text-xs ml-1 font-medium ${limitData.phoneLeft === 0 ? "text-red-500" : "text-gray-500"}`}>
-        {limitData.phoneLeft} attempts left for this number
-      </Text>
-    </View>
-  )}
-</View>
+                <View className="space-y-2">
+                  <Controller
+                    control={control}
+                    name="phone"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <View
+                        className={`flex-row items-center border ${errors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl bg-white overflow-hidden h-14`}
+                      >
+                        <View className="flex-row items-center px-4 bg-gray-50 border-r border-gray-300 h-full">
+                          <Text className="text-xl mr-1">🇮🇳</Text>
+                          <Text className="text-gray-600 font-medium text-base ml-1">+91</Text>
+                        </View>
+                        <TextInput
+                          className="flex-1 px-4 text-base text-gray-900 h-full font-medium tracking-widest"
+                          keyboardType="phone-pad"
+                          maxLength={10}
+                          placeholder="Enter Phone Number"
+                          placeholderTextColor="#9ca3af"
+                          autoComplete="tel" // ★ Auto Suggestion
+                          textContentType="telephoneNumber" // ★ Auto Suggestion
+                          importantForAutofill="yes"
+                          onBlur={onBlur}
+                          onChangeText={(text) => onChange(text.replace(/\D/g, ''))}
+                          value={value}
+                          editable={!isLoading}
+                          onFocus={(event) => {
+                            event.currentTarget.measure((fx, fy, width, height, px, py) => {
+                              scrollToInput(py);
+                            });
+                          }}
+                        />
+                      </View>
+                    )}
+                  />
+                  {errors.phone && <Text className="text-red-500 text-xs mt-1 px-1">{errors.phone.message}</Text>}
+                  {phoneValue?.length === 10 && !limitData.isBlocked && (
+                    <View className="flex-row items-center mt-2 px-1">
+                      <ShieldAlert size={14} color={limitData.phoneLeft === 0 ? "#ef4444" : "#6b7280"} />
+                      <Text className={`text-xs ml-1 font-medium ${limitData.phoneLeft === 0 ? "text-red-500" : "text-gray-500"}`}>
+                        {limitData.phoneLeft} attempts left for this number
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
                 <TouchableOpacity
                   onPress={handleSubmit(onRegisterSubmit)}
@@ -330,7 +355,6 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Sign in link at bottom */}
               <View style={styles.signinContainer}>
                 <Text className="text-sm text-gray-500">Already have an account? </Text>
                 <Link href="/(auth)/login" asChild>
@@ -341,7 +365,6 @@ export default function RegisterScreen() {
               </View>
             </View>
           ) : (
-            // OTP Step
             <View className="space-y-6">
               <Text className="text-center text-gray-800 font-bold text-xl mb-1">
                 Verify your number
@@ -359,6 +382,7 @@ export default function RegisterScreen() {
                     keyboardType="numeric"
                     maxLength={1}
                     value={digit}
+                    textContentType="oneTimeCode"
                     onChangeText={(val) => handleOtpChange(index, val)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
                     editable={!isLoading}
@@ -406,7 +430,6 @@ export default function RegisterScreen() {
         </ScrollView>
       </Animated.View>
 
-      {/* Block Popup Modal (same as login) */}
       <Modal visible={showBlockPopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/50 px-4">
           <View className="bg-white rounded-3xl p-6 w-full max-w-sm items-center">
@@ -433,49 +456,12 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  imageContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: screenWidth * (4 / 3),
-    overflow: 'hidden',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  bottomSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    maxHeight: '80%',
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  detailsStepContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  signinContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 100,
-  },
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  imageContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: screenWidth * (4 / 3), overflow: 'hidden' },
+  heroImage: { width: '100%', height: '100%' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)' },
+  bottomSheet: { position: 'absolute', left: 0, right: 0, backgroundColor: '#ffffff', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 32, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '80%' },
+  scrollContent: { flexGrow: 1 },
+  detailsStepContainer: { flex: 1, justifyContent: 'space-between' },
+  signinContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 100 },
 });

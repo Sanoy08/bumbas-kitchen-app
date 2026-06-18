@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Image,
@@ -19,9 +18,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { toast } from 'sonner-native'; // ★ Sonner Toast যোগ করা হলো
+import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
+import { toast } from 'sonner-native';
 import * as z from 'zod';
 
 const phoneSchema = z.object({
@@ -52,32 +52,32 @@ export default function LoginScreen() {
   const [limitData, setLimitData] = useState({ ipLeft: 5, phoneLeft: 3, isBlocked: false, resetTime: '', reason: '' });
   const [showBlockPopup, setShowBlockPopup] = useState(false);
   
-  // Determine default bottom offset based on step (without keyboard)
   const getDefaultBottom = (currentStep: 'phone' | 'otp') => {
-    return currentStep === 'phone' ? 20 : 52; // OTP step lifts sheet higher by default
+    return currentStep === 'phone' ? 20 : 52; 
   };
 
-  // Animated value for bottom sheet position
   const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
 
-  // When step changes, animate to the new default bottom position
+  // App Hash বের করার জন্য (Backend-এ SMS-এর শেষে এই Hash টা দিতে হবে)
   useEffect(() => {
-    Animated.timing(animatedBottom, {
-      toValue: getDefaultBottom(step),
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [step]);
+  if (Platform.OS === 'android') {
+    RNOtpVerify.getHash()
+      .then((hash) => {
+        // Console chara ebar sorasori screen-e floating toast dekhabe
+        toast.success(`Your App Hash: ${hash}`);
+      })
+      .catch((error) => {
+        toast.error(`Failed to get hash: ${error.message}`);
+      });
+  }
+}, []);
 
-  // Keyboard handling with step-aware offset
   useEffect(() => {
     const keyboardWillShow = (e: any) => {
       let targetBottom;
       if (step === 'otp') {
-        // OTP step: lift sheet more so OTP inputs are clearly above keyboard
         targetBottom = e.endCoordinates.height - 30;
       } else {
-        // Phone step: keep original calculation (slightly less lift)
         targetBottom = e.endCoordinates.height * 0.8 - 70;
       }
       Animated.timing(animatedBottom, {
@@ -87,7 +87,6 @@ export default function LoginScreen() {
       }).start();
     };
     const keyboardWillHide = () => {
-      // Return to step-specific default position
       Animated.timing(animatedBottom, {
         toValue: getDefaultBottom(step),
         duration: 250,
@@ -134,10 +133,38 @@ export default function LoginScreen() {
     } else if (timeLeft === 0) setCanResend(true);
   }, [timeLeft, step]);
 
+  // ★ Auto OTP Retrieval Logic ★
   useEffect(() => {
     if (step === 'otp') {
       const timer = setTimeout(() => inputRefs.current[0]?.focus(), 100);
-      return () => clearTimeout(timer);
+
+      if (Platform.OS === 'android') {
+        RNOtpVerify.getOtp()
+          .then(() => {
+            RNOtpVerify.addListener((message: string) => {
+              try {
+                if (message) {
+                  const match = message.match(/(\d{6})/); // ৬ ডিজিটের OTP খুঁজবে
+                  if (match && match[0]) {
+                    const otpCode = match[0];
+                    setOtp(otpCode.split('')); // বক্সে ফিল করবে
+                    Keyboard.dismiss();
+                    verifyOtpLogic(otpCode); // অটোমেটিক ভেরিফাই কল করবে
+                    RNOtpVerify.removeListener();
+                  }
+                }
+              } catch (error) {
+                console.log('Auto OTP Error:', error);
+              }
+            });
+          })
+          .catch(console.log);
+      }
+
+      return () => {
+        clearTimeout(timer);
+        if (Platform.OS === 'android') RNOtpVerify.removeListener();
+      };
     }
   }, [step]);
 
@@ -160,14 +187,13 @@ export default function LoginScreen() {
       if (data.success) {
         await login(data.user, data.token);
         toast.success("Welcome back! 🎉"); 
-        // router.replace('/') er bodole nicher ta din:
         router.replace('/(shop)');
       } else {
-        toast.error(data.error || 'Invalid OTP'); // ★ Error toast
+        toast.error(data.error || 'Invalid OTP');
         setIsLoading(false);
       }
     } catch (error) {
-      toast.error('Login failed. Please try again.'); // ★ Error toast
+      toast.error('Login failed. Please try again.');
       setIsLoading(false);
     }
   };
@@ -207,16 +233,16 @@ export default function LoginScreen() {
         setTimeLeft(30);
         setOtp(['', '', '', '', '', '']);
         fetchLimit(data.phone);
-        toast.success('OTP sent successfully!'); // ★ Success toast
+        toast.success('OTP sent successfully!');
       } else {
-        toast.error(responseData.error || 'Failed to send OTP'); // ★ Error toast
+        toast.error(responseData.error || 'Failed to send OTP');
         if (responseData.isBlocked || res.status === 429) {
           setLimitData(prev => ({ ...prev, isBlocked: true, reason: responseData.error, resetTime: responseData.resetTime }));
           setShowBlockPopup(true);
         }
       }
     } catch (error) {
-      toast.error('Connection failed. Please check your internet.'); // ★ Error toast
+      toast.error('Connection failed. Please check your internet.');
     } finally {
       setIsLoading(false);
     }
@@ -258,10 +284,13 @@ export default function LoginScreen() {
                         </View>
                         <TextInput
                           className="flex-1 px-4 text-base text-gray-900 h-full font-medium tracking-widest"
-                          keyboardType="numeric"
+                          keyboardType="phone-pad" // Changed to phone-pad for better support
                           maxLength={10}
                           placeholder="Enter Phone Number"
                           placeholderTextColor="#9ca3af"
+                          autoComplete="tel" // ★ Auto Suggestion
+                          textContentType="telephoneNumber" // ★ Auto Suggestion iOS/Android
+                          importantForAutofill="yes"
                           onBlur={onBlur}
                           onChangeText={(text) => onChange(text.replace(/\D/g, ''))}
                           value={value}
@@ -322,6 +351,7 @@ export default function LoginScreen() {
                     keyboardType="numeric"
                     maxLength={1}
                     value={digit}
+                    textContentType="oneTimeCode" // ★ Read OTP from keyboard too
                     onChangeText={(val) => handleOtpChange(index, val)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
                     editable={!isLoading}
@@ -395,49 +425,12 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  imageContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: screenWidth * (4 / 3),
-    overflow: 'hidden',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  bottomSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    maxHeight: '80%',
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  phoneStepContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  signupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 100,
-  },
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  imageContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: screenWidth * (4 / 3), overflow: 'hidden' },
+  heroImage: { width: '100%', height: '100%' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)' },
+  bottomSheet: { position: 'absolute', left: 0, right: 0, backgroundColor: '#ffffff', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 32, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '80%' },
+  scrollContent: { flexGrow: 1 },
+  phoneStepContainer: { flex: 1, justifyContent: 'space-between' },
+  signupContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 100 },
 });
