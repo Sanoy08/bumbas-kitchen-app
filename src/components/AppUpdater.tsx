@@ -1,10 +1,9 @@
 // src/components/AppUpdater.tsx
-import { useAlert } from '@/components/ui/CustomAlert'; // ★ Custom Alert Import Kora Holo
-import * as Application from 'expo-application';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { useEffect, useState } from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import * as Application from 'expo-application';
 
 export function AppUpdater() {
   const [showUpdate, setShowUpdate] = useState(false);
@@ -12,9 +11,7 @@ export function AppUpdater() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadedUri, setDownloadedUri] = useState<string | null>(null);
-  const [downloadedMB, setDownloadedMB] = useState(0);
-
-  const { showAlert } = useAlert(); // ★ Alert Hook Init
+  const [downloadedMB, setDownloadedMB] = useState(0); // File size na pele MB dekhabar jonno
 
   useEffect(() => {
     const checkUpdate = async () => {
@@ -22,14 +19,11 @@ export function AppUpdater() {
         const currentVersion = Application.nativeApplicationVersion || '1.0.0';
 
         const res = await fetch(`https://www.bumbaskitchen.app/api/app-version?t=${new Date().getTime()}`);
-        
-        if (!res.ok) {
-           throw new Error(`Server returned status: ${res.status}`);
-        }
-
         const data = await res.json();
 
         if (data.success && data.latestVersion && data.apkUrl) {
+          
+          // ★ FIX 1: URL absolute (https://...) kora holo
           let finalApkUrl = data.apkUrl;
           if (finalApkUrl.startsWith('/')) {
             finalApkUrl = `https://www.bumbaskitchen.app${finalApkUrl}`;
@@ -43,13 +37,8 @@ export function AppUpdater() {
             setShowUpdate(true);
           }
         }
-      } catch (error: any) {
-        // ★ API Call Fail hole Alert
-        showAlert({
-          title: "Update API Error",
-          message: `Failed to check for updates.\nReason: ${error.message}`,
-          confirmText: "Close",
-        });
+      } catch (error) {
+        console.log("Update check failed", error);
       }
     };
 
@@ -75,12 +64,7 @@ export function AppUpdater() {
     }
 
     if (!updateInfo.apkUrl) {
-      showAlert({
-        title: "Link Broken",
-        message: "The update URL is missing or invalid. Please check MongoDB.",
-        confirmText: "Okay",
-        confirmButtonStyle: "destructive"
-      });
+      alert("Error: Update link is broken!");
       return;
     }
 
@@ -88,8 +72,9 @@ export function AppUpdater() {
     setDownloadProgress(0);
     setDownloadedMB(0);
 
-    const fileUri = FileSystem.documentDirectory + `bumbas-kitchen-v${updateInfo.latestVersion}.apk`;
+    const fileUri = FileSystem.documentDirectory + 'bumbas-kitchen-update.apk';
 
+    // ★ FIX 2: Purano corrupted file thakle aage delete kore nibe
     try {
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
       if (fileInfo.exists) {
@@ -97,24 +82,20 @@ export function AppUpdater() {
       }
     } catch(e) {}
 
-    // ★ FIX: Headers add kora holo jate Vercel/Browser er moto treat kore
     const downloadResumable = FileSystem.createDownloadResumable(
       updateInfo.apkUrl,
       fileUri,
-      {
-        headers: {
-          'User-Agent': 'BumbasKitchenApp/Android', // ★ Server ke bojhanor jonno
-          'Accept': 'application/vnd.android.package-archive',
-          'Cache-Control': 'no-cache'
-        }
-      },
+      {},
       (downloadInfo) => {
+        // ★ FIX 3: Vercel er Content-Length issue fix
         if (downloadInfo.totalBytesExpectedToWrite > 0) {
           const progress = downloadInfo.totalBytesWritten / downloadInfo.totalBytesExpectedToWrite;
           setDownloadProgress(progress);
         } else {
+          // Jodi server theke total size na ashe, tahole koto MB download holo seta hishab korbe
           const mb = downloadInfo.totalBytesWritten / (1024 * 1024);
           setDownloadedMB(mb);
+          // Fake progress bar (upto 95%)
           setDownloadProgress((prev) => (prev < 0.95 ? prev + 0.01 : 0.95)); 
         }
       }
@@ -122,32 +103,15 @@ export function AppUpdater() {
 
     try {
       const result = await downloadResumable.downloadAsync();
-      
-      // ★ DEBUGGER: Jodi File download hoy kintu block kora thake (eg: 404, 403, 500)
-      if (result && result.status !== 200) {
-        showAlert({
-          title: "Download Blocked!",
-          message: `Server rejected the download.\nStatus Code: ${result.status}\nURL: ${updateInfo.apkUrl}`,
-          confirmText: "Close",
-          confirmButtonStyle: "destructive"
-        });
-        setIsDownloading(false);
-        return;
-      }
-
       if (result?.uri) {
         setDownloadProgress(1);
         setDownloadedUri(result.uri);
         installUpdate(result.uri);
       }
-    } catch (error: any) {
-      // ★ DEBUGGER: Internet/Network/CORS cras error
-      showAlert({
-        title: "Download Crashed!",
-        message: `Network or Server Error occurred.\nReason: ${error.message}\nURL tried: ${updateInfo.apkUrl}`,
-        confirmText: "Okay",
-        confirmButtonStyle: "destructive"
-      });
+    } catch (e: any) {
+      console.error(e);
+      // ★ Exact error msg dekhabe ebar
+      alert(`Download Failed!\nError: ${e.message}`); 
     } finally {
       setIsDownloading(false);
     }
@@ -161,14 +125,9 @@ export function AppUpdater() {
         flags: 1, 
         type: 'application/vnd.android.package-archive',
       });
-    } catch (error: any) {
-      // ★ DEBUGGER: Install failed error
-      showAlert({
-        title: "Installation Failed",
-        message: `Reason: ${error.message}\n\nPlease enable "Install Unknown Apps" for Bumba's Kitchen in phone settings.`,
-        confirmText: "Close",
-        confirmButtonStyle: "destructive"
-      });
+    } catch (error) {
+      console.error("Installation Error:", error);
+      alert('Install korte somossa hocche. Apnar phone er settings e "Install Unknown Apps" allow kora ache kina check korun.');
     }
   };
 
@@ -177,11 +136,11 @@ export function AppUpdater() {
       <View className="flex-1 justify-center items-center bg-black/60 px-4">
         <View className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-sm items-center shadow-2xl">
           <Text className="bg-red-50 text-red-500 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest mt-2 mb-4">
-            Action Requiredddd
+            Action Required
           </Text>
 
           <Text className="text-2xl font-bold tracking-tight text-gray-900 mb-1">
-            New Update
+            New Updateeeeeee
           </Text>
           <Text className="text-sm text-gray-500 mb-6 text-center">
             Version {updateInfo.latestVersion} is required to continue using Bumba's Kitchen.

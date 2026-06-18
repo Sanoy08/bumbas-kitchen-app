@@ -20,8 +20,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import RNOtpVerify from 'react-native-otp-verify';
-import SmsRetriever from 'react-native-sms-retriever'; // ★ Number Hint Package
+import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
 import { toast } from 'sonner-native';
 import * as z from 'zod';
 
@@ -38,7 +37,7 @@ export default function LoginScreen() {
   const login = useAuthStore((state) => state.login);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+  const { control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(phoneSchema),
     defaultValues: { phone: '' },
   });
@@ -59,24 +58,19 @@ export default function LoginScreen() {
 
   const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
 
-  // ★ Auto Phone Number Hint (Alert Box) ★
+  // App Hash বের করার জন্য (Backend-এ SMS-এর শেষে এই Hash টা দিতে হবে)
   useEffect(() => {
-    if (Platform.OS === 'android' && step === 'phone') {
-      const requestPhone = async () => {
-        try {
-          const phoneNumber = await SmsRetriever.requestPhoneNumber();
-          if (phoneNumber) {
-            const cleaned = phoneNumber.replace(/\D/g, '');
-            const tenDigits = cleaned.slice(-10); // +91 বা অন্য কোড বাদ দিয়ে শুধু ১০ ডিজিট
-            setValue('phone', tenDigits, { shouldValidate: true });
-          }
-        } catch (error) {
-          console.log('Phone selection cancelled', error);
-        }
-      };
-      requestPhone();
-    }
-  }, [step, setValue]);
+  if (Platform.OS === 'android') {
+    RNOtpVerify.getHash()
+      .then((hash) => {
+        // Console chara ebar sorasori screen-e floating toast dekhabe
+        toast.success(`Your App Hash: ${hash}`);
+      })
+      .catch((error) => {
+        toast.error(`Failed to get hash: ${error.message}`);
+      });
+  }
+}, []);
 
   useEffect(() => {
     const keyboardWillShow = (e: any) => {
@@ -150,12 +144,12 @@ export default function LoginScreen() {
             RNOtpVerify.addListener((message: string) => {
               try {
                 if (message) {
-                  const match = message.match(/(\d{6})/); 
+                  const match = message.match(/(\d{6})/); // ৬ ডিজিটের OTP খুঁজবে
                   if (match && match[0]) {
                     const otpCode = match[0];
-                    setOtp(otpCode.split('')); 
+                    setOtp(otpCode.split('')); // বক্সে ফিল করবে
                     Keyboard.dismiss();
-                    verifyOtpLogic(otpCode); 
+                    verifyOtpLogic(otpCode); // অটোমেটিক ভেরিফাই কল করবে
                     RNOtpVerify.removeListener();
                   }
                 }
@@ -290,12 +284,12 @@ export default function LoginScreen() {
                         </View>
                         <TextInput
                           className="flex-1 px-4 text-base text-gray-900 h-full font-medium tracking-widest"
-                          keyboardType="phone-pad" 
+                          keyboardType="phone-pad" // Changed to phone-pad for better support
                           maxLength={10}
                           placeholder="Enter Phone Number"
                           placeholderTextColor="#9ca3af"
-                          autoComplete="tel" 
-                          textContentType="telephoneNumber" 
+                          autoComplete="tel" // ★ Auto Suggestion
+                          textContentType="telephoneNumber" // ★ Auto Suggestion iOS/Android
                           importantForAutofill="yes"
                           onBlur={onBlur}
                           onChangeText={(text) => onChange(text.replace(/\D/g, ''))}
@@ -357,7 +351,7 @@ export default function LoginScreen() {
                     keyboardType="numeric"
                     maxLength={1}
                     value={digit}
-                    textContentType="oneTimeCode" 
+                    textContentType="oneTimeCode" // ★ Read OTP from keyboard too
                     onChangeText={(val) => handleOtpChange(index, val)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
                     editable={!isLoading}
