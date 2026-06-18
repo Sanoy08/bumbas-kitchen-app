@@ -20,7 +20,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
+import RNOtpVerify from 'react-native-otp-verify';
+import SmsRetriever from 'react-native-sms-retriever'; // ★ Number Hint Package
 import { toast } from 'sonner-native';
 import * as z from 'zod';
 
@@ -37,7 +38,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
 
-  const { control, handleSubmit, watch, formState: { errors } } = useForm({
+  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: { name: '', phone: '' },
   });
@@ -57,6 +58,25 @@ export default function RegisterScreen() {
     return currentStep === 'details' ? 20 : 52;
   };
   const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
+
+  // ★ Auto Phone Number Hint (Alert Box) ★
+  useEffect(() => {
+    if (Platform.OS === 'android' && step === 'details') {
+      const requestPhone = async () => {
+        try {
+          const phoneNumber = await SmsRetriever.requestPhoneNumber();
+          if (phoneNumber) {
+            const cleaned = phoneNumber.replace(/\D/g, '');
+            const tenDigits = cleaned.slice(-10); // +91 বা অন্য কোড বাদ দিয়ে শুধু ১০ ডিজিট
+            setValue('phone', tenDigits, { shouldValidate: true });
+          }
+        } catch (error) {
+          console.log('Phone selection cancelled', error);
+        }
+      };
+      requestPhone();
+    }
+  }, [step, setValue]);
 
   useEffect(() => {
     Animated.timing(animatedBottom, {
@@ -137,12 +157,12 @@ export default function RegisterScreen() {
             RNOtpVerify.addListener((message: string) => {
               try {
                 if (message) {
-                  const match = message.match(/(\d{6})/); // ৬ ডিজিটের OTP খুঁজবে
+                  const match = message.match(/(\d{6})/); 
                   if (match && match[0]) {
                     const otpCode = match[0];
                     setOtp(otpCode.split('')); 
                     Keyboard.dismiss();
-                    verifyRegisterLogic(otpCode); // অটোমেটিক ভেরিফাই
+                    verifyRegisterLogic(otpCode); 
                     RNOtpVerify.removeListener();
                   }
                 }
@@ -312,8 +332,8 @@ export default function RegisterScreen() {
                           maxLength={10}
                           placeholder="Enter Phone Number"
                           placeholderTextColor="#9ca3af"
-                          autoComplete="tel" // ★ Auto Suggestion
-                          textContentType="telephoneNumber" // ★ Auto Suggestion
+                          autoComplete="tel" 
+                          textContentType="telephoneNumber" 
                           importantForAutofill="yes"
                           onBlur={onBlur}
                           onChangeText={(text) => onChange(text.replace(/\D/g, ''))}

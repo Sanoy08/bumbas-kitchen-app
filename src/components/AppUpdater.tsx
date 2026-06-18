@@ -68,13 +68,15 @@ export function AppUpdater() {
       return;
     }
 
+    // ★ Debug 1: চেক করা হচ্ছে ঠিক কোন লিংকে হিট করছে
+    alert(`Debug 1: Download Start\nURL: ${updateInfo.apkUrl}`);
+
     setIsDownloading(true);
     setDownloadProgress(0);
     setDownloadedMB(0);
 
     const fileUri = FileSystem.documentDirectory + 'bumbas-kitchen-update.apk';
 
-    // ★ FIX 2: Purano corrupted file thakle aage delete kore nibe
     try {
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
       if (fileInfo.exists) {
@@ -87,15 +89,12 @@ export function AppUpdater() {
       fileUri,
       {},
       (downloadInfo) => {
-        // ★ FIX 3: Vercel er Content-Length issue fix
         if (downloadInfo.totalBytesExpectedToWrite > 0) {
           const progress = downloadInfo.totalBytesWritten / downloadInfo.totalBytesExpectedToWrite;
           setDownloadProgress(progress);
         } else {
-          // Jodi server theke total size na ashe, tahole koto MB download holo seta hishab korbe
           const mb = downloadInfo.totalBytesWritten / (1024 * 1024);
           setDownloadedMB(mb);
-          // Fake progress bar (upto 95%)
           setDownloadProgress((prev) => (prev < 0.95 ? prev + 0.01 : 0.95)); 
         }
       }
@@ -103,15 +102,21 @@ export function AppUpdater() {
 
     try {
       const result = await downloadResumable.downloadAsync();
-      if (result?.uri) {
+      
+      // ★ Debug 2: ডাউনলোড কমপ্লিট হওয়ার পর সার্ভার কী স্ট্যাটাস দিল
+      alert(`Debug 2: Download Finished!\nStatus Code: ${result?.status}\nSaved to: ${result?.uri}`);
+
+      // স্ট্যাটাস 200 মানে সাকসেস, অন্যথায় ফাইল পায়নি বা রিডাইরেক্ট হয়েছে
+      if (result?.uri && result.status === 200) {
         setDownloadProgress(1);
         setDownloadedUri(result.uri);
         installUpdate(result.uri);
+      } else {
+        alert(`Debug Error: Server returned status ${result?.status}. Vercel file issue!`);
       }
     } catch (e: any) {
-      console.error(e);
-      // ★ Exact error msg dekhabe ebar
-      alert(`Download Failed!\nError: ${e.message}`); 
+      // ★ Debug 3: যদি কোড ক্র্যাশ করে
+      alert(`Debug 3: App Crashed!\nMessage: ${e.message}`); 
     } finally {
       setIsDownloading(false);
     }
