@@ -43,7 +43,7 @@ import { formatPrice } from '@/lib/utils';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const PLACEHOLDER_IMAGE_URL =
   'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=500&auto=format&fit=crop';
-const DESC_LIMIT = 200;
+const DESC_LIMIT = 350; // ওয়েবের সাথে মেলানো
 
 export default function ProductDetailsScreen() {
   const searchParams = useLocalSearchParams();
@@ -318,6 +318,29 @@ export default function ProductDetailsScreen() {
     }
   };
 
+  // --- Format Description (same as web) ---
+  const formatDescription = (text: string) => {
+    return text.split('\n').map((line, idx) => {
+      const match = line.match(/^(\s*•\s*)([^:]+)(:.*)$/);
+      if (match) {
+        return (
+          <Text key={idx} className="text-sm text-gray-600 font-sans leading-relaxed">
+            {match[1]}
+            <Text className="font-bold text-gray-900">{match[2]}</Text>
+            {match[3]}
+            {'\n'}
+          </Text>
+        );
+      }
+      return (
+        <Text key={idx} className="text-sm text-gray-600 font-sans leading-relaxed">
+          {line}
+          {'\n'}
+        </Text>
+      );
+    });
+  };
+
   // --- Loading & Error ---
   if (isLoading) {
     return (
@@ -392,8 +415,6 @@ export default function ProductDetailsScreen() {
   // --- Render Item for FlatList ---
   const renderImageItem = ({ item }: { item: any }) => {
     const imageUrl = item.url ? optimizeImageUrl(item.url) : PLACEHOLDER_IMAGE_URL;
-    // Log for debugging
-    console.log('Image URL:', imageUrl);
     return (
       <View
         style={{ width: screenWidth, height: screenWidth }}
@@ -730,9 +751,15 @@ export default function ProductDetailsScreen() {
               </View>
             )}
 
+            {/* ডেসক্রিপশন টেক্সট – এখন formatDescription ব্যবহার করছে */}
             <Text className="text-sm text-gray-600 font-sans leading-relaxed">
-              {displayedDescription}
+              {formatDescription(
+                isLongDescription && !showFullDesc
+                  ? `${cleanDescriptionText.substring(0, DESC_LIMIT)}...`
+                  : cleanDescriptionText
+              )}
             </Text>
+
             {isLongDescription && (
               <TouchableOpacity
                 onPress={() => setShowFullDesc(!showFullDesc)}
