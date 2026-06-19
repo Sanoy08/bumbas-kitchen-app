@@ -13,7 +13,6 @@
     "android": {
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "REQUEST_INSTALL_PACKAGES",
         "REQUEST_INSTALL_PACKAGES"
       ],
       "gradleProperties": {
@@ -24,7 +23,8 @@
         "foregroundImage": "./assets/LOGO.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.bumbaskitchen.app"
+      "package": "com.bumbaskitchen.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -44,7 +44,8 @@
       "expo-secure-store",
       "expo-image",
       "expo-font",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

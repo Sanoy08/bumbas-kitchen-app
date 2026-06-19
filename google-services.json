@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "842980954048",
+    "project_id": "bumba-s-kitchen-bc797",
+    "storage_bucket": "bumba-s-kitchen-bc797.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:842980954048:android:83996a2e158f29e794c225",
+        "android_client_info": {
+          "package_name": "com.bumbaskitchen.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "842980954048-fqrq793ego5bi49rumb7gj7u7uc326eh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bumbaskitchen.app",
+            "certificate_hash": "3d9827a7fa934c9ca7e756a6cce418c1ddd02f43"
+          }
+        },
+        {
+          "client_id": "842980954048-iskv1afuhicddich317vlieiob21a4be.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bumbaskitchen.app",
+            "certificate_hash": "8ddd7451044c9ddea0f3f14458a4b7824b22d755"
+          }
+        },
+        {
+          "client_id": "842980954048-3jccrleardu3pd3472dskqn5o26g40vr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQLK-o59ujAwLj0NRmkDJf5ooamQtvj94"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "842980954048-3jccrleardu3pd3472dskqn5o26g40vr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

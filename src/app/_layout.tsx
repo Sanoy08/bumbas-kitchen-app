@@ -14,42 +14,26 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import "../../global.css";
-import { Alert } from 'react-native';
 
-// ★ ১. AppUpdater Import Kora Holo
 import { AppUpdater } from '@/components/AppUpdater';
+import { usePushNotification } from '@/hooks/usePushNotification'; // ★ হুক ইমপোর্ট
 
-// নেটিভ স্প্ল্যাশ স্ক্রিনটিকে হোল্ড করে রাখা হচ্ছে
 SplashScreen.preventAutoHideAsync();
-
 const { width } = Dimensions.get('window');
 
-// অনবোর্ডিং কন্টেন্ট
 const ONBOARDING_STEPS = [
-  {
-    animation: require('../../assets/animations/onboard_order.json'),
-    title: "Order Your Favorites",
-    desc: "Choose from a wide variety of authentic Bengali dishes right from your phone.",
-    btnText: "Continue"
-  },
-  {
-    animation: require('../../assets/animations/onboard_rider.json'),
-    title: "Fast & Trackable",
-    desc: "Track your food in real-time on the map while our rider is on the way.",
-    btnText: "Next"
-  },
-  {
-    animation: require('../../assets/animations/onboard_delivery.json'),
-    title: "Delivered to Doorstep",
-    desc: "Hot and fresh food delivered safely to you. Enjoy your meal!",
-    btnText: "Get Started"
-  }
+  { animation: require('../../assets/animations/onboard_order.json'), title: "Order Your Favorites", desc: "Choose from a wide variety of authentic Bengali dishes right from your phone.", btnText: "Continue" },
+  { animation: require('../../assets/animations/onboard_rider.json'), title: "Fast & Trackable", desc: "Track your food in real-time on the map while our rider is on the way.", btnText: "Next" },
+  { animation: require('../../assets/animations/onboard_delivery.json'), title: "Delivered to Doorstep", desc: "Hot and fresh food delivered safely to you. Enjoy your meal!", btnText: "Get Started" }
 ];
 
 export default function RootLayout() {
   const router = useRouter();
   const initAuth = useAuthStore((state) => state.initAuth);
   const isInitialized = useAuthStore((state) => state.isInitialized);
+
+  // ★ গ্লোবাল পুশ নোটিফিকেশন অ্যাক্টিভেশন
+  usePushNotification();
 
   const [fontsLoaded, fontError] = useFonts({
     Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold,
@@ -59,19 +43,17 @@ export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
   const [onboardStep, setOnboardStep] = useState(0);
   
-  // অ্যানিমেশন কন্ট্রোলার
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const contentFadeAnim = useRef(new Animated.Value(1)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
 
-  // ১. ফার্স্ট রান এবং অথ ইনিশিয়ালাইজ চেক করা
   useEffect(() => {
     initAuth();
     const checkFirstRun = async () => {
       const firstRun = await AsyncStorage.getItem('isFirstRun');
       if (firstRun === null) {
         setIsFirstRun(true);
-        setShowSplash(false); // First run হলে স্প্ল্যাশ না দেখিয়ে অনবোর্ডিং দেখাবো
+        setShowSplash(false); 
       } else {
         setIsFirstRun(false);
       }
@@ -79,14 +61,12 @@ export default function RootLayout() {
     checkFirstRun();
   }, [initAuth]);
 
-  // ২. নেটিভ স্প্ল্যাশ স্ক্রিন হাইড করা
   useEffect(() => {
     if ((fontsLoaded || fontError) && isFirstRun !== null) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError, isFirstRun]);
 
-  // ৩. স্প্ল্যাশ স্ক্রিন অ্যানিমেশন (First Run না হলে)
   useEffect(() => {
     if (!isFirstRun && isInitialized && fontsLoaded) {
       setTimeout(() => {
@@ -99,7 +79,6 @@ export default function RootLayout() {
     }
   }, [isFirstRun, isInitialized, fontsLoaded]);
 
-  // অনবোর্ডিং শেষ করে লগিনে পাঠানো
   const finishOnboarding = async () => {
     await AsyncStorage.setItem('isFirstRun', 'false');
     Animated.timing(fadeAnim, {
@@ -112,7 +91,6 @@ export default function RootLayout() {
     });
   };
 
-  // অনবোর্ডিং নেক্সট বাটন লজিক
   const handleNextStep = () => {
     if (onboardStep < 2) {
       Animated.parallel([
@@ -138,86 +116,39 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {/* ★ Custom Alert Provider পুরো অ্যাপকে র‍্যাপ করছে ★ */}
         <AlertProvider>
           <StatusBar style="dark" />
-          
-          {/* Main App Navigation */}
           <Stack screenOptions={{ headerShown: false }} />
 
-          {/* --- ১. ONBOARDING SCREEN OVERLAY --- */}
           {isFirstRun && (
             <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#FFFFFF', elevation: 15 }}>
               <TouchableOpacity onPress={finishOnboarding} className="absolute top-14 right-6 p-4 z-50">
                 <Text className="text-slate-400 font-bold text-lg font-sans">Skip</Text>
               </TouchableOpacity>
-
               <View className="flex-1 justify-center items-center pb-20">
-                <Animated.View 
-                  style={{ opacity: contentFadeAnim, transform: [{ translateY: contentTranslateY }], alignItems: 'center', width: '100%' }}
-                >
-                  <LottieView
-                    source={ONBOARDING_STEPS[onboardStep].animation}
-                    autoPlay
-                    loop
-                    style={{ width: width * 1.1, height: width * 1.1, marginBottom: -30 }} 
-                    resizeMode="cover"
-                  />
-                  <Text className="text-[28px] font-bold text-slate-900 mt-2 px-8 text-center font-sans leading-tight">
-                    {ONBOARDING_STEPS[onboardStep].title}
-                  </Text>
-                  <Text className="text-[17px] text-slate-500 font-medium text-center mt-3 px-10 leading-relaxed font-sans">
-                    {ONBOARDING_STEPS[onboardStep].desc}
-                  </Text>
+                <Animated.View style={{ opacity: contentFadeAnim, transform: [{ translateY: contentTranslateY }], alignItems: 'center', width: '100%' }}>
+                  <LottieView source={ONBOARDING_STEPS[onboardStep].animation} autoPlay loop style={{ width: width * 1.1, height: width * 1.1, marginBottom: -30 }} resizeMode="cover" />
+                  <Text className="text-[28px] font-bold text-slate-900 mt-2 px-8 text-center font-sans leading-tight">{ONBOARDING_STEPS[onboardStep].title}</Text>
+                  <Text className="text-[17px] text-slate-500 font-medium text-center mt-3 px-10 leading-relaxed font-sans">{ONBOARDING_STEPS[onboardStep].desc}</Text>
                 </Animated.View>
               </View>
-
               <View className="absolute bottom-12 w-full px-8">
-                <TouchableOpacity 
-                  activeOpacity={0.8}
-                  onPress={handleNextStep}
-                  className="w-full h-14 rounded-full items-center justify-center shadow-lg"
-                  style={{ backgroundColor: '#6a9c27', elevation: 10, shadowColor: '#6a9c27', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
-                >
-                  <Text className="text-white font-bold text-lg font-sans">
-                    {ONBOARDING_STEPS[onboardStep].btnText}
-                  </Text>
+                <TouchableOpacity activeOpacity={0.8} onPress={handleNextStep} className="w-full h-14 rounded-full items-center justify-center shadow-lg" style={{ backgroundColor: '#6a9c27', elevation: 10, shadowColor: '#6a9c27', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}>
+                  <Text className="text-white font-bold text-lg font-sans">{ONBOARDING_STEPS[onboardStep].btnText}</Text>
                 </TouchableOpacity>
               </View>
             </Animated.View>
           )}
 
-          {/* --- ২. SPLASH SCREEN OVERLAY --- */}
           {!isFirstRun && showSplash && (
             <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#F8F9FA', elevation: 15, justifyContent: 'center', alignItems: 'center' }}>
-              <LottieView
-                source={require('../../assets/animations/splash.json')}
-                autoPlay
-                loop
-                style={{ width: width * 1.2, height: width * 1.2 }} 
-                resizeMode="cover"
-              />
+              <LottieView source={require('../../assets/animations/splash.json')} autoPlay loop style={{ width: width * 1.2, height: width * 1.2 }} resizeMode="cover" />
             </Animated.View>
           )}
 
-          {/* ★ ২. AppUpdater Component Add Kora Holo ★ */}
           <AppUpdater />
 
-          {/* ★ Toaster - সবথেকে নিচে, কিন্তু AlertProvider-এর ভিতরেই রাখা হয়েছে যাতে সব স্ক্রিনে কাজ করে ★ */}
-          <Toaster 
-            position="bottom-center"
-            theme="light"
-            toastOptions={{
-              style: {
-                backgroundColor: '#FFFFFF',
-                borderColor: '#E5E7EB',
-              },
-              titleStyle: {
-                color: '#111827',
-                fontWeight: 'regular',
-              }
-            }}
-          />
+          <Toaster position="bottom-center" theme="light" toastOptions={{ style: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }, titleStyle: { color: '#111827', fontWeight: 'regular' } }} />
         </AlertProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
