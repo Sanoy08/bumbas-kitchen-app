@@ -7,12 +7,13 @@ import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import {
   Briefcase, Cake, ChevronDown, ChevronLeft, ChevronRight, Gift, Heart, Leaf, MapPin, Mic,
-  PartyPopper, Percent, Search, ShieldCheck, SlidersHorizontal, Sparkles, TrainFront, Truck, User
+  PartyPopper, Percent, Search, ShieldCheck,
+  Sparkles, TrainFront, Truck, User
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Dimensions, FlatList, Modal, Platform, ScrollView,
-  Switch, Text, TouchableOpacity, View
+  Text, TouchableOpacity, View
 } from 'react-native';
 import Animated, {
   Extrapolation, interpolate, useAnimatedScrollHandler,
@@ -61,6 +62,9 @@ const TESTIMONIALS = [
   { name: 'Rohan G.', location: 'Hooghly', rating: 4.5, quote: "Amazing home-style food! The chicken kosha was simply out of this world." },
   { name: 'Priya S.', location: 'Serampore', rating: 5, quote: "Bumba's Kitchen is my go-to for weekend meals. Consistent quality!" },
 ];
+
+// হিরো ইমেজের সাইজ ও প্যাডিং – sticky header-এর ট্রিগার পয়েন্ট বের করতে ব্যবহার হবে
+const HERO_CAROUSEL_HEIGHT = windowWidth + 8; // pb-2 = 8px
 
 const AutoScaledImage = ({ url, isFullWidth = true }: { url: string, isFullWidth?: boolean }) => {
   return (
@@ -193,12 +197,21 @@ export default function HomeScreen() {
   // Refs & animations
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const categoryContainerRef = useRef<View>(null);
-  const categoryY = useSharedValue(0);
   const scrollY = useSharedValue(0);
+  const categoryY = useSharedValue(0);
 
   // Animated values for back button
   const backButtonWidth = useSharedValue(0);
   const backButtonOpacity = useSharedValue(0);
+
+  // হিরো ডাটা এলে ক্যাটাগরি কন্টেইনারের আনুমানিক Y পজিশন সেট করি
+  useEffect(() => {
+    if (homeData.heroSlides.length > 0) {
+      categoryY.value = HERO_CAROUSEL_HEIGHT;
+    } else {
+      categoryY.value = 0;
+    }
+  }, [homeData.heroSlides]);
 
   useEffect(() => {
     if (activeCategory !== "All") {
@@ -518,23 +531,23 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           {/* Veg toggle - only visible when category is "All" */}
-{activeCategory === "All" && (
-  <TouchableOpacity
-    onPress={() => setIsVeg(!isVeg)}
-    className={`items-center justify-center px-3 py-1.5 rounded-xl border ${
-      isVeg ? 'bg-green-500 border-green-600' : 'bg-white border-gray-300'
-    }`}
-    activeOpacity={0.7}
-  >
-    <Text
-      className={`text-xs font-bold font-sans ${
-        isVeg ? 'text-white' : 'text-gray-700'
-      }`}
-    >
-      VEG
-    </Text>
-  </TouchableOpacity>
-)}
+          {activeCategory === "All" && (
+            <TouchableOpacity
+              onPress={() => setIsVeg(!isVeg)}
+              className={`items-center justify-center px-3 py-1.5 rounded-xl border ${
+                isVeg ? 'bg-green-500 border-green-600' : 'bg-white border-gray-300'
+              }`}
+              activeOpacity={0.7}
+            >
+              <Text
+                className={`text-xs font-bold font-sans ${
+                  isVeg ? 'text-white' : 'text-gray-700'
+                }`}
+              >
+                VEG
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Animated.View>
 
@@ -574,34 +587,10 @@ export default function HomeScreen() {
         {/* Inline Category List */}
         <View
           ref={categoryContainerRef}
-          onLayout={(e) => {
-            categoryY.value = e.nativeEvent.layout.y;
-          }}
           className="bg-white py-2"
         >
           <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
-
-        {/* Filters row */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="flex-row px-4 py-4"
-          contentContainerStyle={{ paddingRight: 20 }}
-        >
-          <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
-            <SlidersHorizontal size={14} color="#374151" />
-            <Text className="ml-1.5 text-xs font-semibold text-gray-700 font-sans">Filters</Text>
-            <ChevronDown size={14} color="#374151" className="ml-1" />
-          </TouchableOpacity>
-          <TouchableOpacity className="border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
-            <Text className="text-xs font-semibold text-gray-700 font-sans">Under ₹200</Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
-            <Text className="text-xs font-semibold text-gray-700 font-sans">Schedule</Text>
-            <ChevronDown size={14} color="#374151" className="ml-1" />
-          </TouchableOpacity>
-        </ScrollView>
 
         {/* ─── OUR BESTSELLER ─── */}
         {activeCategory === "All" && homeData.bestsellers && homeData.bestsellers.length > 0 && (
