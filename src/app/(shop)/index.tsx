@@ -6,13 +6,18 @@ import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import {
-  ArrowLeft, Briefcase, Cake, ChevronDown, ChevronRight, Gift, Heart, Leaf, MapPin, Mic,
-  PartyPopper, Percent, Search, ShieldCheck,
-  Sparkles, TrainFront, Truck, User
+  Briefcase, Cake, ChevronDown, ChevronLeft, ChevronRight, Gift, Heart, Leaf, MapPin, Mic,
+  PartyPopper, Percent, Search, ShieldCheck, SlidersHorizontal, Sparkles, TrainFront, Truck, User
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, Modal, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import {
+  ActivityIndicator, Dimensions, FlatList, Modal, Platform, ScrollView,
+  Switch, Text, TouchableOpacity, View
+} from 'react-native';
+import Animated, {
+  Extrapolation, interpolate, useAnimatedScrollHandler,
+  useAnimatedStyle, useSharedValue, withTiming
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
@@ -125,7 +130,7 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
       horizontal
       showsHorizontalScrollIndicator={false}
       className="px-2"
-      contentContainerStyle={{ paddingRight: 20, paddingVertical: 4 }}
+      contentContainerStyle={{ paddingRight: 20 }}
       onLayout={(e) => setScrollViewWidth(e.nativeEvent.layout.width)}
     >
       {CATEGORIES.map((cat, idx) => {
@@ -169,7 +174,7 @@ export default function HomeScreen() {
 
   // Data states
   const [homeData, setHomeData] = useState({ heroSlides: [], sliderImages: [], offers: [], bestsellers: [], allProducts: [] });
-  
+
   // UI states
   const [showDatePopup, setShowDatePopup] = useState(false);
   const [dob, setDob] = useState("");
@@ -177,7 +182,6 @@ export default function HomeScreen() {
   const [isSavingDates, setIsSavingDates] = useState(false);
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
-  const [previousCategory, setPreviousCategory] = useState("All");
   const [hasSkippedSession, setHasSkippedSession] = useState(false);
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
@@ -191,6 +195,20 @@ export default function HomeScreen() {
   const categoryContainerRef = useRef<View>(null);
   const categoryY = useSharedValue(0);
   const scrollY = useSharedValue(0);
+
+  // Animated values for back button (from Code 2)
+  const backButtonWidth = useSharedValue(0);
+  const backButtonOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (activeCategory !== "All") {
+      backButtonWidth.value = withTiming(40, { duration: 300 });
+      backButtonOpacity.value = withTiming(1, { duration: 300 });
+    } else {
+      backButtonWidth.value = withTiming(0, { duration: 300 });
+      backButtonOpacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [activeCategory]);
 
   // Handlers
   const scrollHandler = useAnimatedScrollHandler({
@@ -249,11 +267,7 @@ export default function HomeScreen() {
     }
   };
 
-  // When category changes, update previous, reset pagination, and scroll
   useEffect(() => {
-    if (activeCategory !== "All") {
-      setPreviousCategory(activeCategory);
-    }
     setProductDisplayCount(PRODUCTS_PER_PAGE);
     adjustScrollForCategory();
   }, [activeCategory]);
@@ -294,6 +308,12 @@ export default function HomeScreen() {
       transform: [{ translateY: isSticking ? 0 : -10 }],
     };
   });
+
+  const backButtonStyle = useAnimatedStyle(() => ({
+    width: backButtonWidth.value,
+    opacity: backButtonOpacity.value,
+    overflow: 'hidden',
+  }));
 
   // Fetch home data
   useEffect(() => {
@@ -398,94 +418,106 @@ export default function HomeScreen() {
   const isDobMissing = !user?.dob || user?.dob === "";
   const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
 
-  // ─── Compute filtered & paginated products ───
+  // ─── Compute filtered & paginated products (same as Code 1) ───
   const allProducts = homeData.allProducts || [];
 
-  // Filter by category (if not "All")
-  const categoryFiltered = activeCategory !== "All"
-    ? allProducts.filter((p: any) => p.category?.name?.toLowerCase() === activeCategory.toLowerCase())
-    : allProducts;
+  const categoryFiltered =
+    activeCategory !== "All"
+      ? allProducts.filter(
+          (p: any) => p.category?.name?.toLowerCase() === activeCategory.toLowerCase()
+        )
+      : allProducts;
 
-  // Filter by veg toggle
   const vegFiltered = isVeg
     ? categoryFiltered.filter((p: any) => p.isVeg === true)
     : categoryFiltered;
 
-  // Final filtered list
   const filteredProducts = vegFiltered;
 
-  // Paginated slice
   const displayedProducts = filteredProducts.slice(0, productDisplayCount);
   const hasMore = productDisplayCount < filteredProducts.length;
 
   const loadMoreProducts = () => {
-    setProductDisplayCount(prev => Math.min(prev + PRODUCTS_PER_PAGE, filteredProducts.length));
+    setProductDisplayCount((prev) =>
+      Math.min(prev + PRODUCTS_PER_PAGE, filteredProducts.length)
+    );
   };
 
-  // Reset pagination when category or veg changes
   useEffect(() => {
     setProductDisplayCount(PRODUCTS_PER_PAGE);
   }, [activeCategory, isVeg]);
-
-  // ─── Handlers ───
-  const handleCategorySelect = (category: string) => {
-    if (category !== activeCategory) {
-      setPreviousCategory(activeCategory);
-      setActiveCategory(category);
-    }
-  };
-
-  const handleBackArrow = () => {
-    // Go back to previous category (or "All" if none)
-    setActiveCategory(previousCategory || "All");
-  };
 
   const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
 
   // ─── Render ───
   return (
     <View className="flex-1 bg-white">
-      {/* ─── Animated Header ─── */}
+      {/* ─── Animated Header (from Code 2) ─── */}
       <Animated.View
-        style={[headerAnimatedStyle, { paddingTop: insets.top + 10, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }]}
-        className="px-4 pb-1"
+        style={[
+          headerAnimatedStyle,
+          {
+            paddingTop: insets.top + 10,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 50,
+          },
+        ]}
+        className="px-4 pb-3"
         pointerEvents="box-none"
       >
-        <Animated.View style={[locationRowStyle, { marginBottom: 4 }]} className="flex-row justify-between items-center">
+        <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
           <View className="flex-row items-center flex-1 pr-4">
             <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full max-w-full">
               <MapPin size={22} color="#e11d48" className="mr-1.5 flex-shrink-0" />
-              <Text className="text-lg font-bold text-gray-900 font-sans flex-shrink" numberOfLines={1} ellipsizeMode="tail">
+              <Text
+                className="text-lg font-bold text-gray-900 font-sans flex-shrink"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {getDisplayAddress(user)}
               </Text>
               <ChevronDown size={18} color="#374151" className="ml-1 flex-shrink-0" />
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')}
+            onPress={() =>
+              user ? router.push('/(shop)/account') : router.push('/(auth)/login')
+            }
             className="h-10 w-10 bg-white/90 rounded-full items-center justify-center"
           >
             <User size={20} color="#e11d48" />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Search Bar with Back Arrow (conditional) */}
-        <View className="flex-row items-center gap-2">
-          {activeCategory !== "All" && (
-            <TouchableOpacity onPress={handleBackArrow} className="h-10 w-10 bg-white/90 rounded-xl items-center justify-center border border-gray-200">
-              <ArrowLeft size={22} color="#e11d48" />
+        <View className="flex-row items-center gap-3">
+          {/* Animated back button (from Code 2) */}
+          <Animated.View style={backButtonStyle}>
+            <TouchableOpacity
+              onPress={() => setActiveCategory("All")}
+              className="h-10 w-10 items-center justify-center"
+            >
+              <ChevronLeft size={24} color="#e11d48" />
             </TouchableOpacity>
-          )}
+          </Animated.View>
+
+          {/* Search bar */}
           <TouchableOpacity
             activeOpacity={0.8}
-            className={`flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5 ${activeCategory !== "All" ? 'flex-[0.7]' : 'flex-1'}`}
+            className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5"
           >
             <Search size={20} color="#e11d48" />
-            <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">Search "namkeen"</Text>
+            <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">
+              Search "namkeen"
+            </Text>
             <View className="border-l border-gray-300 pl-3 py-0.5">
               <Mic size={20} color="#e11d48" />
             </View>
           </TouchableOpacity>
+
+          {/* Veg toggle */}
           <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl">
             <Text className="text-[10px] font-bold text-green-700 mb-0.5 font-sans">VEG</Text>
             <Switch
@@ -499,9 +531,9 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
-      {/* ─── Sticky Category (when scrolled) ─── */}
+      {/* ─── Sticky Category (from Code 2) ─── */}
       <Animated.View style={stickyCategoryStyle} className="bg-white pt-1 pb-0">
-        <CategoryList activeCategory={activeCategory} setActiveCategory={handleCategorySelect} />
+        <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
       </Animated.View>
 
       {/* ─── Main Content ─── */}
@@ -532,16 +564,39 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Category List (inline) */}
+        {/* Inline Category List (from Code 2) */}
         <View
           ref={categoryContainerRef}
-          onLayout={(e) => { categoryY.value = e.nativeEvent.layout.y; }}
-          className="bg-white pt-1 pb-0"
+          onLayout={(e) => {
+            categoryY.value = e.nativeEvent.layout.y;
+          }}
+          className="bg-white py-2"
         >
-          <CategoryList activeCategory={activeCategory} setActiveCategory={handleCategorySelect} />
+          <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
 
-        {/* ─── OUR BESTSELLER – Two rows scrolling together ─── */}
+        {/* Filters row (from Code 2) – placed after the category list */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="flex-row px-4 py-4"
+          contentContainerStyle={{ paddingRight: 20 }}
+        >
+          <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
+            <SlidersHorizontal size={14} color="#374151" />
+            <Text className="ml-1.5 text-xs font-semibold text-gray-700 font-sans">Filters</Text>
+            <ChevronDown size={14} color="#374151" className="ml-1" />
+          </TouchableOpacity>
+          <TouchableOpacity className="border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
+            <Text className="text-xs font-semibold text-gray-700 font-sans">Under ₹200</Text>
+          </TouchableOpacity>
+          <TouchableOpacity className="flex-row items-center border border-gray-300 bg-white rounded-xl px-3 py-1.5 mr-3 shadow-sm">
+            <Text className="text-xs font-semibold text-gray-700 font-sans">Schedule</Text>
+            <ChevronDown size={14} color="#374151" className="ml-1" />
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* ─── OUR BESTSELLER – Two rows scrolling together (Code 1) ─── */}
         {activeCategory === "All" && homeData.bestsellers && homeData.bestsellers.length > 0 && (
           <View className="px-4 pt-4 pb-2">
             <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
@@ -577,7 +632,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ─── Products Section ─── */}
+        {/* ─── Products Section (Code 1 – pagination, veg filter) ─── */}
         <View className="bg-white px-4 pt-2 pb-4">
           <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
             {activeCategory === "All" ? "EXPLORE MORE" : `Fresh from ${activeCategory}`}
@@ -603,14 +658,16 @@ export default function HomeScreen() {
                   onPress={loadMoreProducts}
                   className="bg-gray-100 py-3 rounded-xl items-center mt-2"
                 >
-                  <Text className="font-bold text-gray-700">Load More ({filteredProducts.length - productDisplayCount} left)</Text>
+                  <Text className="font-bold text-gray-700">
+                    Load More ({filteredProducts.length - productDisplayCount} left)
+                  </Text>
                 </TouchableOpacity>
               )}
             </>
           )}
         </View>
 
-        {/* ─── Conditional Sections (only when "All") ─── */}
+        {/* ─── Conditional Sections (only when "All") – from Code 1 ─── */}
         {activeCategory === "All" && (
           <>
             {/* Features */}
@@ -620,7 +677,9 @@ export default function HomeScreen() {
                   <View className={`h-12 w-12 rounded-full ${feat.bg} items-center justify-center mb-2`}>
                     <feat.icon size={22} color={feat.color} />
                   </View>
-                  <Text className="font-bold text-[11px] text-gray-900 text-center font-sans">{feat.title}</Text>
+                  <Text className="font-bold text-[11px] text-gray-900 text-center font-sans">
+                    {feat.title}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -628,19 +687,33 @@ export default function HomeScreen() {
             {/* Today's Special */}
             {dailySpecial && (
               <View className="py-8 bg-amber-50/60 px-4 mb-6">
-                <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">Today's Special 🌟</Text>
-                <Text className="text-sm text-gray-500 text-center mb-6 font-sans">Freshly prepared just for you.</Text>
+                <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
+                  Today's Special 🌟
+                </Text>
+                <Text className="text-sm text-gray-500 text-center mb-6 font-sans">
+                  Freshly prepared just for you.
+                </Text>
                 <View className="bg-white p-3 rounded-3xl shadow-sm border border-amber-100">
                   <View className="aspect-square w-full rounded-2xl overflow-hidden bg-gray-100">
                     {dailySpecial.images?.length > 0 ? (
-                      <Image source={{ uri: optimizeImageUrl(dailySpecial.images[0].url) }} className="w-full h-full" contentFit="cover" />
+                      <Image
+                        source={{ uri: optimizeImageUrl(dailySpecial.images[0].url) }}
+                        className="w-full h-full"
+                        contentFit="cover"
+                      />
                     ) : (
-                      <SpecialDishCard name={dailySpecial.name} description={dailySpecial.description} price={dailySpecial.price} />
+                      <SpecialDishCard
+                        name={dailySpecial.name}
+                        description={dailySpecial.description}
+                        price={dailySpecial.price}
+                      />
                     )}
                   </View>
                   <Link href={`/menus/${dailySpecial.slug}`} asChild>
                     <TouchableOpacity className="mt-4 bg-primary h-12 rounded-xl items-center justify-center shadow-sm">
-                      <Text className="text-white font-bold text-base font-sans">Order Now - {formatPrice(dailySpecial.price)}</Text>
+                      <Text className="text-white font-bold text-base font-sans">
+                        Order Now - {formatPrice(dailySpecial.price)}
+                      </Text>
                     </TouchableOpacity>
                   </Link>
                 </View>
@@ -649,8 +722,12 @@ export default function HomeScreen() {
 
             {/* Testimonials */}
             <View className="pt-2 bg-white">
-              <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">Happy Tummies 😊</Text>
-              <Text className="text-sm text-gray-500 text-center mb-6 font-sans">What our customers say about us.</Text>
+              <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
+                Happy Tummies 😊
+              </Text>
+              <Text className="text-sm text-gray-500 text-center mb-6 font-sans">
+                What our customers say about us.
+              </Text>
               <AutoCarousel
                 data={TESTIMONIALS}
                 isAutoPlay={true}
@@ -659,15 +736,25 @@ export default function HomeScreen() {
                 renderItem={(item: any) => (
                   <View className="px-4">
                     <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                      <Text className="text-amber-500 font-bold mb-3 font-sans">★ {item.rating}</Text>
-                      <Text className="text-gray-600 italic mb-4 leading-5 font-sans">"{item.quote}"</Text>
+                      <Text className="text-amber-500 font-bold mb-3 font-sans">
+                        ★ {item.rating}
+                      </Text>
+                      <Text className="text-gray-600 italic mb-4 leading-5 font-sans">
+                        "{item.quote}"
+                      </Text>
                       <View className="flex-row items-center">
                         <View className="h-10 w-10 bg-primary/10 rounded-full items-center justify-center">
-                          <Text className="font-bold text-primary text-lg">{item.name.charAt(0)}</Text>
+                          <Text className="font-bold text-primary text-lg">
+                            {item.name.charAt(0)}
+                          </Text>
                         </View>
                         <View className="ml-3">
-                          <Text className="font-bold text-sm text-gray-900 font-sans">{item.name}</Text>
-                          <Text className="text-xs text-gray-500 font-sans">{item.location}</Text>
+                          <Text className="font-bold text-sm text-gray-900 font-sans">
+                            {item.name}
+                          </Text>
+                          <Text className="text-xs text-gray-500 font-sans">
+                            {item.location}
+                          </Text>
                         </View>
                       </View>
                     </View>
@@ -691,11 +778,21 @@ export default function HomeScreen() {
               <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />
               <View className="relative z-10 w-20 h-20 bg-white rounded-full items-center justify-center mb-4 shadow-sm border border-orange-100">
                 <Gift size={40} color="#ea580c" />
-                <Sparkles size={24} color="#fbbf24" style={{ position: 'absolute', top: -5, right: -5 }} />
+                <Sparkles
+                  size={24}
+                  color="#fbbf24"
+                  style={{ position: 'absolute', top: -5, right: -5 }}
+                />
               </View>
-              <Text className="text-2xl font-black text-center text-orange-600 font-sans mb-1">A Special Gift! 🎁</Text>
+              <Text className="text-2xl font-black text-center text-orange-600 font-sans mb-1">
+                A Special Gift! 🎁
+              </Text>
               <Text className="text-sm text-gray-700 font-medium text-center px-2 mt-2 leading-relaxed font-sans">
-                Add your special dates and get a <Text className="font-bold text-rose-600 bg-white px-2 py-0.5 rounded shadow-sm">Flat 5% OFF</Text> on your celebration days!
+                Add your special dates and get a{' '}
+                <Text className="font-bold text-rose-600 bg-white px-2 py-0.5 rounded shadow-sm">
+                  Flat 5% OFF
+                </Text>{' '}
+                on your celebration days!
               </Text>
             </View>
 
@@ -706,30 +803,45 @@ export default function HomeScreen() {
                     <Cake size={20} color="#f472b6" />
                   </View>
                   <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
-                    <Text className={`text-sm font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+                    <Text
+                      className={`text-sm font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`}
+                      numberOfLines={1}
+                    >
                       {dob ? format(new Date(dob), 'MMMM do, yyyy') : 'Select Birthday'}
                     </Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-pink-100">
-                    <Text className="text-[10px] font-bold uppercase text-pink-500 font-sans">Your Birthday</Text>
+                    <Text className="text-[10px] font-bold uppercase text-pink-500 font-sans">
+                      Your Birthday
+                    </Text>
                   </View>
                 </TouchableOpacity>
               )}
 
               {isAnnivMissing && (
-                <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative mb-2">
+                <TouchableOpacity
+                  onPress={() => openDatePicker('anniversary')}
+                  className="relative mb-2"
+                >
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Heart size={20} color="#f43f5e" />
                   </View>
                   <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
-                    <Text className={`text-sm font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
-                      {anniversary ? format(new Date(anniversary), 'MMMM do, yyyy') : 'Select Anniversary'}
+                    <Text
+                      className={`text-sm font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`}
+                      numberOfLines={1}
+                    >
+                      {anniversary
+                        ? format(new Date(anniversary), 'MMMM do, yyyy')
+                        : 'Select Anniversary'}
                     </Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-red-100">
-                    <Text className="text-[10px] font-bold uppercase text-red-500 font-sans">Anniversary</Text>
+                    <Text className="text-[10px] font-bold uppercase text-red-500 font-sans">
+                      Anniversary
+                    </Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -738,12 +850,22 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   onPress={handleSaveDates}
                   disabled={isSavingDates || (!dob && !anniversary)}
-                  className={`w-full h-14 rounded-2xl items-center justify-center shadow-sm ${isSavingDates || (!dob && !anniversary) ? 'bg-gray-300' : 'bg-orange-500'}`}
+                  className={`w-full h-14 rounded-2xl items-center justify-center shadow-sm ${
+                    isSavingDates || (!dob && !anniversary) ? 'bg-gray-300' : 'bg-orange-500'
+                  }`}
                 >
-                  {isSavingDates ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-base font-sans tracking-wide">Claim 5% Discount</Text>}
+                  {isSavingDates ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white font-bold text-base font-sans tracking-wide">
+                      Claim 5% Discount
+                    </Text>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSkipPopup} className="py-4 mt-1">
-                  <Text className="text-gray-400 font-semibold font-sans text-center">Maybe Later</Text>
+                  <Text className="text-gray-400 font-semibold font-sans text-center">
+                    Maybe Later
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -755,8 +877,22 @@ export default function HomeScreen() {
       {activeDatePicker &&
         (Platform.OS === 'ios' ? (
           <Modal transparent={true} animationType="slide">
-            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: insets.bottom + 16 }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'flex-end',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: 'white',
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  padding: 16,
+                  paddingBottom: insets.bottom + 16,
+                }}
+              >
                 <DateTimePicker
                   value={tempDate}
                   mode="date"
@@ -766,7 +902,13 @@ export default function HomeScreen() {
                 />
                 <TouchableOpacity
                   onPress={() => setActiveDatePicker(null)}
-                  style={{ marginTop: 16, alignItems: 'center', padding: 14, backgroundColor: '#f97316', borderRadius: 12 }}
+                  style={{
+                    marginTop: 16,
+                    alignItems: 'center',
+                    padding: 14,
+                    backgroundColor: '#f97316',
+                    borderRadius: 12,
+                  }}
                 >
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Done</Text>
                 </TouchableOpacity>
