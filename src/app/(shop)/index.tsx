@@ -6,9 +6,10 @@ import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import {
-  Briefcase, Cake, ChevronDown, ChevronLeft, ChevronRight, Gift, Heart, Leaf, MapPin, Mic,
-  PartyPopper, Percent, Search, ShieldCheck,
-  Sparkles, TrainFront, Truck, User
+  Cake, ChevronDown, ChevronLeft, ChevronRight, Gift, Heart, Leaf, MapPin, Mic,
+  Search, ShieldCheck,
+  Sparkles,
+  Truck, User
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -39,16 +40,8 @@ const CATEGORIES = [
   { name: "Rice", image: require("../../../assets/Categories/2.webp"), link: "/menus?category=rice", color: "border-orange-400" },
   { name: "Fish", image: require("../../../assets/Categories/3.webp"), link: "/menus?category=fish", color: "border-blue-500" },
   { name: "Paneer", image: require("../../../assets/Categories/8.webp"), link: "/menus?category=paneer", color: "border-indigo-500" },
-  { name: "Fried", image: require("../../../assets/Categories/5.webp"), link: "/menus?category=fried", color: "border-amber-500" },
   { name: "Chapati", image: require("../../../assets/Categories/6.webp"), link: "/menus?category=chapati", color: "border-emerald-500" },
   { name: "Veg", image: require("../../../assets/Categories/1.webp"), link: "/menus?category=veg", color: "border-lime-500" },
-];
-
-const EXPLORE_MORE = [
-  { title: "Offers", icon: Percent, color: "#3b82f6", bg: "bg-blue-50" },
-  { title: "Food on train", icon: TrainFront, color: "#6366f1", bg: "bg-indigo-50" },
-  { title: "Plan a party", icon: PartyPopper, color: "#f43f5e", bg: "bg-rose-50" },
-  { title: "Collections", icon: Briefcase, color: "#eab308", bg: "bg-yellow-50" },
 ];
 
 const FEATURES = [
@@ -57,9 +50,15 @@ const FEATURES = [
   { icon: ShieldCheck, title: "Safety First", desc: "100% Hygienic Kitchen", color: "#a855f7", bg: "bg-purple-50" },
 ];
 
-// হিরো ইমেজের সাইজ ও প্যাডিং – sticky header-এর ট্রিগার পয়েন্ট বের করতে ব্যবহার হবে
-const HERO_CAROUSEL_HEIGHT = windowWidth + 8; // pb-2 = 8px
+const HERO_CAROUSEL_HEIGHT = windowWidth + 8;
+const PRODUCTS_PER_PAGE = 10;
 
+// প্যারেন্টের প্যাডিং (px-4 = 16px দুইপাশে) + প্রতিটি আইটেমের মার্জিন (margin:4 প্রতিটি পাশে, মোট 16px)
+const CARD_MARGIN = 4;
+const CONTAINER_PADDING = 16; // px-4 = 16
+const CARD_WIDTH = (windowWidth - CONTAINER_PADDING * 2 - CARD_MARGIN * 4) / 2;
+
+// --- Helper Components (unchanged) ---
 const AutoScaledImage = ({ url, isFullWidth = true }: { url: string, isFullWidth?: boolean }) => {
   return (
     <Image source={{ uri: url }} style={{ width: isFullWidth ? windowWidth : windowWidth - 32, aspectRatio: 1 }} contentFit="cover" />
@@ -170,10 +169,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Data states
   const [homeData, setHomeData] = useState({ heroSlides: [], sliderImages: [], offers: [], bestsellers: [], allProducts: [] });
-
-  // UI states
   const [showDatePopup, setShowDatePopup] = useState(false);
   const [dob, setDob] = useState("");
   const [anniversary, setAnniversary] = useState("");
@@ -184,21 +180,20 @@ export default function HomeScreen() {
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
 
-  // Pagination state (client-side slicing)
-  const [productDisplayCount, setProductDisplayCount] = useState(10);
-  const PRODUCTS_PER_PAGE = 10;
+  const [productDisplayCount, setProductDisplayCount] = useState(PRODUCTS_PER_PAGE);
 
-  // Refs & animations
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const categoryContainerRef = useRef<View>(null);
   const scrollY = useSharedValue(0);
   const categoryY = useSharedValue(0);
+  const categoryYRef = useRef(0);
 
-  // Animated values for back button
   const backButtonWidth = useSharedValue(0);
   const backButtonOpacity = useSharedValue(0);
 
-  // হিরো ডাটা এলে ক্যাটাগরি কন্টেইনারের আনুমানিক Y পজিশন সেট করি
+  const isLoadingMore = useRef(false);
+  const lastLoadTime = useRef(0);
+
   useEffect(() => {
     if (homeData.heroSlides.length > 0) {
       categoryY.value = HERO_CAROUSEL_HEIGHT;
@@ -217,7 +212,6 @@ export default function HomeScreen() {
     }
   }, [activeCategory]);
 
-  // Handlers
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
@@ -225,67 +219,47 @@ export default function HomeScreen() {
   });
 
   const handleScrollEndDrag = (event: any) => {
-    // Check if close to bottom for automatic pagination
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 250) {
-      if (hasMore) {
-        loadMoreProducts();
-      }
-    }
-
-    if (activeCategory === "All") return;
-    const currentOffset = event.nativeEvent.contentOffset.y;
-    categoryContainerRef.current?.measureLayout(
-      scrollViewRef.current as any,
-      (x, y) => {
-        const stickyHeaderHeight = insets.top + 60;
-        const lockPosition = y - stickyHeaderHeight + 10;
-        if (currentOffset < lockPosition) {
-          scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
-        }
-      },
-      () => {}
-    );
+    lockCategoryIfNeeded(event.nativeEvent.contentOffset.y);
   };
 
   const handleMomentumScrollEnd = (event: any) => {
-    // Check if close to bottom for automatic pagination
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    lockCategoryIfNeeded(event.nativeEvent.contentOffset.y);
+    handleLoadMoreIfNeeded(event.nativeEvent);
+  };
+
+  const lockCategoryIfNeeded = (currentOffset: number) => {
+    if (activeCategory === "All") return;
+    const stickyHeaderHeight = insets.top + 60;
+    const lockPosition = categoryYRef.current - stickyHeaderHeight + 10;
+    if (currentOffset < lockPosition) {
+      scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
+    }
+  };
+
+  const handleLoadMoreIfNeeded = (nativeEvent: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
     if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 250) {
-      if (hasMore) {
+      const now = Date.now();
+      if (!isLoadingMore.current && now - lastLoadTime.current > 300 && hasMore) {
+        isLoadingMore.current = true;
+        lastLoadTime.current = now;
         loadMoreProducts();
       }
     }
-
-    if (activeCategory === "All") return;
-    const currentOffset = event.nativeEvent.contentOffset.y;
-    categoryContainerRef.current?.measureLayout(
-      scrollViewRef.current as any,
-      (x, y) => {
-        const stickyHeaderHeight = insets.top + 60;
-        const lockPosition = y - stickyHeaderHeight + 10;
-        if (currentOffset < lockPosition) {
-          scrollViewRef.current?.scrollTo({ y: lockPosition, animated: true });
-        }
-      },
-      () => {}
-    );
   };
+
+  useEffect(() => {
+    isLoadingMore.current = false;
+  }, [productDisplayCount]);
 
   const adjustScrollForCategory = () => {
     if (activeCategory === "All") {
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     } else {
       setTimeout(() => {
-        categoryContainerRef.current?.measureLayout(
-          scrollViewRef.current as any,
-          (x, y) => {
-            const stickyHeaderHeight = insets.top + 60;
-            const lockPosition = y - stickyHeaderHeight + 10;
-            scrollViewRef.current?.scrollTo({ y: Math.max(0, lockPosition), animated: true });
-          },
-          () => {}
-        );
+        const stickyHeaderHeight = insets.top + 60;
+        const lockPosition = categoryYRef.current - stickyHeaderHeight + 10;
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, lockPosition), animated: true });
       }, 100);
     }
   };
@@ -295,7 +269,6 @@ export default function HomeScreen() {
     adjustScrollForCategory();
   }, [activeCategory]);
 
-  // Animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
     return {
@@ -308,12 +281,7 @@ export default function HomeScreen() {
     const opacity = interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP);
     const height = interpolate(scrollY.value, [0, 80], [48, 0], Extrapolation.CLAMP);
     const marginBottom = interpolate(scrollY.value, [0, 80], [12, 0], Extrapolation.CLAMP);
-    return {
-      opacity,
-      height,
-      marginBottom,
-      overflow: 'hidden',
-    };
+    return { opacity, height, marginBottom, overflow: 'hidden' };
   });
 
   const stickyCategoryStyle = useAnimatedStyle(() => {
@@ -338,7 +306,6 @@ export default function HomeScreen() {
     overflow: 'hidden',
   }));
 
-  // Fetch home data
   useEffect(() => {
     const fetchHomeData = async () => {
       const cachedData = await AsyncStorage.getItem('bumbas_home_data');
@@ -357,7 +324,6 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
-  // Date popup logic
   useEffect(() => {
     if (user) {
       const missingDob = !user.dob || user.dob === "";
@@ -375,12 +341,10 @@ export default function HomeScreen() {
       toast.error("Please add your Birthday first.");
       return;
     }
-
     setIsSavingDates(true);
     try {
       let firstName = "User";
       let lastName = ".";
-
       if (user?.name && typeof user.name === 'string') {
         const parts = user.name.trim().split(/\s+/);
         firstName = parts[0] || "User";
@@ -389,7 +353,6 @@ export default function HomeScreen() {
         firstName = user.firstName;
         lastName = user.lastName || ".";
       }
-
       const response = await fetch(`${API_URL}/auth/update-profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -400,7 +363,6 @@ export default function HomeScreen() {
           anniversary: anniversary || user?.anniversary,
         }),
       });
-
       const data = await response.json();
       if (response.ok) {
         setHasSkippedSession(true);
@@ -441,7 +403,6 @@ export default function HomeScreen() {
   const isDobMissing = !user?.dob || user?.dob === "";
   const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
 
-  // ─── Compute filtered & paginated products ───
   const allProducts = homeData.allProducts || [];
 
   const categoryFiltered =
@@ -472,10 +433,9 @@ export default function HomeScreen() {
 
   const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
 
-  // ─── Render ───
   return (
     <View className="flex-1 bg-white">
-      {/* ─── Animated Header ─── */}
+      {/* Header */}
       <Animated.View
         style={[
           headerAnimatedStyle,
@@ -495,11 +455,7 @@ export default function HomeScreen() {
           <View className="flex-row items-center flex-1 pr-4">
             <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full max-w-full">
               <MapPin size={22} color="#e11d48" className="mr-1.5 flex-shrink-0" />
-              <Text
-                className="text-lg font-bold text-gray-900 font-sans flex-shrink"
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
+              <Text className="text-lg font-bold text-gray-900 font-sans flex-shrink" numberOfLines={1} ellipsizeMode="tail">
                 {getDisplayAddress(user)}
               </Text>
               <ChevronDown size={18} color="#374151" className="ml-1 flex-shrink-0" />
@@ -516,7 +472,6 @@ export default function HomeScreen() {
         </Animated.View>
 
         <View className="flex-row items-center gap-3">
-          {/* Animated back button */}
           <Animated.View style={backButtonStyle}>
             <TouchableOpacity
               onPress={() => setActiveCategory("All")}
@@ -526,21 +481,17 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Search bar */}
           <TouchableOpacity
             activeOpacity={0.8}
             className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5"
           >
             <Search size={20} color="#e11d48" />
-            <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">
-              Search "namkeen"
-            </Text>
+            <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">Search "namkeen"</Text>
             <View className="border-l border-gray-300 pl-3 py-0.5">
               <Mic size={20} color="#e11d48" />
             </View>
           </TouchableOpacity>
 
-          {/* Veg toggle - only visible when category is "All" */}
           {activeCategory === "All" && (
             <TouchableOpacity
               onPress={() => setIsVeg(!isVeg)}
@@ -549,11 +500,7 @@ export default function HomeScreen() {
               }`}
               activeOpacity={0.7}
             >
-              <Text
-                className={`text-xs font-bold font-sans ${
-                  isVeg ? 'text-white' : 'text-gray-700'
-                }`}
-              >
+              <Text className={`text-xs font-bold font-sans ${isVeg ? 'text-white' : 'text-gray-700'}`}>
                 VEG
               </Text>
             </TouchableOpacity>
@@ -561,12 +508,12 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
-      {/* ─── Sticky Category ─── */}
+      {/* Sticky Category */}
       <Animated.View style={stickyCategoryStyle} className="bg-white pt-1 pb-0">
         <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
       </Animated.View>
 
-      {/* ─── Main Content ─── */}
+      {/* Main Content */}
       <Animated.ScrollView
         ref={scrollViewRef}
         onScroll={scrollHandler}
@@ -575,7 +522,7 @@ export default function HomeScreen() {
         className="flex-1"
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
-        contentContainerStyle={{ paddingBottom: 24 }} 
+        contentContainerStyle={{ paddingBottom: 56 }} // increased bottom spacing
       >
         {/* Hero Carousel */}
         <View className="bg-white pb-2 relative">
@@ -595,15 +542,18 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Inline Category List */}
+        {/* Category List Container */}
         <View
           ref={categoryContainerRef}
           className="bg-white py-2"
+          onLayout={(e) => {
+            categoryYRef.current = e.nativeEvent.layout.y;
+          }}
         >
           <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
 
-        {/* ─── OUR BESTSELLER ─── */}
+        {/* Bestsellers */}
         {activeCategory === "All" && homeData.bestsellers && homeData.bestsellers.length > 0 && (
           <View className="px-4 pt-4 pb-2">
             <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
@@ -616,7 +566,6 @@ export default function HomeScreen() {
               return (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View>
-                    {/* Top Row */}
                     <View style={{ flexDirection: 'row', marginBottom: 16 }}>
                       {topRow.map((item: any) => (
                         <View key={item.id} style={{ width: 160, height: 250, marginRight: 12 }}>
@@ -624,7 +573,6 @@ export default function HomeScreen() {
                         </View>
                       ))}
                     </View>
-                    {/* Bottom Row */}
                     <View style={{ flexDirection: 'row' }}>
                       {bottomRow.map((item: any) => (
                         <View key={item.id} style={{ width: 160, height: 250, marginRight: 12 }}>
@@ -639,7 +587,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ─── FEATURES (moved right after Bestsellers) ─── */}
+        {/* Features */}
         {activeCategory === "All" && (
           <View className="flex-row justify-between px-4 py-6 bg-gray-50 border-y border-gray-100 mb-6">
             {FEATURES.map((feat, idx) => (
@@ -655,7 +603,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ─── TODAY'S SPECIAL (moved right after Features) ─── */}
+        {/* Today's Special */}
         {activeCategory === "All" && dailySpecial && (
           <View className="py-8 bg-amber-50/60 px-4 mb-6">
             <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
@@ -691,7 +639,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ─── Products Section ─── */}
+        {/* ─── Products Grid ─── */}
         <View className="bg-white px-4 pt-2 pb-4">
           <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
             {activeCategory === "All" ? "EXPLORE MORE" : `Fresh from ${activeCategory}`}
@@ -702,31 +650,34 @@ export default function HomeScreen() {
               <Text className="text-gray-500 font-sans">No items available</Text>
             </View>
           ) : (
-            <>
-              <View className="flex-row flex-wrap justify-between">
-                {displayedProducts.map((item: any) => (
-                  <View key={item.id} style={{ width: '48%', height: 250, marginBottom: 16 }}>
-                    <ProductCard product={item} />
-                  </View>
-                ))}
-              </View>
-
-              {/* Automatic Infinite Scroll Loader */}
-              {hasMore && (
-                <View className="py-6 items-center justify-center mt-2">
-                  <ActivityIndicator size="small" color="#e11d48" />
-                  <Text className="text-xs text-gray-400 mt-1 font-sans">
-                    Loading more items...
-                  </Text>
+            <FlatList
+              data={displayedProducts}
+              renderItem={({ item }) => (
+                <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+                  <ProductCard product={item} />
                 </View>
               )}
-            </>
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              nestedScrollEnabled={true}
+              scrollEnabled={false}
+              columnWrapperStyle={{ justifyContent: 'space-between' }}
+              ListFooterComponent={
+                hasMore ? (
+                  <View className="py-6 items-center justify-center mt-2">
+                    <ActivityIndicator size="small" color="#e11d48" />
+                    <Text className="text-xs text-gray-400 mt-1 font-sans">
+                      Loading more items...
+                    </Text>
+                  </View>
+                ) : null
+              }
+            />
           )}
         </View>
-
       </Animated.ScrollView>
 
-      {/* ─── Date Popup Modal ─── */}
+      {/* Date Popup Modal (unchanged) */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
@@ -735,11 +686,7 @@ export default function HomeScreen() {
               <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />
               <View className="relative z-10 w-20 h-20 bg-white rounded-full items-center justify-center mb-4 shadow-sm border border-orange-100">
                 <Gift size={40} color="#ea580c" />
-                <Sparkles
-                  size={24}
-                  color="#fbbf24"
-                  style={{ position: 'absolute', top: -5, right: -5 }}
-                />
+                <Sparkles size={24} color="#fbbf24" style={{ position: 'absolute', top: -5, right: -5 }} />
               </View>
               <Text className="text-2xl font-black text-center text-orange-600 font-sans mb-1">
                 A Special Gift! 🎁
@@ -760,45 +707,30 @@ export default function HomeScreen() {
                     <Cake size={20} color="#f472b6" />
                   </View>
                   <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
-                    <Text
-                      className={`text-sm font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`}
-                      numberOfLines={1}
-                    >
+                    <Text className={`text-sm font-bold font-sans ${dob ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
                       {dob ? format(new Date(dob), 'MMMM do, yyyy') : 'Select Birthday'}
                     </Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-pink-100">
-                    <Text className="text-[10px] font-bold uppercase text-pink-500 font-sans">
-                      Your Birthday
-                    </Text>
+                    <Text className="text-[10px] font-bold uppercase text-pink-500 font-sans">Your Birthday</Text>
                   </View>
                 </TouchableOpacity>
               )}
 
               {isAnnivMissing && (
-                <TouchableOpacity
-                  onPress={() => openDatePicker('anniversary')}
-                  className="relative mb-2"
-                >
+                <TouchableOpacity onPress={() => openDatePicker('anniversary')} className="relative mb-2">
                   <View className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                     <Heart size={20} color="#f43f5e" />
                   </View>
                   <View className="w-full pl-12 pr-4 h-14 bg-gray-50 border-2 border-gray-100 rounded-2xl flex-row justify-between items-center">
-                    <Text
-                      className={`text-sm font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`}
-                      numberOfLines={1}
-                    >
-                      {anniversary
-                        ? format(new Date(anniversary), 'MMMM do, yyyy')
-                        : 'Select Anniversary'}
+                    <Text className={`text-sm font-bold font-sans ${anniversary ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+                      {anniversary ? format(new Date(anniversary), 'MMMM do, yyyy') : 'Select Anniversary'}
                     </Text>
                     <ChevronRight size={16} color="#9ca3af" />
                   </View>
                   <View className="absolute -top-2.5 left-4 bg-white px-2 rounded-full border border-red-100">
-                    <Text className="text-[10px] font-bold uppercase text-red-500 font-sans">
-                      Anniversary
-                    </Text>
+                    <Text className="text-[10px] font-bold uppercase text-red-500 font-sans">Anniversary</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -814,15 +746,11 @@ export default function HomeScreen() {
                   {isSavingDates ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text className="text-white font-bold text-base font-sans tracking-wide">
-                      Claim 5% Discount
-                    </Text>
+                    <Text className="text-white font-bold text-base font-sans tracking-wide">Claim 5% Discount</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSkipPopup} className="py-4 mt-1">
-                  <Text className="text-gray-400 font-semibold font-sans text-center">
-                    Maybe Later
-                  </Text>
+                  <Text className="text-gray-400 font-semibold font-sans text-center">Maybe Later</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -830,26 +758,11 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Date Picker for iOS/Android */}
       {activeDatePicker &&
         (Platform.OS === 'ios' ? (
           <Modal transparent={true} animationType="slide">
-            <View
-              style={{
-                flex: 1,
-                justifyContent: 'flex-end',
-                backgroundColor: 'rgba(0,0,0,0.5)',
-              }}
-            >
-              <View
-                style={{
-                  backgroundColor: 'white',
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  padding: 16,
-                  paddingBottom: insets.bottom + 16,
-                }}
-              >
+            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: insets.bottom + 16 }}>
                 <DateTimePicker
                   value={tempDate}
                   mode="date"
@@ -859,13 +772,7 @@ export default function HomeScreen() {
                 />
                 <TouchableOpacity
                   onPress={() => setActiveDatePicker(null)}
-                  style={{
-                    marginTop: 16,
-                    alignItems: 'center',
-                    padding: 14,
-                    backgroundColor: '#f97316',
-                    borderRadius: 12,
-                  }}
+                  style={{ marginTop: 16, alignItems: 'center', padding: 14, backgroundColor: '#f97316', borderRadius: 12 }}
                 >
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Done</Text>
                 </TouchableOpacity>
@@ -882,7 +789,6 @@ export default function HomeScreen() {
           />
         ))}
 
-      {/* Notification Prompt */}
       <NotificationPrompt />
     </View>
   );
