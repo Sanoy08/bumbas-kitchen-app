@@ -196,7 +196,7 @@ export default function HomeScreen() {
   const categoryY = useSharedValue(0);
   const scrollY = useSharedValue(0);
 
-  // Animated values for back button (from Code 2)
+  // Animated values for back button
   const backButtonWidth = useSharedValue(0);
   const backButtonOpacity = useSharedValue(0);
 
@@ -418,7 +418,7 @@ export default function HomeScreen() {
   const isDobMissing = !user?.dob || user?.dob === "";
   const isAnnivMissing = !user?.anniversary || user?.anniversary === "";
 
-  // ─── Compute filtered & paginated products (same as Code 1) ───
+  // ─── Compute filtered & paginated products ───
   const allProducts = homeData.allProducts || [];
 
   const categoryFiltered =
@@ -452,7 +452,7 @@ export default function HomeScreen() {
   // ─── Render ───
   return (
     <View className="flex-1 bg-white">
-      {/* ─── Animated Header (from Code 2) ─── */}
+      {/* ─── Animated Header ─── */}
       <Animated.View
         style={[
           headerAnimatedStyle,
@@ -493,7 +493,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         <View className="flex-row items-center gap-3">
-          {/* Animated back button (from Code 2) */}
+          {/* Animated back button */}
           <Animated.View style={backButtonStyle}>
             <TouchableOpacity
               onPress={() => setActiveCategory("All")}
@@ -517,21 +517,23 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Veg toggle */}
-          <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl">
-            <Text className="text-[10px] font-bold text-green-700 mb-0.5 font-sans">VEG</Text>
-            <Switch
-              value={isVeg}
-              onValueChange={setIsVeg}
-              trackColor={{ false: '#e5e7eb', true: '#22c55e' }}
-              thumbColor="#ffffff"
-              style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-            />
-          </View>
+          {/* Veg toggle - only visible when category is "All" */}
+          {activeCategory === "All" && (
+            <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl">
+              <Text className="text-[10px] font-bold text-green-700 mb-0.5 font-sans">VEG</Text>
+              <Switch
+                value={isVeg}
+                onValueChange={setIsVeg}
+                trackColor={{ false: '#e5e7eb', true: '#22c55e' }}
+                thumbColor="#ffffff"
+                style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+              />
+            </View>
+          )}
         </View>
       </Animated.View>
 
-      {/* ─── Sticky Category (from Code 2) ─── */}
+      {/* ─── Sticky Category ─── */}
       <Animated.View style={stickyCategoryStyle} className="bg-white pt-1 pb-0">
         <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
       </Animated.View>
@@ -564,7 +566,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Inline Category List (from Code 2) */}
+        {/* Inline Category List */}
         <View
           ref={categoryContainerRef}
           onLayout={(e) => {
@@ -575,7 +577,7 @@ export default function HomeScreen() {
           <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
         </View>
 
-        {/* Filters row (from Code 2) – placed after the category list */}
+        {/* Filters row */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -596,7 +598,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* ─── OUR BESTSELLER – Two rows scrolling together (Code 1) ─── */}
+        {/* ─── OUR BESTSELLER ─── */}
         {activeCategory === "All" && homeData.bestsellers && homeData.bestsellers.length > 0 && (
           <View className="px-4 pt-4 pb-2">
             <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
@@ -632,7 +634,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ─── Products Section (Code 1 – pagination, veg filter) ─── */}
+        {/* ─── Products Section ─── */}
         <View className="bg-white px-4 pt-2 pb-4">
           <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
             {activeCategory === "All" ? "EXPLORE MORE" : `Fresh from ${activeCategory}`}
@@ -667,7 +669,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* ─── Conditional Sections (only when "All") – from Code 1 ─── */}
+        {/* ─── Conditional Sections (only when "All") ─── */}
         {activeCategory === "All" && (
           <>
             {/* Features */}
