@@ -225,6 +225,14 @@ export default function HomeScreen() {
   });
 
   const handleScrollEndDrag = (event: any) => {
+    // Check if close to bottom for automatic pagination
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 250) {
+      if (hasMore) {
+        loadMoreProducts();
+      }
+    }
+
     if (activeCategory === "All") return;
     const currentOffset = event.nativeEvent.contentOffset.y;
     categoryContainerRef.current?.measureLayout(
@@ -241,6 +249,14 @@ export default function HomeScreen() {
   };
 
   const handleMomentumScrollEnd = (event: any) => {
+    // Check if close to bottom for automatic pagination
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 250) {
+      if (hasMore) {
+        loadMoreProducts();
+      }
+    }
+
     if (activeCategory === "All") return;
     const currentOffset = event.nativeEvent.contentOffset.y;
     categoryContainerRef.current?.measureLayout(
@@ -559,7 +575,7 @@ export default function HomeScreen() {
         className="flex-1"
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
-        contentContainerStyle={{ paddingBottom: 24 }} // Added padding bottom to replace the old h-6 view properly
+        contentContainerStyle={{ paddingBottom: 24 }} 
       >
         {/* Hero Carousel */}
         <View className="bg-white pb-2 relative">
@@ -695,16 +711,14 @@ export default function HomeScreen() {
                 ))}
               </View>
 
-              {/* Load More Button */}
+              {/* Automatic Infinite Scroll Loader */}
               {hasMore && (
-                <TouchableOpacity
-                  onPress={loadMoreProducts}
-                  className="bg-gray-100 py-3 rounded-xl items-center mt-2"
-                >
-                  <Text className="font-bold text-gray-700">
-                    Load More ({filteredProducts.length - productDisplayCount} left)
+                <View className="py-6 items-center justify-center mt-2">
+                  <ActivityIndicator size="small" color="#e11d48" />
+                  <Text className="text-xs text-gray-400 mt-1 font-sans">
+                    Loading more items...
                   </Text>
-                </TouchableOpacity>
+                </View>
               )}
             </>
           )}
