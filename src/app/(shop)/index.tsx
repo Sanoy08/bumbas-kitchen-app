@@ -518,18 +518,23 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           {/* Veg toggle - only visible when category is "All" */}
-          {activeCategory === "All" && (
-            <View className="items-center justify-center bg-white/90 px-2 py-1 rounded-xl">
-              <Text className="text-[10px] font-bold text-green-700 mb-0.5 font-sans">VEG</Text>
-              <Switch
-                value={isVeg}
-                onValueChange={setIsVeg}
-                trackColor={{ false: '#e5e7eb', true: '#22c55e' }}
-                thumbColor="#ffffff"
-                style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-              />
-            </View>
-          )}
+{activeCategory === "All" && (
+  <TouchableOpacity
+    onPress={() => setIsVeg(!isVeg)}
+    className={`items-center justify-center px-3 py-1.5 rounded-xl border ${
+      isVeg ? 'bg-green-500 border-green-600' : 'bg-white border-gray-300'
+    }`}
+    activeOpacity={0.7}
+  >
+    <Text
+      className={`text-xs font-bold font-sans ${
+        isVeg ? 'text-white' : 'text-gray-700'
+      }`}
+    >
+      VEG
+    </Text>
+  </TouchableOpacity>
+)}
         </View>
       </Animated.View>
 
