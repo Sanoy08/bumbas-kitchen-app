@@ -57,13 +57,7 @@ const FEATURES = [
   { icon: ShieldCheck, title: "Safety First", desc: "100% Hygienic Kitchen", color: "#a855f7", bg: "bg-purple-50" },
 ];
 
-const TESTIMONIALS = [
-  { name: 'Ishita M.', location: 'Kolkata', rating: 5, quote: "The food is very tasty and the price is reasonable. A must try!" },
-  { name: 'Rohan G.', location: 'Hooghly', rating: 4.5, quote: "Amazing home-style food! The chicken kosha was simply out of this world." },
-  { name: 'Priya S.', location: 'Serampore', rating: 5, quote: "Bumba's Kitchen is my go-to for weekend meals. Consistent quality!" },
-];
-
-// হিরো ইমেজের সাইজ ও প্যাডিং – sticky header-এর ট্রিগার পয়েন্ট বের করতে ব্যবহার হবে
+// হিরো ইমেজের সাইজ ও প্যাডিং – sticky header-এর ট্রিগার পয়েন্ট বের করতে ব্যবহার হবে
 const HERO_CAROUSEL_HEIGHT = windowWidth + 8; // pb-2 = 8px
 
 const AutoScaledImage = ({ url, isFullWidth = true }: { url: string, isFullWidth?: boolean }) => {
@@ -565,6 +559,7 @@ export default function HomeScreen() {
         className="flex-1"
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
+        contentContainerStyle={{ paddingBottom: 24 }} // Added padding bottom to replace the old h-6 view properly
       >
         {/* Hero Carousel */}
         <View className="bg-white pb-2 relative">
@@ -608,7 +603,7 @@ export default function HomeScreen() {
                     {/* Top Row */}
                     <View style={{ flexDirection: 'row', marginBottom: 16 }}>
                       {topRow.map((item: any) => (
-                        <View key={item.id} style={{ width: 160, marginRight: 12 }}>
+                        <View key={item.id} style={{ width: 160, height: 250, marginRight: 12 }}>
                           <ProductCard product={item} />
                         </View>
                       ))}
@@ -616,7 +611,7 @@ export default function HomeScreen() {
                     {/* Bottom Row */}
                     <View style={{ flexDirection: 'row' }}>
                       {bottomRow.map((item: any) => (
-                        <View key={item.id} style={{ width: 160, marginRight: 12 }}>
+                        <View key={item.id} style={{ width: 160, height: 250, marginRight: 12 }}>
                           <ProductCard product={item} />
                         </View>
                       ))}
@@ -715,53 +710,6 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* ─── Testimonials (only when "All") ─── */}
-        {activeCategory === "All" && (
-          <View className="pt-2 bg-white">
-            <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
-              Happy Tummies 😊
-            </Text>
-            <Text className="text-sm text-gray-500 text-center mb-6 font-sans">
-              What our customers say about us.
-            </Text>
-            <AutoCarousel
-              data={TESTIMONIALS}
-              isAutoPlay={true}
-              autoPlayDelay={5000}
-              showDots={false}
-              renderItem={(item: any) => (
-                <View className="px-4">
-                  <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                    <Text className="text-amber-500 font-bold mb-3 font-sans">
-                      ★ {item.rating}
-                    </Text>
-                    <Text className="text-gray-600 italic mb-4 leading-5 font-sans">
-                      "{item.quote}"
-                    </Text>
-                    <View className="flex-row items-center">
-                      <View className="h-10 w-10 bg-primary/10 rounded-full items-center justify-center">
-                        <Text className="font-bold text-primary text-lg">
-                          {item.name.charAt(0)}
-                        </Text>
-                      </View>
-                      <View className="ml-3">
-                        <Text className="font-bold text-sm text-gray-900 font-sans">
-                          {item.name}
-                        </Text>
-                        <Text className="text-xs text-gray-500 font-sans">
-                          {item.location}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )}
-            />
-          </View>
-        )}
-
-        {/* Bottom padding */}
-        <View className="h-6" />
       </Animated.ScrollView>
 
       {/* ─── Date Popup Modal ─── */}
