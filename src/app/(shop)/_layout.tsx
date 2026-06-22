@@ -7,7 +7,10 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 export default function ShopLayout() {
   const pathname = usePathname();
   
-  // প্রোডাক্ট ডিটেইল পেজে গেলে ট্যাব বার লুকানোর লজিক
+  // =========================================================================
+  // 🟢 পুরো ট্যাব বার লুকানোর লজিক (যে পেজে গেলে নিচে কোনো বার থাকবে না)
+  // এখানে আপনি চাইলে আরও পাথ যোগ করতে পারেন।
+  // =========================================================================
   const hideTabBar = pathname.includes('/menus/');
 
   return (
@@ -18,16 +21,20 @@ export default function ShopLayout() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
-          marginBottom: 4, // iOS কন্ডিশন সরানো হয়েছে
+          marginBottom: 4,
         },
         tabBarStyle: [
           styles.tabBar,
-          hideTabBar && { display: 'none' }
+          hideTabBar && { display: 'none' } // এখানে শর্ত অনুযায়ী বার হাইড হচ্ছে
         ],
         tabBarActiveTintColor: '#e11d48',
         tabBarInactiveTintColor: '#9ca3af',
       }}
     >
+      {/* ==================================================================== */}
+      {/* 🔵 যেসব পেজ আপনি ট্যাব বারে দেখাতে চান (বাটন হিসেবে) */}
+      {/* ==================================================================== */}
+
       <Tabs.Screen
         name="index"
         options={{
@@ -74,11 +81,16 @@ export default function ShopLayout() {
         }}
       />
 
-      {/* যেসব পেজ ট্যাব বারে দেখাতে চান না */}
+      {/* ==================================================================== */}
+      {/* 🔴 যেসব পেজের বোতাম ট্যাব বারে দেখাতে চান না (Hidden from Tab Bar) */}
+      {/* নতুন কোনো পেজ লুকাতে হলে options={{ href: null }} যোগ করে দিন। */}
+      {/* ==================================================================== */}
+      
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
       <Tabs.Screen name="menus/[slug]" options={{ href: null }} />
+
     </Tabs>
   );
 }
@@ -97,7 +109,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    paddingBottom: 0, // iOS কন্ডিশন সরানো হয়েছে
+    paddingBottom: 0, 
   },
   floatingButtonContainer: {
     flex: 1,
@@ -123,7 +135,7 @@ const styles = StyleSheet.create({
   },
   floatingButtonText: {
     position: 'absolute',
-    bottom: 4, // iOS কন্ডিশন সরানো হয়েছে
+    bottom: 4, 
     fontSize: 11,
     fontWeight: '600',
   },

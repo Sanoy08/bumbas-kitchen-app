@@ -87,10 +87,14 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <View className={`flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm ${isOutOfStock ? 'opacity-70' : ''}`}>
-      <Link href={`/menus/${product.slug}`} asChild>
-        {/* প্যারেন্ট কন্টেইনারে w-full যোগ করা হয়েছে */}
-        <TouchableOpacity activeOpacity={0.9} className="aspect-square w-full relative overflow-hidden bg-gray-50">
+    // Link component এখন পুরো কার্ডকে র‍্যাপ করছে
+    <Link href={`/menus/${product.slug}`} asChild>
+      <TouchableOpacity 
+        activeOpacity={0.9} 
+        className={`flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm ${isOutOfStock ? 'opacity-70' : ''}`}
+      >
+        {/* ইমেজের অংশটি এখন শুধু View */}
+        <View className="aspect-square w-full relative overflow-hidden bg-gray-50">
           {isOutOfStock ? (
             <View className="absolute top-2 right-2 bg-red-500 px-2 py-1 rounded-md z-10">
               <Text className="text-white text-[10px] font-bold">Out of Stock</Text>
@@ -101,7 +105,6 @@ export function ProductCard({ product }: ProductCardProps) {
             </View>
           ) : null}
 
-          {/* expo-image এ সরাসরি style প্রোপার্টি ব্যবহার করা হয়েছে */}
           <Image
             source={{ uri: imageSrc }}
             style={{ width: '100%', height: '100%' }}
@@ -110,47 +113,47 @@ export function ProductCard({ product }: ProductCardProps) {
           />
 
           {isOutOfStock && <View className="absolute inset-0 bg-black/20 z-0" />}
-        </TouchableOpacity>
-      </Link>
+        </View>
 
-      <View className="p-3 flex-1 justify-between">
-        <Text className="font-semibold text-sm leading-tight text-gray-900" numberOfLines={2}>
-          {product.name}
-        </Text>
-
-        <View className="flex-row items-center justify-between mt-3">
-          <Text className={`font-bold text-base ${isOutOfStock ? 'text-gray-400' : 'text-primary'}`}>
-            {formatPrice(product.price)}
+        <View className="p-3 flex-1 justify-between">
+          <Text className="font-semibold text-sm leading-tight text-gray-900" numberOfLines={2}>
+            {product.name}
           </Text>
 
-          <View>
-            {isOutOfStock ? (
-              <View className="flex-row items-center bg-gray-100 px-2 py-1.5 rounded-full border border-gray-200">
-                <Ban size={12} color="#9ca3af" />
-                <Text className="text-[10px] font-medium text-gray-500 ml-1">Sold Out</Text>
-              </View>
-            ) : cartItem ? (
-              <View className="flex-row items-center h-8 border border-primary/30 rounded-full bg-white shadow-sm">
-                <TouchableOpacity onPress={handleDecrease} className="px-2 py-1" hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-                  <Minus size={14} color="#e11d48" />
+          <View className="flex-row items-center justify-between mt-3">
+            <Text className={`font-bold text-base ${isOutOfStock ? 'text-gray-400' : 'text-primary'}`}>
+              {formatPrice(product.price)}
+            </Text>
+
+            <View>
+              {isOutOfStock ? (
+                <View className="flex-row items-center bg-gray-100 px-2 py-1.5 rounded-full border border-gray-200">
+                  <Ban size={12} color="#9ca3af" />
+                  <Text className="text-[10px] font-medium text-gray-500 ml-1">Sold Out</Text>
+                </View>
+              ) : cartItem ? (
+                <View className="flex-row items-center h-8 border border-primary/30 rounded-full bg-white shadow-sm">
+                  <TouchableOpacity onPress={handleDecrease} className="px-2 py-1" hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                    <Minus size={14} color="#e11d48" />
+                  </TouchableOpacity>
+                  <Text className="w-5 text-center font-bold text-sm text-gray-900">{cartItem.quantity}</Text>
+                  <TouchableOpacity onPress={handleIncrease} className="px-2 py-1" hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                    <Plus size={14} color="#e11d48" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleAdd}
+                  className="h-8 px-3.5 bg-primary items-center justify-center rounded-full flex-row shadow-sm"
+                >
+                  <ShoppingCart size={14} color="#fff" />
+                  <Text className="text-white text-xs font-semibold ml-1.5">Add</Text>
                 </TouchableOpacity>
-                <Text className="w-5 text-center font-bold text-sm text-gray-900">{cartItem.quantity}</Text>
-                <TouchableOpacity onPress={handleIncrease} className="px-2 py-1" hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-                  <Plus size={14} color="#e11d48" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={handleAdd}
-                className="h-8 px-3.5 bg-primary items-center justify-center rounded-full flex-row shadow-sm"
-              >
-                <ShoppingCart size={14} color="#fff" />
-                <Text className="text-white text-xs font-semibold ml-1.5">Add</Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </View>
           </View>
         </View>
-      </View>
-    </View>
+      </TouchableOpacity>
+    </Link>
   );
 }
