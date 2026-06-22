@@ -422,7 +422,7 @@ export default function HomeScreen() {
   const onDateSelected = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') setActiveDatePicker(null);
     if (event.type !== 'dismissed' && selectedDate) {
-      const formatted = selectedDate.toISOString().split('T');
+      const formatted = selectedDate.toISOString().split('T')[0];
       if (activeDatePicker === 'dob') setDob(formatted);
       else if (activeDatePicker === 'anniversary') setAnniversary(formatted);
     }
@@ -628,6 +628,58 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* ─── FEATURES (moved right after Bestsellers) ─── */}
+        {activeCategory === "All" && (
+          <View className="flex-row justify-between px-4 py-6 bg-gray-50 border-y border-gray-100 mb-6">
+            {FEATURES.map((feat, idx) => (
+              <View key={idx} className="flex-1 items-center px-1">
+                <View className={`h-12 w-12 rounded-full ${feat.bg} items-center justify-center mb-2`}>
+                  <feat.icon size={22} color={feat.color} />
+                </View>
+                <Text className="font-bold text-[11px] text-gray-900 text-center font-sans">
+                  {feat.title}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ─── TODAY'S SPECIAL (moved right after Features) ─── */}
+        {activeCategory === "All" && dailySpecial && (
+          <View className="py-8 bg-amber-50/60 px-4 mb-6">
+            <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
+              Today's Special 🌟
+            </Text>
+            <Text className="text-sm text-gray-500 text-center mb-6 font-sans">
+              Freshly prepared just for you.
+            </Text>
+            <View className="bg-white p-3 rounded-3xl shadow-sm border border-amber-100">
+              <View className="aspect-square w-full rounded-2xl overflow-hidden bg-gray-100">
+                {dailySpecial.images?.length > 0 ? (
+                  <Image
+                    source={{ uri: optimizeImageUrl(dailySpecial.images[0].url) }}
+                    className="w-full h-full"
+                    contentFit="cover"
+                  />
+                ) : (
+                  <SpecialDishCard
+                    name={dailySpecial.name}
+                    description={dailySpecial.description}
+                    price={dailySpecial.price}
+                  />
+                )}
+              </View>
+              <Link href={`/menus/${dailySpecial.slug}`} asChild>
+                <TouchableOpacity className="mt-4 bg-primary h-12 rounded-xl items-center justify-center shadow-sm">
+                  <Text className="text-white font-bold text-base font-sans">
+                    Order Now - {formatPrice(dailySpecial.price)}
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+        )}
+
         {/* ─── Products Section ─── */}
         <View className="bg-white px-4 pt-2 pb-4">
           <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
@@ -663,102 +715,49 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* ─── Conditional Sections (only when "All") ─── */}
+        {/* ─── Testimonials (only when "All") ─── */}
         {activeCategory === "All" && (
-          <>
-            {/* Features */}
-            <View className="flex-row justify-between px-4 py-6 bg-gray-50 border-y border-gray-100 mb-6">
-              {FEATURES.map((feat, idx) => (
-                <View key={idx} className="flex-1 items-center px-1">
-                  <View className={`h-12 w-12 rounded-full ${feat.bg} items-center justify-center mb-2`}>
-                    <feat.icon size={22} color={feat.color} />
-                  </View>
-                  <Text className="font-bold text-[11px] text-gray-900 text-center font-sans">
-                    {feat.title}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Today's Special */}
-            {dailySpecial && (
-              <View className="py-8 bg-amber-50/60 px-4 mb-6">
-                <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
-                  Today's Special 🌟
-                </Text>
-                <Text className="text-sm text-gray-500 text-center mb-6 font-sans">
-                  Freshly prepared just for you.
-                </Text>
-                <View className="bg-white p-3 rounded-3xl shadow-sm border border-amber-100">
-                  <View className="aspect-square w-full rounded-2xl overflow-hidden bg-gray-100">
-                    {dailySpecial.images?.length > 0 ? (
-                      <Image
-                        source={{ uri: optimizeImageUrl(dailySpecial.images[0].url) }}
-                        className="w-full h-full"
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <SpecialDishCard
-                        name={dailySpecial.name}
-                        description={dailySpecial.description}
-                        price={dailySpecial.price}
-                      />
-                    )}
-                  </View>
-                  <Link href={`/menus/${dailySpecial.slug}`} asChild>
-                    <TouchableOpacity className="mt-4 bg-primary h-12 rounded-xl items-center justify-center shadow-sm">
-                      <Text className="text-white font-bold text-base font-sans">
-                        Order Now - {formatPrice(dailySpecial.price)}
-                      </Text>
-                    </TouchableOpacity>
-                  </Link>
-                </View>
-              </View>
-            )}
-
-            {/* Testimonials */}
-            <View className="pt-2 bg-white">
-              <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
-                Happy Tummies 😊
-              </Text>
-              <Text className="text-sm text-gray-500 text-center mb-6 font-sans">
-                What our customers say about us.
-              </Text>
-              <AutoCarousel
-                data={TESTIMONIALS}
-                isAutoPlay={true}
-                autoPlayDelay={5000}
-                showDots={false}
-                renderItem={(item: any) => (
-                  <View className="px-4">
-                    <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                      <Text className="text-amber-500 font-bold mb-3 font-sans">
-                        ★ {item.rating}
-                      </Text>
-                      <Text className="text-gray-600 italic mb-4 leading-5 font-sans">
-                        "{item.quote}"
-                      </Text>
-                      <View className="flex-row items-center">
-                        <View className="h-10 w-10 bg-primary/10 rounded-full items-center justify-center">
-                          <Text className="font-bold text-primary text-lg">
-                            {item.name.charAt(0)}
-                          </Text>
-                        </View>
-                        <View className="ml-3">
-                          <Text className="font-bold text-sm text-gray-900 font-sans">
-                            {item.name}
-                          </Text>
-                          <Text className="text-xs text-gray-500 font-sans">
-                            {item.location}
-                          </Text>
-                        </View>
+          <View className="pt-2 bg-white">
+            <Text className="text-2xl font-bold text-gray-900 text-center mb-1 font-sans">
+              Happy Tummies 😊
+            </Text>
+            <Text className="text-sm text-gray-500 text-center mb-6 font-sans">
+              What our customers say about us.
+            </Text>
+            <AutoCarousel
+              data={TESTIMONIALS}
+              isAutoPlay={true}
+              autoPlayDelay={5000}
+              showDots={false}
+              renderItem={(item: any) => (
+                <View className="px-4">
+                  <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                    <Text className="text-amber-500 font-bold mb-3 font-sans">
+                      ★ {item.rating}
+                    </Text>
+                    <Text className="text-gray-600 italic mb-4 leading-5 font-sans">
+                      "{item.quote}"
+                    </Text>
+                    <View className="flex-row items-center">
+                      <View className="h-10 w-10 bg-primary/10 rounded-full items-center justify-center">
+                        <Text className="font-bold text-primary text-lg">
+                          {item.name.charAt(0)}
+                        </Text>
+                      </View>
+                      <View className="ml-3">
+                        <Text className="font-bold text-sm text-gray-900 font-sans">
+                          {item.name}
+                        </Text>
+                        <Text className="text-xs text-gray-500 font-sans">
+                          {item.location}
+                        </Text>
                       </View>
                     </View>
                   </View>
-                )}
-              />
-            </View>
-          </>
+                </View>
+              )}
+            />
+          </View>
         )}
 
         {/* Bottom padding */}
