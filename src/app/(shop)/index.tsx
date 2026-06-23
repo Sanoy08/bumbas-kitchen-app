@@ -11,9 +11,9 @@ import {
   Sparkles,
   Truck, User
 } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Modal, Platform, ScrollView,
+  ActivityIndicator, Dimensions, FlatList, InteractionManager, Modal, Platform, ScrollView,
   Text, TouchableOpacity, View
 } from 'react-native';
 import Animated, {
@@ -58,7 +58,7 @@ const CARD_MARGIN = 4;
 const CONTAINER_PADDING = 16; // px-4 = 16
 const CARD_WIDTH = (windowWidth - CONTAINER_PADDING * 2 - CARD_MARGIN * 4) / 2;
 
-// --- Helper Components (unchanged) ---
+// --- Helper Components (unchanged except CategoryList) ---
 const AutoScaledImage = ({ url, isFullWidth = true }: { url: string, isFullWidth?: boolean }) => {
   return (
     <Image source={{ uri: url }} style={{ width: isFullWidth ? windowWidth : windowWidth - 32, aspectRatio: 1 }} contentFit="cover" />
@@ -108,18 +108,38 @@ const AutoCarousel = ({ data, renderItem, autoPlayDelay = 4000, isAutoPlay = fal
   );
 };
 
+// Ultra-smooth centering CategoryList
 const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [scrollViewWidth, setScrollViewWidth] = useState(0);
+  const [contentWidth, setContentWidth] = useState(0);
   const itemLayouts = useRef<{ [key: string]: { x: number; width: number } }>({});
 
-  useEffect(() => {
-    const layout = itemLayouts.current[activeCategory];
-    if (layout && scrollViewWidth > 0) {
+  const scrollToCenter = useCallback((category: string) => {
+    // Wait for any pending layout updates
+    InteractionManager.runAfterInteractions(() => {
+      const layout = itemLayouts.current[category];
+      if (!layout || scrollViewWidth === 0) {
+        // Retry once after a short delay
+        requestAnimationFrame(() => {
+          const retryLayout = itemLayouts.current[category];
+          if (retryLayout && scrollViewWidth > 0) {
+            const offsetX = retryLayout.x + retryLayout.width / 2 - scrollViewWidth / 2;
+            const clamped = Math.max(0, Math.min(offsetX, contentWidth - scrollViewWidth));
+            scrollViewRef.current?.scrollTo({ x: clamped, animated: true });
+          }
+        });
+        return;
+      }
       const offsetX = layout.x + layout.width / 2 - scrollViewWidth / 2;
-      scrollViewRef.current?.scrollTo({ x: Math.max(0, offsetX), animated: true });
-    }
-  }, [activeCategory, scrollViewWidth]);
+      const clamped = Math.max(0, Math.min(offsetX, contentWidth - scrollViewWidth));
+      scrollViewRef.current?.scrollTo({ x: clamped, animated: true });
+    });
+  }, [scrollViewWidth, contentWidth]);
+
+  useEffect(() => {
+    scrollToCenter(activeCategory);
+  }, [activeCategory, scrollToCenter]);
 
   return (
     <ScrollView
@@ -129,6 +149,8 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
       className="px-2"
       contentContainerStyle={{ paddingRight: 20 }}
       onLayout={(e) => setScrollViewWidth(e.nativeEvent.layout.width)}
+      onContentSizeChange={(w) => setContentWidth(w)}
+      scrollEventThrottle={16}
     >
       {CATEGORIES.map((cat, idx) => {
         const isActive = activeCategory === cat.name;
@@ -136,7 +158,11 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
           <TouchableOpacity
             key={idx}
             onLayout={(e) => {
-              itemLayouts.current[cat.name] = { x: e.nativeEvent.layout.x, width: e.nativeEvent.layout.width };
+              // Store absolute x relative to ScrollView content
+              itemLayouts.current[cat.name] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
             }}
             onPress={() => setActiveCategory(cat.name)}
             className={`items-center mx-2 pb-0 ${isActive ? 'border-b-[3px] border-primary' : ''}`}
@@ -481,8 +507,9 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </Animated.View>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
+          <TouchableOpacity 
+            activeOpacity={0.8} 
+            onPress={() => router.push('/(shop)/search')} // ★ এই লাইনটি যোগ করুন
             className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5"
           >
             <Search size={20} color="#e11d48" />

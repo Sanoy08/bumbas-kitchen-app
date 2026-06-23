@@ -9,9 +9,8 @@ export default function ShopLayout() {
   
   // =========================================================================
   // 🟢 পুরো ট্যাব বার লুকানোর লজিক (যে পেজে গেলে নিচে কোনো বার থাকবে না)
-  // এখানে আপনি চাইলে আরও পাথ যোগ করতে পারেন।
   // =========================================================================
-  const hideTabBar = pathname.includes('/menus/');
+  const hideTabBar = pathname.includes('/menus/') || pathname.includes('/search'); // ★ search যুক্ত করা হলো
 
   return (
     <Tabs
@@ -83,13 +82,13 @@ export default function ShopLayout() {
 
       {/* ==================================================================== */}
       {/* 🔴 যেসব পেজের বোতাম ট্যাব বারে দেখাতে চান না (Hidden from Tab Bar) */}
-      {/* নতুন কোনো পেজ লুকাতে হলে options={{ href: null }} যোগ করে দিন। */}
       {/* ==================================================================== */}
       
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
       <Tabs.Screen name="menus/[slug]" options={{ href: null }} />
+      <Tabs.Screen name="search" options={{ href: null }} /> {/* ★ সার্চ পেজের বাটন হাইড করা হলো */}
 
     </Tabs>
   );
