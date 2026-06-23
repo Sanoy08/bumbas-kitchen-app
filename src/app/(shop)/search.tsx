@@ -1,7 +1,19 @@
 // src/app/(shop)/search.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Keyboard, Dimensions, Modal, Animated, Easing } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  FlatList,
+  Keyboard,
+  Dimensions,
+  Modal,
+  Animated,
+  Easing,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Search as SearchIcon, Mic, X, Clock, Trash2 } from 'lucide-react-native';
@@ -32,6 +44,7 @@ export default function SearchScreen() {
 
   // --- Voice Search States ---
   const [isListening, setIsListening] = useState(false);
+  const [noSpeechError, setNoSpeechError] = useState(false);
   const [partialText, setPartialText] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -47,7 +60,6 @@ export default function SearchScreen() {
 
         const recent = await AsyncStorage.getItem('recent_searches');
         if (recent) setRecentSearches(JSON.parse(recent));
-
       } catch (error) {
         console.error('Error loading search data', error);
       }
@@ -60,9 +72,10 @@ export default function SearchScreen() {
     if (searchQuery.trim().length > 0) {
       setIsSearching(true);
       const query = searchQuery.toLowerCase().trim();
-      const results = allProducts.filter((product) => 
-        product.name.toLowerCase().includes(query) || 
-        product.category?.name?.toLowerCase().includes(query)
+      const results = allProducts.filter(
+        (product) =>
+          product.name.toLowerCase().includes(query) ||
+          product.category?.name?.toLowerCase().includes(query)
       );
       setSearchResults(results);
     } else {
@@ -77,9 +90,9 @@ export default function SearchScreen() {
     if (!query) return;
 
     Keyboard.dismiss();
-    
+
     // Save to recent searches (max 10)
-    let newRecents = [query, ...recentSearches.filter(q => q !== query)].slice(0, 10);
+    let newRecents = [query, ...recentSearches.filter((q) => q !== query)].slice(0, 10);
     setRecentSearches(newRecents);
     await AsyncStorage.setItem('recent_searches', JSON.stringify(newRecents));
   };
@@ -91,26 +104,41 @@ export default function SearchScreen() {
   };
 
   // --- ★ VOICE SEARCH LOGIC ★ ---
-  
-  // Pulse Animation for Mic
+
+  // Pulse Animation for Mic (only when isListening true and no error)
   useEffect(() => {
-    if (isListening) {
+    if (isListening && !noSpeechError) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.5, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+          Animated.timing(pulseAnim, {
+            toValue: 1.5,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
         ])
       ).start();
     } else {
       pulseAnim.setValue(1);
       Animated.timing(pulseAnim).stop();
     }
-  }, [isListening]);
+  }, [isListening, noSpeechError]);
 
   const startListening = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // পারমিশন চেক করা
+      
+      // ★ FIX: মাইকে ক্লিক করার সাথে সাথে কীবোর্ড হাইড করে দেওয়া হবে
+      Keyboard.dismiss(); 
+
+      // Clear any previous no-speech error state
+      setNoSpeechError(false);
       const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!granted) {
         toast.error("Microphone permission is required for voice search.");
@@ -119,7 +147,7 @@ export default function SearchScreen() {
 
       setPartialText('');
       ExpoSpeechRecognitionModule.start({
-        lang: 'en-US', // অথবা 'en-IN' / 'bn-IN' ব্যবহার করতে পারেন
+        lang: 'en-US',
         interimResults: true,
       });
     } catch (e) {
@@ -130,42 +158,61 @@ export default function SearchScreen() {
   const stopListening = () => {
     ExpoSpeechRecognitionModule.stop();
     setIsListening(false);
+    setNoSpeechError(false);
   };
 
   // Speech Events
-  useSpeechRecognitionEvent('start', () => setIsListening(true));
-  useSpeechRecognitionEvent('end', () => setIsListening(false));
+  useSpeechRecognitionEvent('start', () => {
+    setIsListening(true);
+    setNoSpeechError(false);
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    // Only hide the modal if we are not showing a no-speech error
+    if (!noSpeechError) {
+      setIsListening(false);
+    }
+    // If noSpeechError is true, we let the modal stay open via noSpeechError flag
+  });
+
   useSpeechRecognitionEvent('error', (event) => {
-    setIsListening(false);
     console.log('Speech error:', event.error);
-    if (event.error !== 'no-speech') {
-      toast.error("Didn't catch that. Try again.");
+    if (event.error === 'no-speech') {
+      // Keep modal open and show "try again" message
+      setNoSpeechError(true);
+      setIsListening(false);
+      setPartialText('');
+    } else {
+      // Other errors: close modal and show toast
+      setIsListening(false);
+      setNoSpeechError(false);
+      if (event.error !== 'aborted') {
+        toast.error("Didn't catch that. Try again.");
+      }
     }
   });
 
   useSpeechRecognitionEvent('result', (event) => {
     const transcript = event.results[0]?.transcript || '';
     setPartialText(transcript);
-    
-    // যদি ফাইনাল রেজাল্ট হয় (ইউজার কথা বলা থামালে)
+
     if (event.isFinal) {
       setSearchQuery(transcript);
       setIsListening(false);
+      setNoSpeechError(false);
       handleSearchSubmit(transcript);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   });
 
-
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-      
       {/* Search Header */}
       <View className="flex-row items-center px-4 py-2 bg-white border-b border-gray-100 z-10">
         <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
           <ArrowLeft size={24} color="#374151" />
         </TouchableOpacity>
-        
+
         <View className="flex-1 flex-row items-center bg-gray-100 rounded-2xl px-3 h-12 border border-gray-200 focus:border-primary/50">
           <SearchIcon size={20} color="#9ca3af" />
           <TextInput
@@ -177,15 +224,24 @@ export default function SearchScreen() {
             onChangeText={setSearchQuery}
             onSubmitEditing={() => handleSearchSubmit()}
             returnKeyType="search"
-            autoFocus={true} 
+            autoFocus={true}
           />
-          
+
           {searchQuery.length > 0 ? (
-            <TouchableOpacity onPress={() => {setSearchQuery(''); setIsSearching(false);}} className="p-1">
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery('');
+                setIsSearching(false);
+              }}
+              className="p-1"
+            >
               <X size={18} color="#6b7280" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={startListening} className="border-l border-gray-300 pl-3 ml-1 py-1">
+            <TouchableOpacity
+              onPress={startListening}
+              className="border-l border-gray-300 pl-3 ml-1 py-1"
+            >
               <Mic size={20} color="#e11d48" />
             </TouchableOpacity>
           )}
@@ -195,7 +251,6 @@ export default function SearchScreen() {
       {/* Main Content */}
       {!isSearching ? (
         <ScrollView className="flex-1 px-4 pt-6" keyboardShouldPersistTaps="handled">
-          
           {/* Recent Searches */}
           {recentSearches.length > 0 && (
             <View className="mb-8">
@@ -206,10 +261,10 @@ export default function SearchScreen() {
                   <Text className="text-xs text-red-500 font-bold ml-1 font-sans">Clear All</Text>
                 </TouchableOpacity>
               </View>
-              
+
               <View className="flex-row flex-wrap gap-2.5">
                 {recentSearches.map((item, index) => (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     key={index}
                     onPress={() => {
                       setSearchQuery(item);
@@ -229,18 +284,20 @@ export default function SearchScreen() {
           <View>
             <Text className="text-sm font-bold text-gray-900 font-sans mb-4">Popular Categories</Text>
             <View className="flex-row flex-wrap gap-2.5">
-              {['Chicken Thali', 'Mutton Kosha', 'Paneer', 'Fish Curry', 'Biryani'].map((item, index) => (
-                <TouchableOpacity 
-                  key={index}
-                  onPress={() => {
-                    setSearchQuery(item);
-                    handleSearchSubmit(item);
-                  }}
-                  className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-2"
-                >
-                  <Text className="text-sm text-primary font-bold font-sans">{item}</Text>
-                </TouchableOpacity>
-              ))}
+              {['Chicken Thali', 'Mutton Kosha', 'Paneer', 'Fish Curry', 'Biryani'].map(
+                (item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      setSearchQuery(item);
+                      handleSearchSubmit(item);
+                    }}
+                    className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-2"
+                  >
+                    <Text className="text-sm text-primary font-bold font-sans">{item}</Text>
+                  </TouchableOpacity>
+                )
+              )}
             </View>
           </View>
         </ScrollView>
@@ -252,7 +309,9 @@ export default function SearchScreen() {
               <View className="h-20 w-20 bg-gray-100 rounded-full items-center justify-center mb-4">
                 <SearchIcon size={32} color="#9ca3af" />
               </View>
-              <Text className="text-xl font-bold text-gray-900 mb-2 font-sans">No results found</Text>
+              <Text className="text-xl font-bold text-gray-900 mb-2 font-sans">
+                No results found
+              </Text>
               <Text className="text-center text-gray-500 font-sans">
                 We couldn't find anything matching "{searchQuery}". Try searching for something else.
               </Text>
@@ -281,45 +340,89 @@ export default function SearchScreen() {
       )}
 
       {/* ★ Voice Recording Modal ★ */}
-      <Modal visible={isListening} transparent animationType="fade">
+      <Modal visible={isListening || noSpeechError} transparent animationType="fade">
         <View className="flex-1 justify-end bg-black/60">
           <View className="bg-white rounded-t-[32px] p-8 items-center pb-12 shadow-lg">
-            <Text className="text-xl font-bold text-gray-900 mb-8 font-sans">
-              Listening...
-            </Text>
+            {/* Show different content based on noSpeechError */}
+            {noSpeechError ? (
+              <>
+                <Text className="text-xl font-bold text-gray-900 mb-4 font-sans">
+                  Didn't catch that
+                </Text>
+                <Text className="text-base text-gray-500 mb-8 font-sans text-center px-4">
+                  We didn't hear anything. Please try again.
+                </Text>
 
-            {/* Animated Pulsing Mic */}
-            <View className="items-center justify-center h-32 w-32 mb-6">
-              <Animated.View
-                style={{
-                  position: 'absolute',
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
-                  backgroundColor: 'rgba(225, 29, 72, 0.2)', // Primary color opacity
-                  transform: [{ scale: pulseAnim }],
-                }}
-              />
-              <TouchableOpacity
-                onPress={stopListening}
-                className="h-20 w-20 bg-primary rounded-full items-center justify-center shadow-lg"
-                style={{ elevation: 10, shadowColor: '#e11d48', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 }}
-              >
-                <Mic size={36} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
+                {/* Try again button */}
+                <TouchableOpacity
+                  onPress={startListening}
+                  className="h-20 w-20 bg-primary rounded-full items-center justify-center shadow-lg mb-6"
+                  style={{
+                    elevation: 10,
+                    shadowColor: '#e11d48',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.4,
+                    shadowRadius: 8,
+                  }}
+                >
+                  <Mic size={36} color="#ffffff" />
+                </TouchableOpacity>
 
-            <Text className="text-base text-gray-600 font-sans text-center px-4 h-12">
-              {partialText ? `"${partialText}"` : "Speak now to search for your favorite dishes"}
-            </Text>
+                <TouchableOpacity
+                  onPress={stopListening}
+                  className="mt-2 px-8 py-3 bg-gray-100 rounded-full"
+                >
+                  <Text className="text-gray-600 font-bold font-sans">Cancel</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text className="text-xl font-bold text-gray-900 mb-8 font-sans">
+                  Listening...
+                </Text>
 
-            <TouchableOpacity onPress={stopListening} className="mt-6 px-8 py-3 bg-gray-100 rounded-full">
-               <Text className="text-gray-600 font-bold font-sans">Cancel</Text>
-            </TouchableOpacity>
+                {/* Animated Pulsing Mic */}
+                <View className="items-center justify-center h-32 w-32 mb-6">
+                  <Animated.View
+                    style={{
+                      position: 'absolute',
+                      width: 80,
+                      height: 80,
+                      borderRadius: 40,
+                      backgroundColor: 'rgba(225, 29, 72, 0.2)',
+                      transform: [{ scale: pulseAnim }],
+                    }}
+                  />
+                  <TouchableOpacity
+                    onPress={stopListening}
+                    className="h-20 w-20 bg-primary rounded-full items-center justify-center shadow-lg"
+                    style={{
+                      elevation: 10,
+                      shadowColor: '#e11d48',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.4,
+                      shadowRadius: 8,
+                    }}
+                  >
+                    <Mic size={36} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+
+                <Text className="text-base text-gray-600 font-sans text-center px-4 h-12">
+                  {partialText ? `"${partialText}"` : "Speak now to search for your favorite dishes"}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={stopListening}
+                  className="mt-6 px-8 py-3 bg-gray-100 rounded-full"
+                >
+                  <Text className="text-gray-600 font-bold font-sans">Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
