@@ -2,7 +2,7 @@
 
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics'; // ★ Haptic Feedback
+import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 import emptyCartAnimation from '../../../assets/animations/empty-cart.json';
 import {
@@ -13,7 +13,7 @@ import {
   ShoppingBag,
   Trash2,
 } from 'lucide-react-native';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import {
   LayoutAnimation,
   Platform,
@@ -23,13 +23,13 @@ import {
   UIManager,
   View,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler'; // ★ Swipe to Delete
+import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { optimizeImageUrl } from '@/lib/imageUtils';
 import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
-import { useAlert } from '@/components/ui/CustomAlert'; // ★ Custom Alert (লগআউটের মতো)
+import { useAlert } from '@/components/ui/CustomAlert';
 
 // Android-এ LayoutAnimation চালু
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -51,26 +51,31 @@ export default function CartScreen() {
   // quantity long-press logic
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startAutoChange = useCallback(
-    (id: string, delta: number) => {
-      const change = () => {
-        const item = items.find((i) => i.id === id);
-        if (item) {
-          const newQty = item.quantity + delta;
-          if (newQty < 1) {
-            handleRemove(id);
-            stopAutoChange();
-            return;
-          }
-          updateQuantity(id, newQty);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-      };
-      change(); // first change immediately
-      intervalRef.current = setInterval(change, 100); // repeat every 100ms
-    },
-    [items, updateQuantity]
-  );
+  // ★ Long-press fix: getState() ব্যবহার করে store থেকে সর্বশেষ ডেটা নিন
+  const startAutoChange = useCallback((id: string, delta: number) => {
+    const change = () => {
+      const state = useCartStore.getState(); // সরাসরি স্টোর অ্যাক্সেস (ক্লোজার সমস্যা দূর)
+      const item = state.items.find((i) => i.id === id);
+      if (!item) return;
+
+      const newQty = item.quantity + delta;
+      if (newQty < 1) {
+        // ডিলেট করতে হবে
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        state.removeItem(id);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        stopAutoChange();
+        return;
+      }
+
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      state.updateQuantity(id, newQty);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    };
+
+    change(); // প্রথম পরিবর্তন সাথে সাথে
+    intervalRef.current = setInterval(change, 100); // প্রতি ১০০ মিলিসেকেন্ডে
+  }, []); // কোনো ডিপেন্ডেন্সি দরকার নেই
 
   const stopAutoChange = useCallback(() => {
     if (intervalRef.current) {
@@ -79,7 +84,14 @@ export default function CartScreen() {
     }
   }, []);
 
-  // হ্যাপটিক ফিডব্যাক সহ কোয়ান্টিটি পরিবর্তন
+  // আনমাউন্ট ক্লিনআপ
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  // হ্যাপটিক ফিডব্যাক সহ সাধারণ কোয়ান্টিটি পরিবর্তন (সিঙ্গেল ট্যাপ)
   const handleQuantityChange = (id: string, newQty: number) => {
     if (newQty < 1) {
       confirmRemove(id);
@@ -206,8 +218,8 @@ export default function CartScreen() {
                   overshootRight={false}
                 >
                   <TouchableOpacity
-  activeOpacity={0.9}
-  onPress={() => router.push(`/(shop)/menus/${item.slug}`)} // item.slug ব্যবহার করো
+                    activeOpacity={0.9}
+                    onPress={() => router.push(`/(shop)/menus/${item.slug}`)} // item.slug ব্যবহার করো
                     className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm"
                     style={{
                       shadowColor: '#000',

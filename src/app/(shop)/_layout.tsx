@@ -4,7 +4,6 @@ import { Tabs, usePathname } from 'expo-router';
 import { Home, ShoppingCart, User } from 'lucide-react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// ★ কার্ট স্টোরটি ইম্পোর্ট করুন
 import { useCartStore } from '@/store/cartStore'; 
 
 export default function ShopLayout() {
@@ -12,15 +11,16 @@ export default function ShopLayout() {
   
   // ★ কার্টের আইটেম সংখ্যা ট্র্যাক করুন
   const items = useCartStore((state) => state.items);
-  const isCartNotEmpty = items.length > 0;
+  const itemCount = items.length; // কতগুলো আইটেম আছে তার সংখ্যা
+  const isCartNotEmpty = itemCount > 0;
 
   // =========================================================================
-  // 🟢 পুরো ট্যাব বার লুকানোর লজিক (কার্ট ভর্তি থাকলে /cart পেজেও লুকাবে)
+  // 🟢 পুরো ট্যাব বার লুকানোর লজিক
   // =========================================================================
   const hideTabBar = 
     pathname.includes('/menus/') || 
     pathname.includes('/search') ||
-    (pathname === '/cart' && isCartNotEmpty); // কার্ট পেজ এবং কার্ট যদি খালি না থাকে
+    (pathname === '/cart' && isCartNotEmpty); 
 
   return (
     <Tabs
@@ -41,10 +41,6 @@ export default function ShopLayout() {
         tabBarInactiveTintColor: '#9ca3af',
       }}
     >
-      {/* ==================================================================== */}
-      {/* 🔵 যেসব পেজ আপনি ট্যাব বারে দেখাতে চান */}
-      {/* ==================================================================== */}
-
       <Tabs.Screen
         name="index"
         options={{
@@ -69,6 +65,16 @@ export default function ShopLayout() {
               >
                 <View style={styles.floatingButton}>
                   <ShoppingCart color="#fff" size={22} strokeWidth={2.5} />
+                  
+                  {/* 🔴 এখানে ব্যাজ (Badge) যোগ করা হলো */}
+                  {itemCount > 0 && (
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>
+                        {itemCount > 9 ? '9+' : itemCount}
+                      </Text>
+                    </View>
+                  )}
+                  
                 </View>
                 <Text style={[styles.floatingButtonText, { color: isActive ? '#e11d48' : '#9ca3af' }]}>
                   Cart
@@ -89,10 +95,6 @@ export default function ShopLayout() {
         }}
       />
 
-      {/* ==================================================================== */}
-      {/* 🔴 যেসব পেজের বোতাম ট্যাব বারে দেখাতে চান না */}
-      {/* ==================================================================== */}
-      
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
@@ -146,5 +148,31 @@ const styles = StyleSheet.create({
     bottom: 4, 
     fontSize: 11,
     fontWeight: '600',
+  },
+  // 🔴 ব্যাজের জন্য নতুন স্টাইল অ্যাড করা হলো
+  badgeContainer: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#ffffff',
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e11d48',
+    paddingHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  badgeText: {
+    color: '#e11d48',
+    fontSize: 10,
+    fontWeight: '900',
+    fontFamily: 'sans-serif',
   },
 });
