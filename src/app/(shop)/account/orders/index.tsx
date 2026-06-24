@@ -2,6 +2,7 @@
 
 // src/app/(shop)/account/orders/index.tsx
 import { format } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
@@ -50,7 +51,7 @@ type Order = {
 export default function AccountOrdersScreen() {
   const router = useRouter();
   const { user, isInitialized } = useAuthStore();
-  
+  const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -126,7 +127,7 @@ export default function AccountOrdersScreen() {
   const completedOrders = orders.filter(o => o.Status === 'Delivered').length;
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         
         <Text className="text-2xl font-bold font-sans text-gray-900 mb-6">My Orders</Text>

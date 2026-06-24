@@ -11,7 +11,7 @@ import LottieView from 'lottie-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import "../../global.css";
 
@@ -116,11 +116,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AlertProvider>
-          <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false }} />
-
-          {isFirstRun && (
+  <AlertProvider>
+    <StatusBar style="dark" />
+    
+    {/* ★ গ্লোবাল বটম সেফ এরিয়া: সমস্ত পেজ নেভিগেশন বারের উপরে থাকবে */}
+    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SafeAreaView>
+    
+    {isFirstRun && (
             <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#FFFFFF', elevation: 15 }}>
               <TouchableOpacity onPress={finishOnboarding} className="absolute top-14 right-6 p-4 z-50">
                 <Text className="text-slate-400 font-bold text-lg font-sans">Skip</Text>

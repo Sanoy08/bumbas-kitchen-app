@@ -174,7 +174,7 @@ export default function AccountScreen() {
     }
   };
 
-  // ★★★ Custom Alert দিয়ে Logout confirmation ★★★
+  // ★★★ Custom Alert দিয়ে Logout confirmation ★★★
   const confirmLogout = () => {
     showAlert({
       title: "Are you sure?",
@@ -203,7 +203,8 @@ export default function AccountScreen() {
   }
 
   return (
-    <View className="flex-1 bg-white">
+    // ★ Added paddingTop using insets.top to avoid status bar overlap
+    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}>
         
         {/* --- HEADER --- */}

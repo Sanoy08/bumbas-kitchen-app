@@ -4,6 +4,7 @@ import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     ArrowDownLeft, ArrowUpRight,
     Coins,
@@ -28,7 +29,7 @@ type Transaction = {
 export default function WalletScreen() {
   const { user, isInitialized } = useAuthStore();
   const router = useRouter();
-
+  const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalance] = useState(0);
   const [tier, setTier] = useState('Bronze');
@@ -121,8 +122,15 @@ export default function WalletScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+    // ★ Root View-তে paddingTop দেওয়া হলো
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      
+      {/* ★ ScrollView-তে paddingBottom ডাইনামিক করা হলো যাতে ট্যাব বারের নিচে ঢাকা না পড়ে */}
+      <ScrollView 
+        className="flex-1 px-4 pt-4" 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} 
+      >
         
         {/* Header Text */}
         <Text className="text-2xl font-bold font-sans text-gray-900 mb-6">My Wallet</Text>
@@ -252,7 +260,13 @@ export default function WalletScreen() {
       {/* --- REDEEM MODAL --- */}
       <Modal visible={isRedeemOpen} animationType="slide" transparent>
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl p-6 pb-10">
+          
+          {/* ★ pb-10 সরিয়ে style প্রপার্টিতে ডাইনামিক প্যাডিং দেওয়া হলো */}
+          <View 
+            className="bg-white rounded-t-3xl p-6"
+            style={{ paddingBottom: Math.max(insets.bottom + 24, 40) }}
+          >
+            
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-bold text-gray-900 font-sans">Redeem Coins</Text>
               <TouchableOpacity onPress={() => setIsRedeemOpen(false)}>
@@ -288,9 +302,10 @@ export default function WalletScreen() {
             <TouchableOpacity 
               onPress={handleRedeem} 
               disabled={isRedeeming || !redeemAmount}
-              className={`h-14 rounded-xl items-center justify-center shadow-sm ${isRedeeming || !redeemAmount ? 'bg-primary/50' : 'bg-primary'}`}
+              // ★ bg-primary/50 এর বদলে bg-gray-300 দেওয়া হলো
+              className={`h-14 rounded-xl items-center justify-center shadow-sm ${isRedeeming || !redeemAmount ? 'bg-gray-300' : 'bg-primary'}`}
             >
-              {isRedeeming ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-lg font-sans">Confirm Redeem</Text>}
+              {isRedeeming ? <ActivityIndicator color="#ffffff" /> : <Text className="text-white font-bold text-lg font-sans">Confirm Redeem</Text>}
             </TouchableOpacity>
           </View>
         </View>

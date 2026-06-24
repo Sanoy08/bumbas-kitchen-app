@@ -1,25 +1,25 @@
 // src/app/(shop)/search.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Clock, Mic, Search as SearchIcon, Trash2, X } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import {
-  View,
+  Animated,
+  Dimensions,
+  Easing,
+  FlatList,
+  Keyboard,
+  Modal,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  FlatList,
-  Keyboard,
-  Dimensions,
-  Modal,
-  Animated,
-  Easing,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Search as SearchIcon, Mic, X, Clock, Trash2 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { toast } from 'sonner-native';
-import * as Haptics from 'expo-haptics';
 
 // ★ expo-speech-recognition ইমপোর্ট
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
@@ -214,11 +214,19 @@ export default function SearchScreen() {
         </TouchableOpacity>
 
         <View className="flex-1 flex-row items-center bg-gray-100 rounded-2xl px-3 h-12 border border-gray-200 focus:border-primary/50">
-          <SearchIcon size={20} color="#9ca3af" />
-          <TextInput
-            ref={inputRef}
-            className="flex-1 ml-2.5 text-base text-gray-900 font-sans h-full"
-            placeholder="Search for biryani, fish, veg..."
+  <SearchIcon size={20} color="#9ca3af" />
+  
+  <TextInput
+    ref={inputRef}
+    className="flex-1 ml-2.5 text-base text-gray-900 font-sans"
+    style={{
+      paddingVertical: 0,      // ডিফল্ট প্যাডিং ফোর্স করে জিরো করা
+      marginVertical: 0,       // ডিফল্ট মার্জিন জিরো করা
+      includeFontPadding: false, // ★ Android-এর ফন্টের উপরের/নিচের এক্সট্রা স্পেস রিমুভ করবে
+      textAlignVertical: 'center', // Android-এ vertically center করবে
+      lineHeight: 20,          // আইকনের সাইজ (20) এর সাথে মিলিয়ে দিলে পারফেক্ট এলাইনমেন্ট হবে
+    }}
+    placeholder="Search for biryani, fish, veg..."
             placeholderTextColor="#9ca3af"
             value={searchQuery}
             onChangeText={setSearchQuery}
