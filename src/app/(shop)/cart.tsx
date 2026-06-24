@@ -31,7 +31,6 @@ import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
 import { useAlert } from '@/components/ui/CustomAlert';
 
-// Android-এ LayoutAnimation চালু
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -48,7 +47,6 @@ export default function CartScreen() {
   const totalPrice = getTotalPrice();
   const itemCount = items.length;
 
-  // হ্যাপটিক ফিডব্যাক সহ সাধারণ কোয়ান্টিটি পরিবর্তন (শুধু ট্যাপ)
   const handleQuantityChange = (id: string, newQty: number) => {
     if (newQty < 1) {
       confirmRemove(id);
@@ -59,7 +57,6 @@ export default function CartScreen() {
     }
   };
 
-  // কনফার্মেশন ডায়ালগ সহ রিমুভ
   const confirmRemove = (id: string) => {
     const item = items.find((i) => i.id === id);
     if (!item) return;
@@ -78,7 +75,6 @@ export default function CartScreen() {
     });
   };
 
-  // ক্লিয়ার অল
   const confirmClearAll = () => {
     showAlert({
       title: 'Clear Cart?',
@@ -94,16 +90,23 @@ export default function CartScreen() {
     });
   };
 
-  // swipeable right action
+  // সোয়াইপ করলে ছোট লাল আইকন আসবে (পুরো উচ্চতা দখল করবে না)
   const renderRightActions = (id: string) => (
     <TouchableOpacity
       onPress={() => confirmRemove(id)}
-      className="bg-red-500 justify-center items-center w-24 rounded-r-2xl ml-2"
+      className="items-center justify-center"
+      style={{
+        width: 60,               // ছোট প্রস্থ
+        height: '100%',          // উচ্চতা কার্ডের মতো, কিন্তু ব্যাকগ্রাউন্ড ট্রান্সপারেন্ট
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
       accessibilityLabel={`Delete ${items.find((i) => i.id === id)?.name}`}
       accessibilityRole="button"
     >
-      <Trash2 size={22} color="#fff" />
-      <Text className="text-white text-xs font-bold mt-1">Remove</Text>
+      <View className="w-10 h-10 bg-red-500 rounded-full items-center justify-center">
+        <Trash2 size={20} color="#fff" />
+      </View>
     </TouchableOpacity>
   );
 
@@ -135,7 +138,6 @@ export default function CartScreen() {
           </Text>
           {itemCount > 0 && (
             <View className="ml-auto flex-row items-center gap-2">
-              {/* Clear All Button */}
               <TouchableOpacity
                 onPress={confirmClearAll}
                 className="bg-red-50 px-3 py-1.5 rounded-full border border-red-200"
@@ -156,7 +158,6 @@ export default function CartScreen() {
 
       {itemCount > 0 ? (
         <>
-          {/* Cart Items */}
           <ScrollView
             className="flex-1 px-4 pt-4"
             showsVerticalScrollIndicator={false}
@@ -184,10 +185,24 @@ export default function CartScreen() {
                       shadowOpacity: 0.04,
                       shadowRadius: 8,
                       elevation: 3,
+                      position: 'relative', // ডিলিট বাটনের জন্য প্রয়োজন
                     }}
                     accessibilityLabel={`View details of ${item.name}`}
                     accessibilityRole="button"
                   >
+                    {/* ★ Top-Right Delete Button ★ */}
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation(); // কার্ডের onPress যেন ট্রিগার না হয়
+                        confirmRemove(item.id);
+                      }}
+                      className="absolute top-3 right-3 z-10 w-8 h-8 bg-red-50 rounded-full items-center justify-center"
+                      accessibilityLabel={`Delete ${item.name} from cart`}
+                      accessibilityRole="button"
+                    >
+                      <Trash2 size={16} color="#ef4444" />
+                    </TouchableOpacity>
+
                     <View className="flex-row">
                       <View className="h-20 w-20 rounded-xl bg-gray-100 overflow-hidden border border-gray-100 mr-4">
                         <Image
@@ -210,7 +225,7 @@ export default function CartScreen() {
                           </Text>
                         </View>
                         <View className="flex-row items-center justify-between mt-3">
-                          {/* Quantity Controls – শুধু ট্যাপে কাজ করবে */}
+                          {/* Quantity Controls */}
                           <View className="flex-row items-center bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
                             <TouchableOpacity
                               onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
@@ -232,19 +247,10 @@ export default function CartScreen() {
                               <Plus size={18} color="#374151" />
                             </TouchableOpacity>
                           </View>
-                          <View className="flex-row items-center gap-3">
-                            <Text className="text-base font-extrabold text-gray-900 font-sans">
-                              {formatPrice(item.price * item.quantity)}
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => confirmRemove(item.id)}
-                              className="h-9 w-9 items-center justify-center bg-red-50 rounded-lg"
-                              accessibilityLabel={`Delete ${item.name} from cart`}
-                              accessibilityRole="button"
-                            >
-                              <Trash2 size={18} color="#ef4444" />
-                            </TouchableOpacity>
-                          </View>
+                          <Text className="text-base font-extrabold text-gray-900 font-sans">
+                            {formatPrice(item.price * item.quantity)}
+                          </Text>
+                          {/* নিচের ডিলিট বাটন সরিয়ে দেওয়া হয়েছে */}
                         </View>
                       </View>
                     </View>
