@@ -90,14 +90,34 @@ export default function CartScreen() {
     });
   };
 
-  // সোয়াইপ করলে ছোট লাল আইকন আসবে (পুরো উচ্চতা দখল করবে না)
+  // ★ বাম থেকে ডানে সোয়াইপ করলে যে ডিলিট বাটন আসবে (ডান পাশে)
   const renderRightActions = (id: string) => (
     <TouchableOpacity
       onPress={() => confirmRemove(id)}
       className="items-center justify-center"
       style={{
-        width: 60,               // ছোট প্রস্থ
-        height: '100%',          // উচ্চতা কার্ডের মতো, কিন্তু ব্যাকগ্রাউন্ড ট্রান্সপারেন্ট
+        width: 60,
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+      accessibilityLabel={`Delete ${items.find((i) => i.id === id)?.name}`}
+      accessibilityRole="button"
+    >
+      <View className="w-10 h-10 bg-red-500 rounded-full items-center justify-center">
+        <Trash2 size={20} color="#fff" />
+      </View>
+    </TouchableOpacity>
+  );
+
+  // ★ ডান থেকে বামে সোয়াইপ করলে যে ডিলিট বাটন আসবে (বাম পাশে)
+  const renderLeftActions = (id: string) => (
+    <TouchableOpacity
+      onPress={() => confirmRemove(id)}
+      className="items-center justify-center"
+      style={{
+        width: 60,
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
       }}
@@ -172,7 +192,9 @@ export default function CartScreen() {
               return (
                 <Swipeable
                   key={item.id}
-                  renderRightActions={() => renderRightActions(item.id)}
+                  renderLeftActions={() => renderLeftActions(item.id)}   // ← বামে সোয়াইপ
+                  renderRightActions={() => renderRightActions(item.id)} // → ডানে সোয়াইপ
+                  overshootLeft={false}
                   overshootRight={false}
                 >
                   <TouchableOpacity
@@ -185,22 +207,29 @@ export default function CartScreen() {
                       shadowOpacity: 0.04,
                       shadowRadius: 8,
                       elevation: 3,
-                      position: 'relative', // ডিলিট বাটনের জন্য প্রয়োজন
+                      position: 'relative',
                     }}
                     accessibilityLabel={`View details of ${item.name}`}
                     accessibilityRole="button"
                   >
-                    {/* ★ Top-Right Delete Button ★ */}
+                    {/* Top-Right Delete Button (ট্যাপ করেও ডিলিট করা যায়) */}
                     <TouchableOpacity
                       onPress={(e) => {
-                        e.stopPropagation(); // কার্ডের onPress যেন ট্রিগার না হয়
+                        e.stopPropagation();
                         confirmRemove(item.id);
                       }}
-                      className="absolute top-3 right-3 z-10 w-8 h-8 bg-red-50 rounded-full items-center justify-center"
+                      style={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        zIndex: 10,
+                      }}
                       accessibilityLabel={`Delete ${item.name} from cart`}
                       accessibilityRole="button"
                     >
-                      <Trash2 size={16} color="#ef4444" />
+                      <View className="w-9 h-9 bg-red-50 rounded-full items-center justify-center border border-red-200">
+                        <Trash2 size={17} color="#ef4444" />
+                      </View>
                     </TouchableOpacity>
 
                     <View className="flex-row">
@@ -225,7 +254,6 @@ export default function CartScreen() {
                           </Text>
                         </View>
                         <View className="flex-row items-center justify-between mt-3">
-                          {/* Quantity Controls */}
                           <View className="flex-row items-center bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
                             <TouchableOpacity
                               onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
@@ -250,7 +278,6 @@ export default function CartScreen() {
                           <Text className="text-base font-extrabold text-gray-900 font-sans">
                             {formatPrice(item.price * item.quantity)}
                           </Text>
-                          {/* নিচের ডিলিট বাটন সরিয়ে দেওয়া হয়েছে */}
                         </View>
                       </View>
                     </View>

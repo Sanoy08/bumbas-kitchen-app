@@ -64,18 +64,17 @@ export default function ShopLayout() {
                 activeOpacity={0.8}
               >
                 <View style={styles.floatingButton}>
-                  <ShoppingCart color="#fff" size={22} strokeWidth={2.5} />
-                  
-                  {/* 🔴 এখানে ব্যাজ (Badge) যোগ করা হলো */}
-                  {itemCount > 0 && (
-                    <View style={styles.badgeContainer}>
-                      <Text style={styles.badgeText}>
-                        {itemCount > 9 ? '9+' : itemCount}
-                      </Text>
-                    </View>
-                  )}
-                  
-                </View>
+  {/* 🔴 এখানে style={{ marginTop: 4 }} যোগ করা হলো আইকনকে একটু নিচে নামানোর জন্য */}
+  <ShoppingCart color="#fff" size={22} strokeWidth={2.5} style={{ marginTop: 10 }} />
+  
+  {itemCount > 0 && (
+    <View style={styles.badgeContainer}>
+      <Text style={styles.badgeText}>
+        {itemCount > 9 ? '9+' : itemCount}
+      </Text>
+    </View>
+  )}
+</View>
                 <Text style={[styles.floatingButtonText, { color: isActive ? '#e11d48' : '#9ca3af' }]}>
                   Cart
                 </Text>
@@ -152,8 +151,8 @@ const styles = StyleSheet.create({
   // 🔴 ব্যাজের জন্য নতুন স্টাইল অ্যাড করা হলো
   badgeContainer: {
     position: 'absolute',
-    top: -8,               // আইকনের একটু ওপরে রাখার জন্য
-    alignSelf: 'center',   // একদম মাঝখানে (Top-Middle) রাখার জন্য
+    top: -2,               // 🔴 -8 থেকে নামিয়ে -2 করা হলো, যাতে আইকনের সাথে এটাও নিচে নামে
+    alignSelf: 'center',   
     backgroundColor: '#ffffff',
     minWidth: 20,
     height: 20,
