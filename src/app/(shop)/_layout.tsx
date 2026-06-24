@@ -152,8 +152,8 @@ const styles = StyleSheet.create({
   // 🔴 ব্যাজের জন্য নতুন স্টাইল অ্যাড করা হলো
   badgeContainer: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -8,               // আইকনের একটু ওপরে রাখার জন্য
+    alignSelf: 'center',   // একদম মাঝখানে (Top-Middle) রাখার জন্য
     backgroundColor: '#ffffff',
     minWidth: 20,
     height: 20,

@@ -13,7 +13,7 @@ import {
   ShoppingBag,
   Trash2,
 } from 'lucide-react-native';
-import { useRef, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import {
   LayoutAnimation,
   Platform,
@@ -48,50 +48,7 @@ export default function CartScreen() {
   const totalPrice = getTotalPrice();
   const itemCount = items.length;
 
-  // quantity long-press logic
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // ★ Long-press fix: getState() ব্যবহার করে store থেকে সর্বশেষ ডেটা নিন
-  const startAutoChange = useCallback((id: string, delta: number) => {
-    const change = () => {
-      const state = useCartStore.getState(); // সরাসরি স্টোর অ্যাক্সেস (ক্লোজার সমস্যা দূর)
-      const item = state.items.find((i) => i.id === id);
-      if (!item) return;
-
-      const newQty = item.quantity + delta;
-      if (newQty < 1) {
-        // ডিলেট করতে হবে
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        state.removeItem(id);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        stopAutoChange();
-        return;
-      }
-
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      state.updateQuantity(id, newQty);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
-
-    change(); // প্রথম পরিবর্তন সাথে সাথে
-    intervalRef.current = setInterval(change, 100); // প্রতি ১০০ মিলিসেকেন্ডে
-  }, []); // কোনো ডিপেন্ডেন্সি দরকার নেই
-
-  const stopAutoChange = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  // আনমাউন্ট ক্লিনআপ
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  // হ্যাপটিক ফিডব্যাক সহ সাধারণ কোয়ান্টিটি পরিবর্তন (সিঙ্গেল ট্যাপ)
+  // হ্যাপটিক ফিডব্যাক সহ সাধারণ কোয়ান্টিটি পরিবর্তন (শুধু ট্যাপ)
   const handleQuantityChange = (id: string, newQty: number) => {
     if (newQty < 1) {
       confirmRemove(id);
@@ -219,7 +176,7 @@ export default function CartScreen() {
                 >
                   <TouchableOpacity
                     activeOpacity={0.9}
-                    onPress={() => router.push(`/(shop)/menus/${item.slug}`)} // item.slug ব্যবহার করো
+                    onPress={() => router.push(`/(shop)/menus/${item.slug}`)}
                     className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm"
                     style={{
                       shadowColor: '#000',
@@ -253,12 +210,10 @@ export default function CartScreen() {
                           </Text>
                         </View>
                         <View className="flex-row items-center justify-between mt-3">
-                          {/* Quantity Controls with Long-Press */}
+                          {/* Quantity Controls – শুধু ট্যাপে কাজ করবে */}
                           <View className="flex-row items-center bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
                             <TouchableOpacity
                               onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
-                              onLongPress={() => startAutoChange(item.id, -1)}
-                              onPressOut={stopAutoChange}
                               className="h-9 w-9 items-center justify-center bg-white"
                               accessibilityLabel={`Decrease quantity of ${item.name}`}
                               accessibilityRole="button"
@@ -270,8 +225,6 @@ export default function CartScreen() {
                             </Text>
                             <TouchableOpacity
                               onPress={() => handleQuantityChange(item.id, item.quantity + 1)}
-                              onLongPress={() => startAutoChange(item.id, 1)}
-                              onPressOut={stopAutoChange}
                               className="h-9 w-9 items-center justify-center bg-white"
                               accessibilityLabel={`Increase quantity of ${item.name}`}
                               accessibilityRole="button"
