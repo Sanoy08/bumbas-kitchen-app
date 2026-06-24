@@ -2,22 +2,22 @@
 
 // src/app/(shop)/account/orders/index.tsx
 import { format } from 'date-fns';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
-    Calendar,
-    CheckCircle2,
-    ChevronRight, Clock,
-    Download,
-    MapPin,
-    Package,
-    ShoppingBag,
-    Utensils,
-    X
+  Calendar,
+  CheckCircle2,
+  ChevronRight, Clock,
+  Download,
+  MapPin,
+  Package,
+  ShoppingBag,
+  Utensils,
+  X
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
 import { optimizeImageUrl } from '@/lib/imageUtils';
@@ -128,7 +128,7 @@ export default function AccountOrdersScreen() {
 
   return (
     <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         
         <Text className="text-2xl font-bold font-sans text-gray-900 mb-6">My Orders</Text>
 
@@ -243,7 +243,7 @@ export default function AccountOrdersScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
               {selectedOrder && (
                 <View className="space-y-6">
                   

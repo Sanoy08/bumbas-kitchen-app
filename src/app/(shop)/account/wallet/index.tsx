@@ -1,4 +1,4 @@
-// src\app\(shop)\account\wallet\index.tsx
+// src/app/(shop)/account/wallet/index.tsx
 
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
@@ -13,8 +13,20 @@ import {
     RotateCcw, TimerOff,
     TrendingUp
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { 
+    ActivityIndicator, 
+    Alert, 
+    Modal, 
+    ScrollView, 
+    Text, 
+    TextInput, 
+    TouchableOpacity, 
+    View, 
+    Animated, 
+    Keyboard, 
+    Platform 
+} from 'react-native';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 
@@ -39,6 +51,9 @@ export default function WalletScreen() {
   const [isRedeemOpen, setIsRedeemOpen] = useState(false);
   const [redeemAmount, setRedeemAmount] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
+
+  // ★ Smooth Keyboard Animation-এর জন্য Animated Value
+  const keyboardHeight = useRef(new Animated.Value(0)).current;
 
   const fetchWalletData = async () => {
     try {
@@ -68,6 +83,33 @@ export default function WalletScreen() {
     }
   }, [isInitialized, user]);
 
+  // ★ Keyboard Listener Effect (Login পেজের মতো)
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showListener = Keyboard.addListener(showEvent, (e) => {
+      Animated.timing(keyboardHeight, {
+        toValue: e.endCoordinates.height,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    const hideListener = Keyboard.addListener(hideEvent, () => {
+      Animated.timing(keyboardHeight, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, [keyboardHeight]);
+
   const handleRedeem = async () => {
     if (!redeemAmount || parseInt(redeemAmount) < 10) {
       Alert.alert("Error", "Minimum redeem amount is 10 coins.");
@@ -79,6 +121,7 @@ export default function WalletScreen() {
     }
 
     setIsRedeeming(true);
+    Keyboard.dismiss();
 
     try {
       const res = await fetch(`${API_URL}/wallet/redeem`, {
@@ -122,22 +165,19 @@ export default function WalletScreen() {
   }
 
   return (
-    // ★ Root View-তে paddingTop দেওয়া হলো
     <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       
-      {/* ★ ScrollView-তে paddingBottom ডাইনামিক করা হলো যাতে ট্যাব বারের নিচে ঢাকা না পড়ে */}
       <ScrollView 
-        className="flex-1 px-4 pt-4" 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} 
-      >
+  className="flex-1 px-4 pt-4" 
+  showsVerticalScrollIndicator={false} 
+  contentContainerStyle={{ paddingBottom: 80 }} 
+>
         
         {/* Header Text */}
         <Text className="text-2xl font-bold font-sans text-gray-900 mb-6">My Wallet</Text>
 
         {/* --- WALLET CARD --- */}
         <View className="bg-gray-900 rounded-3xl p-6 shadow-md mb-6 relative overflow-hidden">
-          {/* Decorative Background Elements */}
           <View className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
           <View className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/20 rounded-full" />
           
@@ -187,7 +227,6 @@ export default function WalletScreen() {
               </Text>
             </View>
             
-            {/* Custom Progress Bar */}
             <View className="h-2.5 bg-gray-100 rounded-full overflow-hidden w-full">
               <View className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
             </View>
@@ -259,17 +298,25 @@ export default function WalletScreen() {
 
       {/* --- REDEEM MODAL --- */}
       <Modal visible={isRedeemOpen} animationType="slide" transparent>
-        <View className="flex-1 justify-end bg-black/50">
-          
-          {/* ★ pb-10 সরিয়ে style প্রপার্টিতে ডাইনামিক প্যাডিং দেওয়া হলো */}
+        {/* ★ Animated.View দিয়ে র‍্যাপ করা হলো এবং কীবোর্ড হাইট প্যাডিংয়ে যোগ করা হলো */}
+        <Animated.View 
+          className="flex-1 justify-end"
+          style={{ 
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            paddingBottom: keyboardHeight 
+          }}
+        >
           <View 
-            className="bg-white rounded-t-3xl p-6"
-            style={{ paddingBottom: Math.max(insets.bottom + 24, 40) }}
-          >
+  className="bg-white rounded-t-3xl p-6"
+  style={{ paddingBottom: 60 }}
+>
             
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-bold text-gray-900 font-sans">Redeem Coins</Text>
-              <TouchableOpacity onPress={() => setIsRedeemOpen(false)}>
+              <TouchableOpacity onPress={() => {
+                Keyboard.dismiss();
+                setIsRedeemOpen(false);
+              }}>
                 <Text className="text-gray-500 font-semibold font-sans">Close</Text>
               </TouchableOpacity>
             </View>
@@ -302,13 +349,12 @@ export default function WalletScreen() {
             <TouchableOpacity 
               onPress={handleRedeem} 
               disabled={isRedeeming || !redeemAmount}
-              // ★ bg-primary/50 এর বদলে bg-gray-300 দেওয়া হলো
               className={`h-14 rounded-xl items-center justify-center shadow-sm ${isRedeeming || !redeemAmount ? 'bg-gray-300' : 'bg-primary'}`}
             >
               {isRedeeming ? <ActivityIndicator color="#ffffff" /> : <Text className="text-white font-bold text-lg font-sans">Confirm Redeem</Text>}
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </Modal>
 
     </View>

@@ -8,12 +8,13 @@ export default function ShopLayout() {
   const pathname = usePathname();
   
   // =========================================================================
-  // 🟢 পুরো ট্যাব বার লুকানোর লজিক (যে পেজে গেলে নিচে কোনো বার থাকবে না)
+  // 🟢 পুরো ট্যাব বার লুকানোর লজিক
   // =========================================================================
-  const hideTabBar = pathname.includes('/menus/') || pathname.includes('/search'); // ★ search যুক্ত করা হলো
+  const hideTabBar = pathname.includes('/menus/') || pathname.includes('/search');
 
   return (
     <Tabs
+      backBehavior="history" // ★ ম্যাজিক লাইন: এটি যোগ করলেই ব্যাক বাটন একদম ঠিকমতো কাজ করবে! ★
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
@@ -24,14 +25,14 @@ export default function ShopLayout() {
         },
         tabBarStyle: [
           styles.tabBar,
-          hideTabBar && { display: 'none' } // এখানে শর্ত অনুযায়ী বার হাইড হচ্ছে
+          hideTabBar && { display: 'none' } 
         ],
         tabBarActiveTintColor: '#e11d48',
         tabBarInactiveTintColor: '#9ca3af',
       }}
     >
       {/* ==================================================================== */}
-      {/* 🔵 যেসব পেজ আপনি ট্যাব বারে দেখাতে চান (বাটন হিসেবে) */}
+      {/* 🔵 যেসব পেজ আপনি ট্যাব বারে দেখাতে চান */}
       {/* ==================================================================== */}
 
       <Tabs.Screen
@@ -44,7 +45,6 @@ export default function ShopLayout() {
         }}
       />
 
-      {/* মাঝখানের ফ্লোটিং Cart বাটন (টেক্সট সহ) */}
       <Tabs.Screen
         name="cart"
         options={{
@@ -60,7 +60,6 @@ export default function ShopLayout() {
                 <View style={styles.floatingButton}>
                   <ShoppingCart color="#fff" size={22} strokeWidth={2.5} />
                 </View>
-                {/* Cart-এর টেক্সট */}
                 <Text style={[styles.floatingButtonText, { color: isActive ? '#e11d48' : '#9ca3af' }]}>
                   Cart
                 </Text>
@@ -81,14 +80,14 @@ export default function ShopLayout() {
       />
 
       {/* ==================================================================== */}
-      {/* 🔴 যেসব পেজের বোতাম ট্যাব বারে দেখাতে চান না (Hidden from Tab Bar) */}
+      {/* 🔴 যেসব পেজের বোতাম ট্যাব বারে দেখাতে চান না */}
       {/* ==================================================================== */}
       
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
       <Tabs.Screen name="menus/[slug]" options={{ href: null }} />
-      <Tabs.Screen name="search" options={{ href: null }} /> {/* ★ সার্চ পেজের বাটন হাইড করা হলো */}
+      <Tabs.Screen name="search" options={{ href: null }} />
 
     </Tabs>
   );

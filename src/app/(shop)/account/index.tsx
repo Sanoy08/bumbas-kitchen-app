@@ -1,9 +1,9 @@
 // src\app\(shop)\account\index.tsx
 
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { format } from 'date-fns';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   Cake,
   ChevronRight,
@@ -30,8 +30,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
-import { useAuthStore } from '@/store/authStore';
 import { useAlert } from '@/components/ui/CustomAlert'; // ★ Custom Alert import
+import { useAuthStore } from '@/store/authStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
 
@@ -205,7 +205,7 @@ export default function AccountScreen() {
   return (
     // ★ Added paddingTop using insets.top to avoid status bar overlap
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-      <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}>
+      <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80, paddingTop: 20 }}>
         
         {/* --- HEADER --- */}
         <Text className="text-3xl font-bold text-gray-900 mb-6 font-sans">My Account</Text>
@@ -280,7 +280,7 @@ export default function AccountScreen() {
             </TouchableOpacity>
           </View>
           
-          <ScrollView className="flex-1 px-4 pt-6">
+          <ScrollView className="flex-1 px-4 pt-6" contentContainerStyle={{ paddingBottom: 60 }}>
             <View className="flex-row gap-4 mb-6">
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">First Name</Text>

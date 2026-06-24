@@ -302,7 +302,7 @@ export default function AccountAddressesScreen() {
 
   return (
     <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         <Text className="text-2xl font-bold text-gray-900 font-sans mb-1">My Addresses</Text>
         <Text className="text-sm text-gray-500 font-medium font-sans mb-6">Manage delivery locations & check delivery fees.</Text>
 
@@ -368,15 +368,25 @@ export default function AccountAddressesScreen() {
       </ScrollView>
 
       <View className="absolute bottom-6 right-6">
-        <TouchableOpacity 
-          onPress={() => handleOpenDialog()} 
-          activeOpacity={0.8}
-          className="h-16 w-16 bg-primary rounded-full items-center justify-center shadow-lg"
-          style={{ shadowColor: '#e11d48', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 }}
-        >
-          <Plus size={28} color="#ffffff" />
-        </TouchableOpacity>
-      </View>
+  <TouchableOpacity 
+    onPress={() => handleOpenDialog()} 
+    activeOpacity={0.8}
+    // পরিবর্তন করুন: bottom-6 কে bottom-24 বা bottom-28 করুন
+    className="h-16 w-16 bg-primary rounded-full items-center justify-center shadow-lg"
+    style={{ 
+      position: 'absolute', 
+      bottom: 80, // ট্যাব বার সাধারণত ৫৫-৭০ পিক্সেল হয়, তাই ৮০ দিলে তার উপরে থাকবে
+      right: 24,  // কিছুটা মার্জিন রাখা ভালো
+      shadowColor: '#e11d48', 
+      shadowOffset: { width: 0, height: 4 }, 
+      shadowOpacity: 0.4, 
+      shadowRadius: 8, 
+      elevation: 8 
+    }}
+  >
+    <Plus size={28} color="#ffffff" />
+  </TouchableOpacity>
+</View>
 
       {/* --- ADD / EDIT ABSOLUTE VIEW --- */}
       {isDialogOpen && (
@@ -388,7 +398,7 @@ export default function AccountAddressesScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
             
             <View className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm mb-4">
               <Text className="text-sm font-bold text-gray-700 font-sans mb-3">Address Label</Text>

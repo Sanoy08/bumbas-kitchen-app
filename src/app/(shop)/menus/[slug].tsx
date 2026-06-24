@@ -475,23 +475,24 @@ export default function ProductDetailsScreen() {
           {product.name}
         </Text>
         <View className="flex-row gap-2">
-          <TouchableOpacity
-            onPress={handleShare}
-            className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
-          >
-            <ShareIcon size={18} color="#374151" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={toggleFavorite}
-            className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
-          >
-            <Heart
-              size={20}
-              color={isFavorite ? '#ef4444' : '#374151'}
-              fill={isFavorite ? '#ef4444' : 'transparent'}
-            />
-          </TouchableOpacity>
-        </View>
+  <TouchableOpacity
+  onPress={() => router.push('/(shop)/cart')}
+  className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
+  ref={cartIconRef}   // ★ এই লাইন যোগ করো
+>
+  <ShoppingCart size={18} color="#374151" />
+</TouchableOpacity>
+  <TouchableOpacity
+    onPress={toggleFavorite}
+    className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
+  >
+    <Heart
+      size={20}
+      color={isFavorite ? '#ef4444' : '#374151'}
+      fill={isFavorite ? '#ef4444' : 'transparent'}
+    />
+  </TouchableOpacity>
+</View>
       </Animated.View>
 
       {/* --- Main Content --- */}
@@ -499,7 +500,7 @@ export default function ProductDetailsScreen() {
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 70 }}
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
@@ -813,7 +814,7 @@ export default function ProductDetailsScreen() {
             borderTopColor: '#e5e7eb',
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: insets.bottom + 12,
+            paddingBottom: 5,
             flexDirection: 'row',
             alignItems: 'center',
             shadowColor: '#000',
@@ -853,7 +854,7 @@ export default function ProductDetailsScreen() {
                 shadowOpacity: 0.3,
                 shadowRadius: 5,
               }}
-              ref={cartIconRef}
+              
             >
               <ShoppingCart size={20} color="#ffffff" className="mr-2" />
               <Text className="text-white font-bold text-base font-sans">
