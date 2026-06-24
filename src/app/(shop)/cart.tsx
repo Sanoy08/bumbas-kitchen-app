@@ -90,7 +90,6 @@ export default function CartScreen() {
     });
   };
 
-  // ★ বাম থেকে ডানে সোয়াইপ করলে যে ডিলিট বাটন আসবে (ডান পাশে)
   const renderRightActions = (id: string) => (
     <TouchableOpacity
       onPress={() => confirmRemove(id)}
@@ -110,7 +109,6 @@ export default function CartScreen() {
     </TouchableOpacity>
   );
 
-  // ★ ডান থেকে বামে সোয়াইপ করলে যে ডিলিট বাটন আসবে (বাম পাশে)
   const renderLeftActions = (id: string) => (
     <TouchableOpacity
       onPress={() => confirmRemove(id)}
@@ -192,8 +190,8 @@ export default function CartScreen() {
               return (
                 <Swipeable
                   key={item.id}
-                  renderLeftActions={() => renderLeftActions(item.id)}   // ← বামে সোয়াইপ
-                  renderRightActions={() => renderRightActions(item.id)} // → ডানে সোয়াইপ
+                  renderLeftActions={() => renderLeftActions(item.id)}
+                  renderRightActions={() => renderRightActions(item.id)}
                   overshootLeft={false}
                   overshootRight={false}
                 >
@@ -212,7 +210,6 @@ export default function CartScreen() {
                     accessibilityLabel={`View details of ${item.name}`}
                     accessibilityRole="button"
                   >
-                    {/* Top-Right Delete Button (ট্যাপ করেও ডিলিট করা যায়) */}
                     <TouchableOpacity
                       onPress={(e) => {
                         e.stopPropagation();
@@ -287,9 +284,9 @@ export default function CartScreen() {
             })}
           </ScrollView>
 
-          {/* Floating Checkout Bar */}
+          {/* Floating Checkout Bar – Full White */}
           <View
-            className="absolute left-4 right-4 bg-white/90 backdrop-blur-xl rounded-3xl px-5 py-4 flex-row items-center justify-between border border-white/20"
+            className="absolute left-4 right-4 bg-white rounded-3xl px-5 py-4 flex-row items-center justify-between border border-gray-100"
             style={{
               bottom: insets.bottom + 16,
               shadowColor: '#000',
