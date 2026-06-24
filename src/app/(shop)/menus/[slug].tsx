@@ -12,9 +12,8 @@ import {
   Info,
   Minus,
   Plus,
-  Share as ShareIcon,
   ShoppingCart,
-  Star,
+  Star
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {

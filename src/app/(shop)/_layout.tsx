@@ -4,17 +4,27 @@ import { Tabs, usePathname } from 'expo-router';
 import { Home, ShoppingCart, User } from 'lucide-react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+// ★ কার্ট স্টোরটি ইম্পোর্ট করুন
+import { useCartStore } from '@/store/cartStore'; 
+
 export default function ShopLayout() {
   const pathname = usePathname();
   
+  // ★ কার্টের আইটেম সংখ্যা ট্র্যাক করুন
+  const items = useCartStore((state) => state.items);
+  const isCartNotEmpty = items.length > 0;
+
   // =========================================================================
-  // 🟢 পুরো ট্যাব বার লুকানোর লজিক
+  // 🟢 পুরো ট্যাব বার লুকানোর লজিক (কার্ট ভর্তি থাকলে /cart পেজেও লুকাবে)
   // =========================================================================
-  const hideTabBar = pathname.includes('/menus/') || pathname.includes('/search');
+  const hideTabBar = 
+    pathname.includes('/menus/') || 
+    pathname.includes('/search') ||
+    (pathname === '/cart' && isCartNotEmpty); // কার্ট পেজ এবং কার্ট যদি খালি না থাকে
 
   return (
     <Tabs
-      backBehavior="history" // ★ ম্যাজিক লাইন: এটি যোগ করলেই ব্যাক বাটন একদম ঠিকমতো কাজ করবে! ★
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
