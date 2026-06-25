@@ -56,10 +56,9 @@ const CartItem = React.memo(
   ({ item, onRemove, onQuantityChange, simultaneousHandlers, isRemoving }: CartItemProps) => {
     const router = useRouter();
     const swipeableRef = useRef<Swipeable>(null);
-    const scaleAnim = useRef(new Animated.Value(0.8)).current; // swipe button animation
-    const opacity = useRef(new Animated.Value(1)).current; // fade-out animation
+    const scaleAnim = useRef(new Animated.Value(0.8)).current;
+    const opacity = useRef(new Animated.Value(1)).current;
 
-    // Fade out when isRemoving becomes true
     useEffect(() => {
       if (isRemoving) {
         Animated.timing(opacity, {
@@ -148,7 +147,6 @@ const CartItem = React.memo(
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => router.push(`/(shop)/menus/${item.slug}`)}
-            // Removed shadow-sm class and all shadow styles
             className="bg-white rounded-2xl p-4 mb-4 border border-gray-100"
             accessibilityLabel={`View details of ${item.name}`}
             accessibilityRole="button"
@@ -262,7 +260,14 @@ export default function CartScreen() {
 
       // Wait for the fade animation to finish, then remove with layout animation
       setTimeout(() => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        // Custom layout animation for smooth repositioning
+        LayoutAnimation.configureNext({
+          duration: 350,
+          update: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+            property: LayoutAnimation.Properties.opacity,
+          },
+        });
         removeItem(id);
         setRemovingIds((prev) => prev.filter((x) => x !== id));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
