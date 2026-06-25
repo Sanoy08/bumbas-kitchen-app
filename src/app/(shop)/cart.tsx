@@ -1,5 +1,4 @@
 // src/app/(shop)/cart.tsx
-
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -15,7 +14,6 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  FlatList,
   LayoutAnimation,
   Platform,
   Text,
@@ -23,7 +21,8 @@ import {
   UIManager,
   View,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+// 👇 Use FlatList from react-native-gesture-handler
+import { FlatList, Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import emptyCartAnimation from '../../../assets/animations/empty-cart.json';
 
@@ -43,7 +42,7 @@ if (
 const PLACEHOLDER_IMAGE_URL =
   'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=500&auto=format&fit=crop';
 
-// ---------------------- Cart Item Component (fade out on remove) ----------------------
+// ---------------------- Cart Item Component ----------------------
 type CartItemProps = {
   item: any;
   onRemove: (id: string) => void;
@@ -242,6 +241,7 @@ export default function CartScreen() {
   const totalPrice = getTotalPrice();
   const itemCount = items.length;
 
+  // 👇 Ref for the gesture‑handler FlatList
   const flatListRef = useRef<FlatList>(null);
 
   const handleQuantityChange = useCallback(
@@ -251,16 +251,13 @@ export default function CartScreen() {
     [updateQuantity]
   );
 
-  // Fade out + smooth reposition on remove
   const handleAnimatedRemove = useCallback(
     (id: string) => {
-      if (removingIds.includes(id)) return; // already fading
+      if (removingIds.includes(id)) return;
 
       setRemovingIds((prev) => [...prev, id]);
 
-      // Wait for the fade animation to finish, then remove with layout animation
       setTimeout(() => {
-        // Custom layout animation for smooth repositioning
         LayoutAnimation.configureNext({
           duration: 350,
           update: {
@@ -271,7 +268,7 @@ export default function CartScreen() {
         removeItem(id);
         setRemovingIds((prev) => prev.filter((x) => x !== id));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }, 320); // slightly more than the fade duration
+      }, 320);
     },
     [removeItem, removingIds]
   );
@@ -315,7 +312,7 @@ export default function CartScreen() {
         item={item}
         onRemove={confirmRemove}
         onQuantityChange={handleQuantityChange}
-        simultaneousHandlers={flatListRef}
+        simultaneousHandlers={flatListRef} // 👈 passed correctly
         isRemoving={removingIds.includes(item.id)}
       />
     ),
@@ -373,7 +370,7 @@ export default function CartScreen() {
       {itemCount > 0 ? (
         <>
           <FlatList
-            ref={flatListRef}
+            ref={flatListRef} // 👈 gesture‑handler ref
             data={items}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
