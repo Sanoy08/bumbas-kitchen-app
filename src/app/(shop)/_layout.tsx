@@ -2,25 +2,44 @@
 
 import { Tabs, usePathname } from 'expo-router';
 import { Home, ShoppingCart, User } from 'lucide-react-native';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native';
+import { useEffect, useRef } from 'react';
 
 import { useCartStore } from '@/store/cartStore'; 
+import { useTabBarStore } from '@/store/tabBarStore'; // 🟢 নতুন স্টোর ইম্পোর্ট করা হলো
 
 export default function ShopLayout() {
   const pathname = usePathname();
   
   // ★ কার্টের আইটেম সংখ্যা ট্র্যাক করুন
   const items = useCartStore((state) => state.items);
-  const itemCount = items.length; // কতগুলো আইটেম আছে তার সংখ্যা
+  const itemCount = items.length; 
   const isCartNotEmpty = itemCount > 0;
 
+  // 🟢 Tab Bar ভিজিবিলিটি স্টেট এবং অ্যানিমেটেড ভ্যালু
+  const isTabBarVisible = useTabBarStore((state) => state.isVisible);
+  const translateY = useRef(new Animated.Value(0)).current;
+
   // =========================================================================
-  // 🟢 পুরো ট্যাব বার লুকানোর লজিক
+  // 🟢 নির্দিষ্ট পেজে (যেমন: checkout, menus, search) ট্যাব বার লুকানোর লজিক
   // =========================================================================
-  const hideTabBar = 
+  const shouldHideTabBar = 
+    pathname.includes('/checkout') || // 🔴 Checkout Summary পেজের জন্য
     pathname.includes('/menus/') || 
     pathname.includes('/search') ||
     (pathname === '/cart' && isCartNotEmpty); 
+
+  // 🟢 স্লাইড আপ/ডাউন অ্যানিমেশন লজিক
+  useEffect(() => {
+    // যদি নির্দিষ্ট পেজ হয় অথবা ইউজার স্ক্রোল ডাউন করে, তবে ট্যাব বার নিচে স্লাইড হয়ে যাবে (hide)
+    const toValue = shouldHideTabBar || !isTabBarVisible ? 100 : 0; // 100 দিলে পুরোটাই স্ক্রিনের নিচে চলে যাবে
+
+    Animated.timing(translateY, {
+      toValue: toValue,
+      duration: 300, // 300ms ধরে স্মুথ অ্যানিমেশন হবে
+      useNativeDriver: true,
+    }).start();
+  }, [shouldHideTabBar, isTabBarVisible]);
 
   return (
     <Tabs
@@ -35,7 +54,8 @@ export default function ShopLayout() {
         },
         tabBarStyle: [
           styles.tabBar,
-          hideTabBar && { display: 'none' } 
+          { transform: [{ translateY }] }, // 🔴 Animated Transform অ্যাপ্লাই করা হলো
+          // shouldHideTabBar && { display: 'none' } // এটি মুছে ফেলা হলো কারণ আমরা অ্যানিমেশন ব্যবহার করছি
         ],
         tabBarActiveTintColor: '#e11d48',
         tabBarInactiveTintColor: '#9ca3af',
@@ -64,17 +84,16 @@ export default function ShopLayout() {
                 activeOpacity={0.8}
               >
                 <View style={styles.floatingButton}>
-  {/* 🔴 এখানে style={{ marginTop: 4 }} যোগ করা হলো আইকনকে একটু নিচে নামানোর জন্য */}
-  <ShoppingCart color="#fff" size={22} strokeWidth={2.5} style={{ marginTop: 10 }} />
-  
-  {itemCount > 0 && (
-    <View style={styles.badgeContainer}>
-      <Text style={styles.badgeText}>
-        {itemCount > 9 ? '9+' : itemCount}
-      </Text>
-    </View>
-  )}
-</View>
+                  <ShoppingCart color="#fff" size={22} strokeWidth={2.5} style={{ marginTop: 10 }} />
+                  
+                  {itemCount > 0 && (
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>
+                        {itemCount > 9 ? '9+' : itemCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.floatingButtonText, { color: isActive ? '#e11d48' : '#9ca3af' }]}>
                   Cart
                 </Text>
@@ -94,12 +113,13 @@ export default function ShopLayout() {
         }}
       />
 
+      <Tabs.Screen name="checkout/index" options={{ href: null }} /> 
+      {/* 🔴 আপনার checkout পেজের রাউট নাম অনুযায়ী উপরের লাইনটি ঠিক করে নেবেন */}
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
       <Tabs.Screen name="menus/[slug]" options={{ href: null }} />
       <Tabs.Screen name="search" options={{ href: null }} />
-
     </Tabs>
   );
 }
@@ -148,10 +168,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  // 🔴 ব্যাজের জন্য নতুন স্টাইল অ্যাড করা হলো
   badgeContainer: {
     position: 'absolute',
-    top: -2,               // 🔴 -8 থেকে নামিয়ে -2 করা হলো, যাতে আইকনের সাথে এটাও নিচে নামে
+    top: -2,              
     alignSelf: 'center',   
     backgroundColor: '#ffffff',
     minWidth: 20,

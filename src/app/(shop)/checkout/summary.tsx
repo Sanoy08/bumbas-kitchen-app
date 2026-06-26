@@ -1,5 +1,6 @@
 // src/app/(shop)/checkout/summary.tsx
 
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import { formatPrice } from '@/lib/utils';
@@ -15,7 +16,7 @@ import {
   ScrollView,
   Switch,
   Image,
-  Platform,
+  Animated, // ★ অ্যানিমেশনের জন্য
 } from 'react-native';
 import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner-native';
@@ -31,50 +32,47 @@ import {
   Wallet,
   X,
 } from 'lucide-react-native';
-import * as SecureStore from 'expo-secure-store';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
-const TOKEN_KEY = 'auth_token';
 
 export default function OrderSummaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   const { items, getTotalPrice, setCheckoutData, getItemCount } = useCartStore();
   const { user, isInitialized } = useAuthStore();
 
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-
   const [walletBalance, setWalletBalance] = useState(0);
   const [useCoins, setUseCoins] = useState(false);
+
+  // অ্যানিমেশন ভ্যালু (কয়েন সেভিংস বক্সের জন্য)
+  const savingsOpacity = useRef(new Animated.Value(0)).current;
+  const savingsTranslateY = useRef(new Animated.Value(-10)).current;
 
   const totalPrice = getTotalPrice();
   const itemCount = getItemCount();
 
-  // 1. Fetch wallet balance
-  // 1. Fetch Wallet Balance
-useEffect(() => {
-  const fetchWallet = async () => {
-    try {
-      // Wallet পেজের মতই হেডার ছাড়া
-      const res = await fetch(`${API_URL}/wallet`);
-      const data = await res.json();
-      if (data.success && data.wallet) {
-        setWalletBalance(data.wallet.balance || 0);
-      } else if (data.success && data.balance) {
-        // যদি কখনো Next.js স্ট্রাকচার আসে তার জন্য ফলব্যাক
-        setWalletBalance(data.balance);
+  // Fetch wallet
+  useEffect(() => {
+    const fetchWallet = async () => {
+      try {
+        const res = await fetch(`${API_URL}/wallet`);
+        const data = await res.json();
+        if (data.success && data.wallet) {
+          setWalletBalance(data.wallet.balance || 0);
+        } else if (data.success && data.balance) {
+          setWalletBalance(data.balance);
+        }
+      } catch (e) {
+        console.log('Wallet fetch failed', e);
       }
-    } catch (e) {
-      console.log('Wallet fetch failed', e);
-    }
-  };
-  if (user) fetchWallet();
-}, [user]);
+    };
+    if (user) fetchWallet();
+  }, [user]);
 
-  // 2. Auth & cart guard
+  // Auth & cart guard
   useEffect(() => {
     if (isInitialized) {
       if (!user) {
@@ -86,13 +84,27 @@ useEffect(() => {
     }
   }, [isInitialized, user, itemCount]);
 
-  // Remove coupon
+  // অ্যানিমেশন কন্ট্রোল (useCoins টগল হলে)
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(savingsOpacity, {
+        toValue: useCoins ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(savingsTranslateY, {
+        toValue: useCoins ? 0 : -10,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [useCoins, savingsOpacity, savingsTranslateY]);
+
   const removeCoupon = () => {
     setCouponCode('');
     setCouponDiscount(0);
   };
 
-  // 3. Apply coupon
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
     setIsApplyingCoupon(true);
@@ -121,7 +133,6 @@ useEffect(() => {
     }
   };
 
-  // 4. Coin toggle
   const handleCoinToggle = (checked: boolean) => {
     if (checked) {
       if (couponDiscount > 0) {
@@ -134,12 +145,10 @@ useEffect(() => {
     }
   };
 
-  // 5. Calculations
   const maxCoinDiscount = totalPrice * 0.5;
   const coinDiscountAmount = useCoins ? Math.min(walletBalance, Math.floor(maxCoinDiscount)) : 0;
   const finalTotal = Math.max(0, totalPrice - couponDiscount - coinDiscountAmount);
 
-  // 6. Proceed
   const handleProceed = () => {
     setCheckoutData({
       couponCode: couponDiscount > 0 ? couponCode : '',
@@ -157,7 +166,7 @@ useEffect(() => {
     );
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       {/* Progress Steps */}
       <View className="bg-white border-b border-gray-200 py-4">
         <View className="flex-row items-center justify-center gap-2">
@@ -180,61 +189,122 @@ useEffect(() => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        <Text className="text-2xl font-extrabold text-gray-900 mt-6 mb-6">Order Summary</Text>
+        <Text className="text-2xl font-extrabold text-gray-900 mt-6 mb-6">
+          Order Summary
+        </Text>
 
-        {/* Coin Card */}
-        {walletBalance > 0 && (
-          <View className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 p-5 shadow-lg">
-            <View className="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-white/20 rounded-full opacity-50" />
-            <View className="flex-row items-center justify-between relative z-10">
-              <View className="flex-row items-center gap-3">
-                <View className="h-12 w-12 bg-white/20 rounded-full items-center justify-center border border-white/30">
-                  <Coins size={24} color="#fff" />
+        {/* ─── ★ UPGRADED COIN CARD ★ ─── */}
+        <View className="mb-5 rounded-2xl overflow-hidden shadow-xl">
+          <LinearGradient
+            colors={['#f59e0b', '#f97316', '#dc2626']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ padding: 20 }}
+          >
+            {/* Background glow effect */}
+            <View className="absolute top-0 right-0 w-32 h-32 bg-yellow-300/30 rounded-full -mt-10 -mr-10" />
+            <View className="absolute bottom-0 left-0 w-24 h-24 bg-rose-400/20 rounded-full -mb-8 -ml-8" />
+
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-4">
+                {/* Coin icon with glow ring */}
+                <View className="relative">
+                  <View className="absolute -inset-2 bg-yellow-300/30 rounded-full blur-sm" />
+                  <View className="h-14 w-14 bg-white/20 rounded-full items-center justify-center border-2 border-white/40">
+                    <Coins size={30} color="#fff" />
+                  </View>
+                  <Sparkles
+                    size={16}
+                    color="#fef08a"
+                    style={{ position: 'absolute', top: -4, right: -4 }}
+                  />
                 </View>
+
                 <View>
-                  <Text className="font-bold text-lg text-white flex-row items-center">
-                    Bumba Coins <Sparkles size={14} color="#fef08a" />
+                  <Text className="text-white font-extrabold text-xl tracking-tight">
+                    Bumba Coins
                   </Text>
-                  <Text className="text-yellow-100 text-sm">Balance: {walletBalance}</Text>
+                  <View className="flex-row items-baseline gap-1 mt-0.5">
+                    <Text className="text-yellow-200 text-lg font-bold">
+                      {walletBalance}
+                    </Text>
+                    <Text className="text-yellow-200/80 text-xs font-medium">
+                      COINS
+                    </Text>
+                  </View>
                 </View>
               </View>
-              <Switch
-                value={useCoins}
-                onValueChange={handleCoinToggle}
-                trackColor={{ false: '#00000033', true: '#ffffff' }}
-                thumbColor={useCoins ? '#e11d48' : '#f4f3f4'}
-              />
-            </View>
-            {useCoins && (
-              <View className="mt-4 pt-4 border-t border-white/20 flex-row justify-between items-center">
-                <Text className="text-yellow-50 text-sm">Savings applied</Text>
-                <Text className="text-2xl font-bold text-white">- {formatPrice(coinDiscountAmount)}</Text>
-              </View>
-            )}
-          </View>
-        )}
 
-        {/* Coupon Card */}
+              {/* Custom styled toggle */}
+              <View className="bg-black/20 p-0.5 rounded-full">
+                <Switch
+                  value={useCoins}
+                  onValueChange={handleCoinToggle}
+                  trackColor={{ false: '#ffffff30', true: '#ffffff90' }}
+                  thumbColor={useCoins ? '#fbbf24' : '#f3f4f6'}
+                  ios_backgroundColor="#ffffff20"
+                />
+              </View>
+            </View>
+
+            {/* Animated Savings Box */}
+            <Animated.View
+              style={{
+                opacity: savingsOpacity,
+                transform: [{ translateY: savingsTranslateY }],
+              }}
+              className="mt-4 pt-4 border-t border-white/20"
+            >
+              {useCoins ? (
+                <View className="flex-row justify-between items-center">
+                  <View className="flex-row items-center gap-2">
+                    <View className="bg-white/20 rounded-full p-1">
+                      <Sparkles size={14} color="#fef08a" />
+                    </View>
+                    <Text className="text-white font-semibold text-sm">
+                      Coin Discount Applied
+                    </Text>
+                  </View>
+                  <View className="bg-white/20 px-3 py-1 rounded-full">
+                    <Text className="text-white font-extrabold text-lg">
+                      - {formatPrice(coinDiscountAmount)}
+                    </Text>
+                  </View>
+                </View>
+              ) : walletBalance === 0 ? (
+                <Text className="text-white/70 text-xs text-center">
+                  You have 0 coins. Place orders to earn!
+                </Text>
+              ) : (
+                <Text className="text-white/50 text-xs text-center">
+                  Toggle to use your coins
+                </Text>
+              )}
+            </Animated.View>
+          </LinearGradient>
+        </View>
+
+        {/* ─── COUPON CARD ─── */}
         <View className="mb-5 bg-white rounded-xl border-2 border-dashed border-gray-200 overflow-hidden">
           <View className="p-5">
-            <Text className="font-bold text-gray-800 flex-row items-center gap-1 mb-3">
-              <Ticket size={18} color="#e11d48" /> Apply Coupon
-            </Text>
+            <View className="flex-row items-center gap-2 mb-3">
+              <Ticket size={18} color="#e11d48" />
+              <Text className="font-bold text-gray-800">Apply Coupon</Text>
+            </View>
             {couponDiscount > 0 ? (
               <View className="bg-green-50 border border-green-200 rounded-lg p-3 flex-row items-center justify-between">
                 <View className="flex-row items-center gap-2">
                   <CheckCircle2 size={18} color="#16a34a" />
                   <View>
-                    <Text className="font-bold text-green-800 text-sm">'{couponCode}' Applied</Text>
-                    <Text className="text-xs text-green-600">You saved {formatPrice(couponDiscount)}</Text>
+                    <Text className="font-bold text-green-800 text-sm">
+                      '{couponCode}' Applied
+                    </Text>
+                    <Text className="text-xs text-green-600">
+                      You saved {formatPrice(couponDiscount)}
+                    </Text>
                   </View>
                 </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    removeCoupon();
-                    toast.info('Coupon removed');
-                  }}
-                >
+                <TouchableOpacity onPress={() => { removeCoupon(); toast.info('Coupon removed'); }}>
                   <X size={20} color="#9ca3af" />
                 </TouchableOpacity>
               </View>
@@ -265,12 +335,13 @@ useEffect(() => {
           </View>
         </View>
 
-        {/* Items List */}
+        {/* Items List (fixed icon+text) */}
         <View className="mb-6 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="font-bold text-lg flex-row items-center gap-1">
-              <ShoppingBag size={18} color="#6b7280" /> Items in Cart
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <ShoppingBag size={18} color="#6b7280" />
+              <Text className="font-bold text-lg text-gray-800">Items in Cart</Text>
+            </View>
             <Text className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md font-medium">
               {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
             </Text>
@@ -303,9 +374,8 @@ useEffect(() => {
           })}
         </View>
 
-        {/* Bill Summary */}
+        {/* Bill Summary (fixed icons) */}
         <View className="bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden mb-6">
-          {/* Header */}
           <View className="bg-gray-900 px-5 py-4 flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
               <Receipt size={16} color="#9ca3af" />
@@ -326,23 +396,28 @@ useEffect(() => {
               <Text className="text-green-600 font-bold">FREE</Text>
             </View>
 
-            {/* Savings */}
             {(couponDiscount > 0 || (useCoins && coinDiscountAmount > 0)) && (
               <View className="bg-green-50 rounded-lg p-3 space-y-2 border border-green-100">
                 {couponDiscount > 0 && (
-                  <View className="flex-row justify-between text-green-700 text-sm font-medium">
-                    <Text className="flex-row items-center gap-1">
-                      <Ticket size={14} /> Coupon Savings
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-row items-center gap-1">
+                      <Ticket size={14} color="#16a34a" />
+                      <Text className="text-green-700 text-sm font-medium">Coupon Savings</Text>
+                    </View>
+                    <Text className="text-green-700 text-sm font-medium">
+                      - {formatPrice(couponDiscount)}
                     </Text>
-                    <Text>- {formatPrice(couponDiscount)}</Text>
                   </View>
                 )}
                 {useCoins && coinDiscountAmount > 0 && (
-                  <View className="flex-row justify-between text-amber-700 text-sm font-medium">
-                    <Text className="flex-row items-center gap-1">
-                      <Coins size={14} /> Coin Savings
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-row items-center gap-1">
+                      <Coins size={14} color="#d97706" />
+                      <Text className="text-amber-700 text-sm font-medium">Coin Savings</Text>
+                    </View>
+                    <Text className="text-amber-700 text-sm font-medium">
+                      - {formatPrice(coinDiscountAmount)}
                     </Text>
-                    <Text>- {formatPrice(coinDiscountAmount)}</Text>
                   </View>
                 )}
               </View>
@@ -373,14 +448,15 @@ useEffect(() => {
           </View>
         </TouchableOpacity>
 
-        {/* Footer */}
         <View className="flex-row justify-center items-center gap-4 mt-6 mb-4 opacity-70">
-          <Text className="text-xs text-gray-400 flex-row items-center gap-1">
-            <Wallet size={12} /> 100% Secure
-          </Text>
-          <Text className="text-xs text-gray-400 flex-row items-center gap-1">
-            <CheckCircle2 size={12} /> Trusted
-          </Text>
+          <View className="flex-row items-center gap-1">
+            <Wallet size={12} color="#9ca3af" />
+            <Text className="text-xs text-gray-400">100% Secure</Text>
+          </View>
+          <View className="flex-row items-center gap-1">
+            <CheckCircle2 size={12} color="#9ca3af" />
+            <Text className="text-xs text-gray-400">Trusted</Text>
+          </View>
         </View>
       </ScrollView>
     </View>

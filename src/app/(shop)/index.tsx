@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import Animated, {
   Extrapolation, interpolate, useAnimatedScrollHandler,
-  useAnimatedStyle, useSharedValue, withTiming
+  useAnimatedStyle, useSharedValue, withTiming, runOnJS // 🟢 runOnJS ইম্পোর্ট করা হলো
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -29,6 +29,7 @@ import { SpecialDishCard } from '@/components/shop/SpecialDishCard';
 import { optimizeImageUrl } from '@/lib/imageUtils';
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import { useTabBarStore } from '@/store/tabBarStore'; // 🟢 TabBar Store ইম্পোর্ট করা হলো
 
 const { width: windowWidth } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
@@ -53,12 +54,11 @@ const FEATURES = [
 const HERO_CAROUSEL_HEIGHT = windowWidth + 8;
 const PRODUCTS_PER_PAGE = 10;
 
-// প্যারেন্টের প্যাডিং (px-4 = 16px দুইপাশে) + প্রতিটি আইটেমের মার্জিন (margin:4 প্রতিটি পাশে, মোট 16px)
 const CARD_MARGIN = 4;
-const CONTAINER_PADDING = 16; // px-4 = 16
+const CONTAINER_PADDING = 16;
 const CARD_WIDTH = (windowWidth - CONTAINER_PADDING * 2 - CARD_MARGIN * 4) / 2;
 
-// --- Helper Components (unchanged except CategoryList) ---
+// --- Helper Components ---
 const AutoScaledImage = ({ url, isFullWidth = true }: { url: string, isFullWidth?: boolean }) => {
   return (
     <Image source={{ uri: url }} style={{ width: isFullWidth ? windowWidth : windowWidth - 32, aspectRatio: 1 }} contentFit="cover" />
@@ -108,7 +108,6 @@ const AutoCarousel = ({ data, renderItem, autoPlayDelay = 4000, isAutoPlay = fal
   );
 };
 
-// Ultra-smooth centering CategoryList
 const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [scrollViewWidth, setScrollViewWidth] = useState(0);
@@ -116,11 +115,9 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
   const itemLayouts = useRef<{ [key: string]: { x: number; width: number } }>({});
 
   const scrollToCenter = useCallback((category: string) => {
-    // Wait for any pending layout updates
     InteractionManager.runAfterInteractions(() => {
       const layout = itemLayouts.current[category];
       if (!layout || scrollViewWidth === 0) {
-        // Retry once after a short delay
         requestAnimationFrame(() => {
           const retryLayout = itemLayouts.current[category];
           if (retryLayout && scrollViewWidth > 0) {
@@ -158,7 +155,6 @@ const CategoryList = ({ activeCategory, setActiveCategory }: any) => {
           <TouchableOpacity
             key={idx}
             onLayout={(e) => {
-              // Store absolute x relative to ScrollView content
               itemLayouts.current[cat.name] = {
                 x: e.nativeEvent.layout.x,
                 width: e.nativeEvent.layout.width,
@@ -194,6 +190,9 @@ export default function HomeScreen() {
   const { user, login } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  
+  // 🟢 Tab Bar Store
+  const setTabBarVisible = useTabBarStore((state) => state.setVisibility);
 
   const [homeData, setHomeData] = useState({ heroSlides: [], sliderImages: [], offers: [], bestsellers: [], allProducts: [] });
   const [showDatePopup, setShowDatePopup] = useState(false);
@@ -217,6 +216,10 @@ export default function HomeScreen() {
   const backButtonWidth = useSharedValue(0);
   const backButtonOpacity = useSharedValue(0);
 
+  // 🟢 স্ক্রোল ডিরেকশন ট্র্যাক করার জন্য Reanimated Shared Values
+  const lastScrollY = useSharedValue(0);
+  const isTabBarVisibleShared = useSharedValue(true);
+
   const isLoadingMore = useRef(false);
   const lastLoadTime = useRef(0);
 
@@ -238,9 +241,31 @@ export default function HomeScreen() {
     }
   }, [activeCategory]);
 
+  // =========================================================================
+  // 🟢 স্ক্রোল হ্যান্ডলার (Slide Up/Down Logic)
+  // =========================================================================
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
+      
+      const currentY = event.contentOffset.y;
+      
+      // নিচের দিকে স্ক্রোল করলে (Slide Down / Hide)
+      if (currentY > lastScrollY.value + 15 && currentY > 50) {
+        if (isTabBarVisibleShared.value) {
+          isTabBarVisibleShared.value = false;
+          runOnJS(setTabBarVisible)(false);
+        }
+        lastScrollY.value = currentY;
+      } 
+      // উপরের দিকে স্ক্রোল করলে (Slide Up / Show)
+      else if (currentY < lastScrollY.value - 15) {
+        if (!isTabBarVisibleShared.value) {
+          isTabBarVisibleShared.value = true;
+          runOnJS(setTabBarVisible)(true);
+        }
+        lastScrollY.value = currentY;
+      }
     },
   });
 
@@ -509,7 +534,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity 
             activeOpacity={0.8} 
-            onPress={() => router.push('/(shop)/search')} // ★ এই লাইনটি যোগ করুন
+            onPress={() => router.push('/(shop)/search')} 
             className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5"
           >
             <Search size={20} color="#e11d48" />
@@ -549,7 +574,7 @@ export default function HomeScreen() {
         className="flex-1"
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
-        contentContainerStyle={{ paddingBottom: 56 }} // increased bottom spacing
+        contentContainerStyle={{ paddingBottom: 56 }}
       >
         {/* Hero Carousel */}
         <View className="bg-white pb-2 relative">
@@ -704,7 +729,7 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Date Popup Modal (unchanged) */}
+      {/* Date Popup Modal */}
       <Modal visible={showDatePopup} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white w-full rounded-3xl overflow-hidden">
