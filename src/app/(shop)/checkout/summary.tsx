@@ -4,6 +4,7 @@ import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
+import * as Haptics from 'expo-haptics'; // ★ হ্যাপটিক ফিডব্যাক
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter } from 'expo-router';
 import {
@@ -19,9 +20,10 @@ import {
   Wallet,
   X,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated, // ★ অ্যানিমেশনের জন্য
   Image,
   ScrollView,
   Switch,
@@ -49,6 +51,10 @@ export default function OrderSummaryScreen() {
 
   const totalPrice = getTotalPrice();
   const itemCount = getItemCount();
+
+  // ★ অ্যানিমেশন ভ্যালু (কয়েন সেভিংস বক্সের জন্য)
+  const savingsOpacity = useRef(new Animated.Value(0)).current;
+  const savingsTranslateY = useRef(new Animated.Value(-10)).current;
 
   // Fetch wallet
   useEffect(() => {
@@ -82,6 +88,7 @@ export default function OrderSummaryScreen() {
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // হ্যাপটিক
     setIsApplyingCoupon(true);
     try {
       const res = await fetch(`${API_URL}/coupons/validate`, {
@@ -96,12 +103,15 @@ export default function OrderSummaryScreen() {
           setUseCoins(false);
           toast.info('Coins removed. You can use either Coupon OR Coins.');
         }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // সাফল্য হ্যাপটিক
         toast.success(`YAY! You saved ${formatPrice(data.coupon.discountAmount)}`);
       } else {
         setCouponDiscount(0);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); // ত্রুটি হ্যাপটিক
         toast.error(data.error || 'Invalid Coupon');
       }
     } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.error('Failed to apply coupon');
     } finally {
       setIsApplyingCoupon(false);
@@ -109,6 +119,7 @@ export default function OrderSummaryScreen() {
   };
 
   const handleCoinToggle = (checked: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // টগল হ্যাপটিক
     if (checked) {
       if (couponDiscount > 0) {
         removeCoupon();
@@ -120,11 +131,28 @@ export default function OrderSummaryScreen() {
     }
   };
 
+  // ★ অ্যানিমেশন কন্ট্রোল (useCoins টগল হলে)
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(savingsOpacity, {
+        toValue: useCoins && walletBalance > 0 ? 1 : 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(savingsTranslateY, {
+        toValue: useCoins && walletBalance > 0 ? 0 : -10,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [useCoins, walletBalance]);
+
   const maxCoinDiscount = totalPrice * 0.5;
   const coinDiscountAmount = useCoins ? Math.min(walletBalance, Math.floor(maxCoinDiscount)) : 0;
   const finalTotal = Math.max(0, totalPrice - couponDiscount - coinDiscountAmount);
 
   const handleProceed = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // প্রোসিড হ্যাপটিক
     setCheckoutData({
       couponCode: couponDiscount > 0 ? couponCode : '',
       couponDiscount,
@@ -212,19 +240,29 @@ export default function OrderSummaryScreen() {
                 ios_backgroundColor="#ffffff20"
               />
             </View>
-            {useCoins && walletBalance > 0 && (
-              <View className="mt-4 pt-4 border-t border-white/20 flex-row justify-between items-center">
-                <Text className="text-yellow-50 text-sm font-medium">Savings applied</Text>
-                <Text className="text-2xl font-bold text-white">
-                  - {formatPrice(coinDiscountAmount)}
-                </Text>
-              </View>
-            )}
+            {/* ★ অ্যানিমেটেড সেভিংস লাইন */}
+            <Animated.View
+              style={{
+                opacity: savingsOpacity,
+                transform: [{ translateY: savingsTranslateY }],
+              }}
+              className="mt-4 pt-4 border-t border-white/20"
+            >
+              {useCoins && walletBalance > 0 ? (
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-yellow-50 text-sm font-medium">Savings applied</Text>
+                  <Text className="text-2xl font-bold text-white">
+                    - {formatPrice(coinDiscountAmount)}
+                  </Text>
+                </View>
+              ) : null}
+            </Animated.View>
           </LinearGradient>
         </View>
 
         {/* ─── COUPON CARD ─── */}
         <View className="mb-5 relative">
+          {/* Left notch */}
           <View
             style={{
               position: 'absolute', left: -12, top: '50%', marginTop: -12,
@@ -232,6 +270,7 @@ export default function OrderSummaryScreen() {
               borderRightWidth: 1, borderColor: '#e5e7eb', zIndex: 10,
             }}
           />
+          {/* Right notch */}
           <View
             style={{
               position: 'absolute', right: -12, top: '50%', marginTop: -12,
@@ -262,6 +301,7 @@ export default function OrderSummaryScreen() {
                 </View>
                 <TouchableOpacity
                   onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     removeCoupon();
                     toast.info('Coupon removed');
                   }}
@@ -272,15 +312,15 @@ export default function OrderSummaryScreen() {
             ) : (
               <View className="flex-row gap-2">
                 <TextInput
-                  placeholder="Enter Coupon Code"
-                  placeholderTextColor="#9ca3af"
-                  value={couponCode}
-                  onChangeText={(text) => setCouponCode(text.toUpperCase())}
-                  className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-lg px-3 font-medium uppercase tracking-wider text-sm"
-                  textAlignVertical="center"          
-                  style={{ paddingTop: 0, paddingBottom: 0 }}  
-                  autoCapitalize="characters"
-                />
+  placeholder="Enter Coupon Code"
+  placeholderTextColor="#9ca3af"
+  value={couponCode}
+  onChangeText={(text) => setCouponCode(text.toUpperCase())}
+  className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-lg px-3 font-medium uppercase tracking-wider text-sm text-gray-900"
+  textAlignVertical="center"
+  style={{ paddingTop: 0, paddingBottom: 0 }}
+  autoCapitalize="characters"
+/>
                 <TouchableOpacity
                   onPress={handleApplyCoupon}
                   disabled={isApplyingCoupon || !couponCode}
