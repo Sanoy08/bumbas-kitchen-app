@@ -4,7 +4,7 @@ import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
-import * as Haptics from 'expo-haptics'; // ★ হ্যাপটিক ফিডব্যাক
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter } from 'expo-router';
 import {
@@ -23,7 +23,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated, // ★ অ্যানিমেশনের জন্য
+  Animated,
   Image,
   ScrollView,
   Switch,
@@ -52,7 +52,7 @@ export default function OrderSummaryScreen() {
   const totalPrice = getTotalPrice();
   const itemCount = getItemCount();
 
-  // ★ অ্যানিমেশন ভ্যালু (কয়েন সেভিংস বক্সের জন্য)
+  // অ্যানিমেশন ভ্যালু (কয়েন সেভিংস বক্সের জন্য)
   const savingsOpacity = useRef(new Animated.Value(0)).current;
   const savingsTranslateY = useRef(new Animated.Value(-10)).current;
 
@@ -88,7 +88,7 @@ export default function OrderSummaryScreen() {
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // হ্যাপটিক
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsApplyingCoupon(true);
     try {
       const res = await fetch(`${API_URL}/coupons/validate`, {
@@ -103,11 +103,11 @@ export default function OrderSummaryScreen() {
           setUseCoins(false);
           toast.info('Coins removed. You can use either Coupon OR Coins.');
         }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // সাফল্য হ্যাপটিক
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         toast.success(`YAY! You saved ${formatPrice(data.coupon.discountAmount)}`);
       } else {
         setCouponDiscount(0);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); // ত্রুটি হ্যাপটিক
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         toast.error(data.error || 'Invalid Coupon');
       }
     } catch (error) {
@@ -119,7 +119,7 @@ export default function OrderSummaryScreen() {
   };
 
   const handleCoinToggle = (checked: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // টগল হ্যাপটিক
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (checked) {
       if (couponDiscount > 0) {
         removeCoupon();
@@ -131,7 +131,7 @@ export default function OrderSummaryScreen() {
     }
   };
 
-  // ★ অ্যানিমেশন কন্ট্রোল (useCoins টগল হলে)
+  // অ্যানিমেশন কন্ট্রোল (useCoins টগল হলে)
   useEffect(() => {
     Animated.parallel([
       Animated.timing(savingsOpacity, {
@@ -152,7 +152,7 @@ export default function OrderSummaryScreen() {
   const finalTotal = Math.max(0, totalPrice - couponDiscount - coinDiscountAmount);
 
   const handleProceed = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // প্রোসিড হ্যাপটিক
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCheckoutData({
       couponCode: couponDiscount > 0 ? couponCode : '',
       couponDiscount,
@@ -169,8 +169,8 @@ export default function OrderSummaryScreen() {
     );
 
   const coinGradientColors = walletBalance > 0
-    ? ['#eab308', '#f97316', '#dc2626'] 
-    : ['#9ca3af', '#6b7280'];            
+    ? ['#eab308', '#f97316', '#dc2626']
+    : ['#9ca3af', '#6b7280'];
 
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
@@ -197,7 +197,7 @@ export default function OrderSummaryScreen() {
       <ScrollView
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 20 }}  // ★ অ্যাকাউন্ট পেইজের মতো 80
       >
         <Text className="text-2xl font-extrabold text-gray-900 mt-6 mb-6">
           Order Summary
@@ -240,7 +240,6 @@ export default function OrderSummaryScreen() {
                 ios_backgroundColor="#ffffff20"
               />
             </View>
-            {/* ★ অ্যানিমেটেড সেভিংস লাইন */}
             <Animated.View
               style={{
                 opacity: savingsOpacity,
@@ -262,7 +261,6 @@ export default function OrderSummaryScreen() {
 
         {/* ─── COUPON CARD ─── */}
         <View className="mb-5 relative">
-          {/* Left notch */}
           <View
             style={{
               position: 'absolute', left: -12, top: '50%', marginTop: -12,
@@ -270,7 +268,6 @@ export default function OrderSummaryScreen() {
               borderRightWidth: 1, borderColor: '#e5e7eb', zIndex: 10,
             }}
           />
-          {/* Right notch */}
           <View
             style={{
               position: 'absolute', right: -12, top: '50%', marginTop: -12,
@@ -312,15 +309,15 @@ export default function OrderSummaryScreen() {
             ) : (
               <View className="flex-row gap-2">
                 <TextInput
-  placeholder="Enter Coupon Code"
-  placeholderTextColor="#9ca3af"
-  value={couponCode}
-  onChangeText={(text) => setCouponCode(text.toUpperCase())}
-  className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-lg px-3 font-medium uppercase tracking-wider text-sm text-gray-900"
-  textAlignVertical="center"
-  style={{ paddingTop: 0, paddingBottom: 0 }}
-  autoCapitalize="characters"
-/>
+                  placeholder="Enter Coupon Code"
+                  placeholderTextColor="#9ca3af"
+                  value={couponCode}
+                  onChangeText={(text) => setCouponCode(text.toUpperCase())}
+                  className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-lg px-3 font-medium uppercase tracking-wider text-sm text-gray-900"
+                  textAlignVertical="center"
+                  style={{ paddingTop: 0, paddingBottom: 0 }}
+                  autoCapitalize="characters"
+                />
                 <TouchableOpacity
                   onPress={handleApplyCoupon}
                   disabled={isApplyingCoupon || !couponCode}
@@ -359,8 +356,8 @@ export default function OrderSummaryScreen() {
               (item.image && Array.isArray(item.image) ? item.image[0]?.url : item.image?.url) ||
               PLACEHOLDER_IMAGE_URL;
             return (
-              <View 
-                key={item.id} 
+              <View
+                key={item.id}
                 className={`flex-row items-center gap-4 ${index !== items.length - 1 ? 'mb-8' : ''}`}
               >
                 <View className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
