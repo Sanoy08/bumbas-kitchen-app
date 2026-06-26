@@ -230,36 +230,60 @@ export default function OrderSummaryScreen() {
           </LinearGradient>
         </View>
 
-        {/* ─── COUPON CARD ─── */}
+        {/* ─── COUPON CARD (NOW FULLY MATCHING NEXT.JS) ─── */}
         <View className="mb-5 relative">
+          {/* Left notch */}
           <View
             style={{
-              position: 'absolute', left: -12, top: '50%', marginTop: -12,
-              width: 24, height: 24, borderRadius: 12, backgroundColor: 'white',
-              borderRightWidth: 1, borderColor: '#e5e7eb', zIndex: 10,
+              position: 'absolute',
+              left: -12,
+              top: '50%',
+              marginTop: -12, // -12 because height 24
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: '#f9fafb', // gray-50
+              borderRightWidth: 1,
+              borderColor: '#e5e7eb',
+              zIndex: 10,
             }}
           />
+          {/* Right notch */}
           <View
             style={{
-              position: 'absolute', right: -12, top: '50%', marginTop: -12,
-              width: 24, height: 24, borderRadius: 12, backgroundColor: 'white',
-              borderLeftWidth: 1, borderColor: '#e5e7eb', zIndex: 10,
+              position: 'absolute',
+              right: -12,
+              top: '50%',
+              marginTop: -12,
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: '#f9fafb', // gray-50
+              borderLeftWidth: 1,
+              borderColor: '#e5e7eb',
+              zIndex: 10,
             }}
           />
-          <View className="bg-white rounded-xl border-2 border-dashed border-gray-200 overflow-hidden p-5">
-            <View className="flex-row items-center gap-2 mb-3">
-              <Ticket size={18} color="#e11d48" />
+          {/* Main coupon container */}
+          <View className="bg-white rounded-xl border-2 border-dashed border-gray-200 overflow-hidden p-6">
+            {/* Title */}
+            <View className="flex-row items-center gap-2 mb-4">
+              <Ticket size={20} color="#e11d48" />
               <Text className="font-bold text-gray-800">Apply Coupon</Text>
             </View>
+
             {couponDiscount > 0 ? (
-              <View className="bg-green-50 border border-green-200 rounded-lg p-3 flex-row items-center justify-between">
-                <View className="flex-row items-center gap-2">
-                  <CheckCircle2 size={18} color="#16a34a" />
+              <View className="bg-green-50 border border-green-200 rounded-lg p-4 flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3">
+                  {/* Circle icon container */}
+                  <View className="h-8 w-8 bg-green-100 rounded-full items-center justify-center">
+                    <CheckCircle2 size={20} color="#16a34a" />
+                  </View>
                   <View>
                     <Text className="font-bold text-green-800 text-sm">
                       '{couponCode}' Applied
                     </Text>
-                    <Text className="text-xs text-green-600">
+                    <Text className="text-xs text-green-600 font-medium">
                       You saved {formatPrice(couponDiscount)}
                     </Text>
                   </View>
@@ -280,13 +304,13 @@ export default function OrderSummaryScreen() {
                   placeholderTextColor="#9ca3af"
                   value={couponCode}
                   onChangeText={(text) => setCouponCode(text.toUpperCase())}
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 font-medium uppercase tracking-widest text-sm"
+                  className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-lg px-3 font-medium uppercase tracking-wider text-sm"
                   autoCapitalize="characters"
                 />
                 <TouchableOpacity
                   onPress={handleApplyCoupon}
                   disabled={isApplyingCoupon || !couponCode}
-                  className="bg-primary h-11 px-5 rounded-lg items-center justify-center shadow-sm"
+                  className="bg-primary h-11 px-6 rounded-lg items-center justify-center shadow-sm"
                   activeOpacity={0.8}
                 >
                   {isApplyingCoupon ? (
