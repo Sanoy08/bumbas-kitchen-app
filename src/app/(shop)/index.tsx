@@ -17,8 +17,11 @@ import {
   Text, TouchableOpacity, View
 } from 'react-native';
 import Animated, {
-  Extrapolation, interpolate, useAnimatedScrollHandler,
-  useAnimatedStyle, useSharedValue, withTiming, runOnJS // 🟢 runOnJS ইম্পোর্ট করা হলো
+  Extrapolation, interpolate,
+  runOnJS // 🟢 runOnJS ইম্পোর্ট করা হলো
+  ,
+  useAnimatedScrollHandler,
+  useAnimatedStyle, useSharedValue, withTiming
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -32,7 +35,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useTabBarStore } from '@/store/tabBarStore'; // 🟢 TabBar Store ইম্পোর্ট করা হলো
 
 const { width: windowWidth } = Dimensions.get('window');
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 const CATEGORIES = [
   { name: "All", image: require("../../../assets/Categories/9.webp"), link: "/menus", color: "border-slate-500" },

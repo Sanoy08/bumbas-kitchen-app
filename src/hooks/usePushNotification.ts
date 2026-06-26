@@ -1,14 +1,14 @@
 // src/hooks/usePushNotification.ts
 
-import { useEffect, useRef, useState } from 'react';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import { Platform } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { toast } from 'sonner-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

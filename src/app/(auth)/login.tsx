@@ -1,27 +1,27 @@
 // src/app/(auth)/login.tsx
 import { useAuthStore } from '@/store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { isAvailableAsync, showPhoneNumberHintAsync } from 'expo-phone-number-hint';
 import { Link, useRouter } from 'expo-router';
 import { AlertOctagon, ArrowLeft, Clock, RefreshCw, ShieldAlert } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-  ActivityIndicator,
-  Animated,
-  Dimensions,
-  Image,
-  Keyboard,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Animated,
+    Dimensions,
+    Image,
+    Keyboard,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import RNOtpVerify from 'react-native-otp-verify';
-import { isAvailableAsync, showPhoneNumberHintAsync } from 'expo-phone-number-hint';
 import { toast } from 'sonner-native';
 import * as z from 'zod';
 
@@ -29,7 +29,7 @@ const phoneSchema = z.object({
   phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian Mobile Number'),
 });
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 const HERO_IMAGE_URL = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1000&auto=format&fit=crop';
 const { width: screenWidth } = Dimensions.get('window');
 

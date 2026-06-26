@@ -5,27 +5,27 @@ import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
-  Cake,
-  ChevronRight,
-  Heart,
-  Lock,
-  LogOut,
-  MapPin,
-  Phone,
-  ShoppingBag,
-  Sparkles,
-  TicketPercent,
-  Wallet
+    Cake,
+    ChevronRight,
+    Heart,
+    Lock,
+    LogOut,
+    MapPin,
+    Phone,
+    ShoppingBag,
+    Sparkles,
+    TicketPercent,
+    Wallet
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Modal,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Modal,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -33,7 +33,7 @@ import { toast } from 'sonner-native';
 import { useAlert } from '@/components/ui/CustomAlert'; // ★ Custom Alert import
 import { useAuthStore } from '@/store/authStore';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 // --- Reusable Menu Item Component ---
 const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false }: any) => (

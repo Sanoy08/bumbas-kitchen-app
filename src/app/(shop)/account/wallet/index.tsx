@@ -4,7 +4,6 @@ import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     ArrowDownLeft, ArrowUpRight,
     Coins,
@@ -13,22 +12,23 @@ import {
     RotateCcw, TimerOff,
     TrendingUp
 } from 'lucide-react-native';
-import { useEffect, useState, useRef } from 'react';
-import { 
-    ActivityIndicator, 
-    Alert, 
-    Modal, 
-    ScrollView, 
-    Text, 
-    TextInput, 
-    TouchableOpacity, 
-    View, 
-    Animated, 
-    Keyboard, 
-    Platform 
+import { useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Keyboard,
+    Modal,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 type Transaction = {
   id: string;

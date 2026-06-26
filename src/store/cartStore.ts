@@ -11,7 +11,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { useAuthStore } from './authStore'; // Auth Store থেকে ইউজার ডেটা নেওয়ার জন্য
 
 // API URL Setup
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 type CheckoutState = {
   couponCode: string;

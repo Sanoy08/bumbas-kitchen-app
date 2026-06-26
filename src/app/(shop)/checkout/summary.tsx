@@ -1,24 +1,11 @@
 // src/app/(shop)/checkout/summary.tsx
 
-import { LinearGradient } from 'expo-linear-gradient';
+import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
+import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
-import { formatPrice } from '@/lib/utils';
-import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ActivityIndicator,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  ScrollView,
-  Switch,
-  Image,
-} from 'react-native';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner-native';
 import {
   ArrowRight,
   Check,
@@ -32,8 +19,21 @@ import {
   Wallet,
   X,
 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { toast } from 'sonner-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 export default function OrderSummaryScreen() {
   const router = useRouter();
@@ -150,9 +150,16 @@ export default function OrderSummaryScreen() {
     ? ['#eab308', '#f97316', '#dc2626'] // yellow-500 -> orange-500 -> red-600
     : ['#9ca3af', '#6b7280'];            // gray-400 -> gray-500
 
+  // 🟢 তারিখের ফরম্যাট: 10 June 2026
+  const formattedDate = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date());
+
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-      {/* Progress Steps – now matching Next.js: Cart, 2. Summary, 3. Payment */}
+      {/* Progress Steps */}
       <View className="bg-white border-b border-gray-200 py-4">
         <View className="flex-row items-center justify-center gap-2">
           <View className="flex-row items-center gap-1">
@@ -175,7 +182,7 @@ export default function OrderSummaryScreen() {
           Order Summary
         </Text>
 
-        {/* ─── COIN CARD (Next.js style) ─── */}
+        {/* ─── COIN CARD ─── */}
         <View className="mb-5 rounded-2xl overflow-hidden shadow-xl">
           <LinearGradient
             colors={coinGradientColors}
@@ -183,14 +190,11 @@ export default function OrderSummaryScreen() {
             end={{ x: 1, y: 1 }}
             style={{ padding: 24 }}
           >
-            {/* Background glow circle (only when balance > 0) */}
             {walletBalance > 0 && (
               <View className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -mt-10 -mr-10" />
             )}
-
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-4">
-                {/* Coin icon in a circle */}
                 <View className="h-14 w-14 bg-white/20 rounded-full items-center justify-center border border-white/30">
                   <Coins size={28} color="#fff" />
                 </View>
@@ -206,7 +210,6 @@ export default function OrderSummaryScreen() {
                   </Text>
                 </View>
               </View>
-
               <Switch
                 value={useCoins}
                 onValueChange={handleCoinToggle}
@@ -216,8 +219,6 @@ export default function OrderSummaryScreen() {
                 ios_backgroundColor="#ffffff20"
               />
             </View>
-
-            {/* Savings line (static, no animation) */}
             {useCoins && walletBalance > 0 && (
               <View className="mt-4 pt-4 border-t border-white/20 flex-row justify-between items-center">
                 <Text className="text-yellow-50 text-sm font-medium">Savings applied</Text>
@@ -229,40 +230,22 @@ export default function OrderSummaryScreen() {
           </LinearGradient>
         </View>
 
-        {/* ─── COUPON CARD (with ticket notches) ─── */}
+        {/* ─── COUPON CARD ─── */}
         <View className="mb-5 relative">
-          {/* Notch circles (left & right) */}
           <View
             style={{
-              position: 'absolute',
-              left: -12,
-              top: '50%',
-              marginTop: -12,
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: 'white',
-              borderRightWidth: 1,
-              borderColor: '#e5e7eb',
-              zIndex: 10,
+              position: 'absolute', left: -12, top: '50%', marginTop: -12,
+              width: 24, height: 24, borderRadius: 12, backgroundColor: 'white',
+              borderRightWidth: 1, borderColor: '#e5e7eb', zIndex: 10,
             }}
           />
           <View
             style={{
-              position: 'absolute',
-              right: -12,
-              top: '50%',
-              marginTop: -12,
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: 'white',
-              borderLeftWidth: 1,
-              borderColor: '#e5e7eb',
-              zIndex: 10,
+              position: 'absolute', right: -12, top: '50%', marginTop: -12,
+              width: 24, height: 24, borderRadius: 12, backgroundColor: 'white',
+              borderLeftWidth: 1, borderColor: '#e5e7eb', zIndex: 10,
             }}
           />
-          {/* Main coupon container */}
           <View className="bg-white rounded-xl border-2 border-dashed border-gray-200 overflow-hidden p-5">
             <View className="flex-row items-center gap-2 mb-3">
               <Ticket size={18} color="#e11d48" />
@@ -317,7 +300,7 @@ export default function OrderSummaryScreen() {
           </View>
         </View>
 
-        {/* Items List */}
+        {/* ─── ITEMS LIST ─── */}
         <View className="mb-6 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center gap-2">
@@ -334,7 +317,7 @@ export default function OrderSummaryScreen() {
               (item.image && Array.isArray(item.image) ? item.image[0]?.url : item.image?.url) ||
               PLACEHOLDER_IMAGE_URL;
             return (
-              <View key={item.id} className="flex-row items-center gap-3 mb-3 last:mb-0">
+              <View key={item.id} className="flex-row items-center gap-3 mb-4 last:mb-0">
                 <View className="h-14 w-14 rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
                   <Image
                     source={{ uri: imageSrc }}
@@ -344,7 +327,7 @@ export default function OrderSummaryScreen() {
                 </View>
                 <View className="flex-1 min-w-0">
                   <Text className="font-semibold text-sm text-gray-800 truncate">{item.name}</Text>
-                  <Text className="text-xs text-gray-500 mt-0.5">
+                  <Text className="text-xs text-gray-500 mt-1">
                     Qty: {item.quantity} × {formatPrice(item.price)}
                   </Text>
                 </View>
@@ -356,38 +339,40 @@ export default function OrderSummaryScreen() {
           })}
         </View>
 
-        {/* Bill Summary (Next.js style) */}
+        {/* ─── BILL SUMMARY ─── */}
         <View className="bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden mb-6">
           {/* Dark header */}
-          <View className="bg-gray-900 px-5 py-4 flex-row items-center justify-between">
+          <View className="bg-gray-900 px-6 py-4 flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
-              <Receipt size={16} color="#9ca3af" />
+              <Receipt size={18} color="#9ca3af" />
               <Text className="font-bold text-white tracking-wide text-sm">BILL SUMMARY</Text>
             </View>
+            {/* 🟢 নতুন ডেট ফরম্যাট এখানে ব্যবহার করা হয়েছে */}
             <Text className="text-xs text-gray-400 font-mono">
-              {new Date().toLocaleDateString()}
+              {formattedDate}
             </Text>
           </View>
 
-          <View className="p-5 space-y-4">
+          {/* 🟢 এখানে space-y-4 এর বদলে space-y-5 করা হয়েছে গ্যাপ বাড়ানোর জন্য */}
+          <View className="p-6 space-y-5">
             <View className="flex-row justify-between">
               <Text className="text-gray-600 text-sm">Item Total</Text>
               <Text className="font-medium text-gray-900">{formatPrice(totalPrice)}</Text>
             </View>
             <View className="flex-row justify-between items-center">
               <Text className="text-gray-600 text-sm">Delivery Fee</Text>
-              <View className="flex-row items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md">
+              <View className="flex-row items-center gap-1 bg-orange-50 px-2 py-2 rounded-md">
                 <Text className="text-orange-600 font-bold text-xs">Next Step</Text>
                 <MapPin size={12} color="#ea580c" />
               </View>
             </View>
 
             {(couponDiscount > 0 || (useCoins && coinDiscountAmount > 0)) && (
-              <View className="bg-green-50 rounded-lg p-3 space-y-2 border border-green-100">
+              <View className="bg-green-50 rounded-xl p-4 space-y-3 border border-green-100 mt-2">
                 {couponDiscount > 0 && (
                   <View className="flex-row justify-between items-center">
-                    <View className="flex-row items-center gap-1">
-                      <Ticket size={14} color="#16a34a" />
+                    <View className="flex-row items-center gap-1.5">
+                      <Ticket size={16} color="#16a34a" />
                       <Text className="text-green-700 text-sm font-medium">Coupon Savings</Text>
                     </View>
                     <Text className="text-green-700 text-sm font-medium">
@@ -397,8 +382,8 @@ export default function OrderSummaryScreen() {
                 )}
                 {useCoins && coinDiscountAmount > 0 && (
                   <View className="flex-row justify-between items-center">
-                    <View className="flex-row items-center gap-1">
-                      <Coins size={14} color="#d97706" />
+                    <View className="flex-row items-center gap-1.5">
+                      <Coins size={16} color="#d97706" />
                       <Text className="text-amber-700 text-sm font-medium">Coin Savings</Text>
                     </View>
                     <Text className="text-amber-700 text-sm font-medium">
@@ -409,35 +394,32 @@ export default function OrderSummaryScreen() {
               </View>
             )}
 
-            {/* Dashed separator (Note: dashed may not work on Android, falls back to solid) */}
-            <View style={{ borderTopWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed' }} />
+            {/* 🟢 গ্যাপের জন্য প্যাডিং বাড়ানো হয়েছে */}
+            <View style={{ borderTopWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed', marginTop: 8, marginBottom: 4 }} />
 
-            <View className="flex-row justify-between items-center pt-2">
+            <View className="flex-row justify-between items-center pt-2 pb-1">
               <Text className="text-lg font-bold text-gray-900">Total (Excl. Delivery)</Text>
               <Text className="text-2xl font-extrabold text-primary">{formatPrice(finalTotal)}</Text>
             </View>
-            <Text className="text-[10px] text-right text-gray-400 font-medium">
+            <Text className="text-[11px] text-right text-gray-400 font-medium mt-1">
               *Delivery charges will be added at checkout
             </Text>
           </View>
         </View>
 
-        {/* Zigzag / Scalloped edge (ticket cutout look) */}
+        {/* Zigzag edge */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: -8, marginBottom: -8, paddingHorizontal: 4 }}>
           {Array.from({ length: 25 }).map((_, i) => (
             <View
               key={i}
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: 'white',
+                width: 10, height: 10, borderRadius: 5, backgroundColor: 'white',
               }}
             />
           ))}
         </View>
 
-        {/* Proceed Button – text only "Select Address & Pay" */}
+        {/* Proceed Button */}
         <TouchableOpacity
           onPress={handleProceed}
           className="bg-primary h-14 rounded-2xl flex-row items-center justify-center gap-4 mb-2 shadow-xl"

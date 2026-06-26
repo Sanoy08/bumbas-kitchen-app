@@ -5,15 +5,15 @@ import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
-  Calendar,
-  CheckCircle2,
-  ChevronRight, Clock,
-  Download,
-  MapPin,
-  Package,
-  ShoppingBag,
-  Utensils,
-  X
+    Calendar,
+    CheckCircle2,
+    ChevronRight, Clock,
+    Download,
+    MapPin,
+    Package,
+    ShoppingBag,
+    Utensils,
+    X
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -27,7 +27,7 @@ import { useAuthStore } from '@/store/authStore';
 // ★ নতুন ইনভয়েস জেনারেটর ইমপোর্ট করা হলো
 import { generateInvoice } from '@/lib/invoiceGenerator';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 type Order = {
   _id: string;

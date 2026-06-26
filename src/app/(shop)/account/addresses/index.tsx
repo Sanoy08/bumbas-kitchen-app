@@ -13,7 +13,7 @@ import { useAlert } from '@/components/ui/CustomAlert';
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.vercel.app/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 const PRESET_LABELS = ["Home", "Work", "Office", "Mom's Place", "Other"];
 
 function useDebounce<T>(value: T, delay: number): T {
