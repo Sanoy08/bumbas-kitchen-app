@@ -304,31 +304,35 @@ export default function CartScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: any }) => (
-      <CartItem
-        item={item}
-        onRemove={confirmRemove}
-        onQuantityChange={handleQuantityChange}
-        simultaneousHandlers={flatListRef}
-        isRemoving={removingIds.includes(item.id)}
-      />
+      // 👇 আইটেমের চারপাশে px-4 দেওয়া হচ্ছে, যাতে স্পেসিং ঠিক থাকে
+      <View className="px-4">
+        <CartItem
+          item={item}
+          onRemove={confirmRemove}
+          onQuantityChange={handleQuantityChange}
+          simultaneousHandlers={flatListRef}
+          isRemoving={removingIds.includes(item.id)}
+        />
+      </View>
     ),
     [confirmRemove, handleQuantityChange, removingIds]
   );
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
-  // Footer component with total & proceed (just like the summary page’s bottom section)
+  // ✅ EDGE‑TO‑EDGE FOOTER – px-4 সরিয়ে পুরো চওড়া করা হয়েছে
   const ListFooter = () => (
-    <View className="bg-white rounded-3xl px-5 py-4 mx-4 mb-4 border border-gray-100 shadow-lg"
+    <View
+      className="bg-white py-4 border-t border-gray-100"
       style={{
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 5,
       }}
     >
-      <View className="flex-row items-center justify-between">
+      <View className="flex-row items-center justify-between px-5">
         <View>
           <Text className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
             Total
@@ -410,15 +414,15 @@ export default function CartScreen() {
           data={items}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
-          className="flex-1 px-4 pt-4"
+          className="flex-1 pt-4"              // ← px-4 সরানো হয়েছে
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}   // ← account page-এর মতো 80
+          contentContainerStyle={{ paddingBottom: 10 }}
           ListFooterComponent={<ListFooter />}
         />
       ) : (
         <View
           className="flex-1 bg-white justify-center items-center px-8"
-          style={{ paddingBottom: 20 }}   // ← empty state-এও 80
+          style={{ paddingBottom: 20 }}
         >
           <View className="w-64 h-64 mb-4">
             <LottieView
