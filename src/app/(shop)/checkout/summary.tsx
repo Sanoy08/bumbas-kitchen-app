@@ -68,17 +68,8 @@ export default function OrderSummaryScreen() {
     if (user) fetchWallet();
   }, [user]);
 
-  // Auth & cart guard
-  useEffect(() => {
-    if (isInitialized && !user) {
-      toast.error('Please login to continue.');
-    }
-  }, [isInitialized, user]);
-
+  // Cart empty guard
   if (isInitialized) {
-    if (!user) {
-      return <Redirect href="/(auth)/login?redirect=/(shop)/checkout/summary" />;
-    }
     if (itemCount === 0) {
       return <Redirect href="/(shop)/" />;
     }
@@ -330,7 +321,7 @@ export default function OrderSummaryScreen() {
             return (
               <View 
                 key={item.id} 
-                className={`flex-row items-center gap-4 ${index !== items.length - 1 ? 'mb-4' : ''}`}
+                className={`flex-row items-center gap-4 ${index !== items.length - 1 ? 'mb-8' : ''}`}
               >
                 <View className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
                   <Image
