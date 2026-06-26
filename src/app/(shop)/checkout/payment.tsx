@@ -1,162 +1,269 @@
 // src/app/(shop)/checkout/payment.tsx
 
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert, Keyboard, Modal
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ArrowLeft, MapPin, CheckCircle2, Circle, Clock, Home, Briefcase,
-  Lock, Calendar as CalendarIcon, FileText
-} from 'lucide-react-native';
+import React from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { Link, useRouter } from 'expo-router';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Briefcase,
+  Calendar as CalendarIcon,
+  Check,
+  ChevronDown,
+  Coins,
+  Home,
+  Loader2,
+  MapPin,
+  Plus,
+  Ticket,
+} from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
-import { useCartStore } from '@/store/cartStore';
-import { useAuthStore } from '@/store/authStore';
+import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
+import { optimizeImageUrl } from '@/lib/imageUtils';
 import { formatPrice } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
+
+// ─── Helpers ──────────────────────────────────────────
+const getAddressIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('home')) return <Home size={18} color="#6b7280" />;
+  if (n.includes('work') || n.includes('office')) return <Briefcase size={18} color="#6b7280" />;
+  return <MapPin size={18} color="#6b7280" />;
+};
+
+// ─── Components ──────────────────────────────────────
+const SegmentButton = ({ selected, onPress, children }: any) => (
+  <TouchableOpacity
+    onPress={onPress}
+    activeOpacity={0.8}
+    className={`flex-1 py-3 px-5 rounded-xl border ${
+      selected ? 'bg-white border-primary shadow-sm' : 'bg-transparent border-gray-200'
+    } items-center`}
+  >
+    <Text className={`font-semibold text-sm ${selected ? 'text-primary' : 'text-gray-500'}`}>
+      {children}
+    </Text>
+  </TouchableOpacity>
+);
+
+const AddressCard = ({ address, isSelected, onSelect }: any) => (
+  <TouchableOpacity
+    onPress={onSelect}
+    activeOpacity={0.8}
+    className={`flex-row items-start p-4 mb-3 rounded-xl border ${
+      isSelected ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white'
+    }`}
+  >
+    <View className={`h-10 w-10 rounded-xl items-center justify-center mr-3 ${isSelected ? 'bg-primary' : 'bg-gray-100'}`}>
+      {React.cloneElement(getAddressIcon(address.name), { color: isSelected ? '#fff' : '#6b7280' })}
+    </View>
+    <View className="flex-1">
+      <View className="flex-row justify-between items-start">
+        <Text className="font-bold text-gray-900 text-sm">{address.name}</Text>
+        {isSelected && <Check size={16} color="#e11d48" />}
+      </View>
+      <Text className="text-xs text-gray-500 mt-1" numberOfLines={2}>
+        {address.address}
+      </Text>
+      <View className="flex-row items-center mt-2 gap-2">
+        <Text className="text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-medium">
+          {address.distanceText}
+        </Text>
+        <Text className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+          address.deliveryFee === 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+        }`}>
+          {address.deliveryFee === 0 ? 'FREE' : `Fee: ${formatPrice(address.deliveryFee)}`}
+        </Text>
+      </View>
+    </View>
+  </TouchableOpacity>
+);
 
 export default function CheckoutPaymentScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuthStore();
-  const { items, getTotalPrice, checkoutState, clearCart } = useCartStore();
+  const { user, isInitialized } = useAuthStore();
+  const {
+    items,
+    getTotalPrice,
+    checkoutState,
+    setCheckoutData,
+    clearCart,
+  } = useCartStore();
 
-  // States
+  // Redirect if not logged in or cart empty (guard is in _layout but double check)
+  if (isInitialized && (!user || items.length === 0)) {
+    return <Redirect href="/(shop)/" />;
+  }
+
+  // ─── State ────────────────────────────────────────
   const [orderType, setOrderType] = useState<'delivery' | 'pickup'>('delivery');
+  const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-
-  const [preferredDate, setPreferredDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
+  const [preferredDate, setPreferredDate] = useState<string>('');
   const [mealTime, setMealTime] = useState<'lunch' | 'dinner'>('lunch');
   const [instructions, setInstructions] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Address Data
-  const addresses = user?.savedAddresses || [];
+  // Date picker
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
 
-  // Calculations
-  const selectedAddress = addresses.find(
-    (a: any) => a.id === selectedAddressId || a._id === selectedAddressId
-  );
-  const currentDeliveryFee =
-    orderType === 'delivery' ? (selectedAddress?.deliveryFee || 0) : 0;
+  // Time validation alert
+  const [timeAlert, setTimeAlert] = useState({ show: false, title: '', message: '' });
 
+  // Wallet
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  // ─── Cart Totals ─────────────────────────────────
   const subtotal = getTotalPrice();
-  const couponDiscount =
-    checkoutState.couponDiscount > 0
-      ? (subtotal * checkoutState.couponDiscount) / 100
-      : 0;
+  const itemCount = items.length;
+
+  const { couponCode, couponDiscount, useCoins } = checkoutState;
+
+  // Compute coin discount amount
   const maxCoinDiscount = subtotal * 0.5;
-  const walletBalance = user?.walletBalance || 0; // Or fetch fresh
-  const coinDiscountAmount = checkoutState.useCoins
-    ? Math.min(walletBalance, Math.floor(maxCoinDiscount))
-    : 0;
+  const coinDiscountAmount = useCoins ? Math.min(walletBalance, Math.floor(maxCoinDiscount)) : 0;
 
-  const finalTotal = Math.max(
-    0,
-    subtotal + currentDeliveryFee - couponDiscount - coinDiscountAmount
-  );
+  // Delivery fee
+  const selectedAddress = addresses.find(a => a.id === selectedAddressId);
+  const deliveryFee = orderType === 'delivery' ? (selectedAddress?.deliveryFee ?? 0) : 0;
 
+  // Final total
+  const finalTotal = Math.max(0, subtotal + deliveryFee - couponDiscount - coinDiscountAmount);
+
+  // ─── Fetch addresses & wallet ─────────────────
   useEffect(() => {
-    // Set default address on load
-    if (addresses.length > 0 && !selectedAddressId) {
-      const defaultAddr = addresses.find((a: any) => a.isDefault) || addresses[0];
-      setSelectedAddressId(defaultAddr.id || defaultAddr._id);
-    }
-  }, [addresses]);
+    if (!user) return;
+    const fetchAddressesAndWallet = async () => {
+      try {
+        const resAddr = await fetch(`${API_URL}/user/addresses`);
+        const dataAddr = await resAddr.json();
+        if (dataAddr.success && dataAddr.addresses) {
+          setAddresses(dataAddr.addresses);
+          const defaultAddr = dataAddr.addresses.find((a: any) => a.isDefault) || dataAddr.addresses[0];
+          if (defaultAddr) setSelectedAddressId(defaultAddr.id);
+        }
+      } catch (e) {}
+      try {
+        const resWallet = await fetch(`${API_URL}/wallet`);
+        const dataWallet = await resWallet.json();
+        if (dataWallet.success && dataWallet.wallet) {
+          setWalletBalance(dataWallet.wallet.balance || 0);
+        } else if (dataWallet.success && dataWallet.balance) {
+          setWalletBalance(dataWallet.balance);
+        }
+      } catch (e) {}
+    };
+    fetchAddressesAndWallet();
+  }, [user]);
 
-  const getIcon = (name: string = '') => {
-    const n = name.toLowerCase();
-    if (n.includes('home')) return <Home size={20} color="#e11d48" />;
-    if (n.includes('work') || n.includes('office'))
-      return <Briefcase size={20} color="#e11d48" />;
-    return <MapPin size={20} color="#e11d48" />;
+  // ─── Handlers ───────────────────────────────────
+  const handleDatePress = () => {
+    if (preferredDate) setTempDate(new Date(preferredDate));
+    else setTempDate(new Date());
+    setShowDatePicker(true);
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
+  const onDateSelected = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') setShowDatePicker(false);
     if (event.type !== 'dismissed' && selectedDate) {
-      setPreferredDate(selectedDate);
+      setPreferredDate(format(selectedDate, 'yyyy-MM-dd'));
+      if (Platform.OS === 'android') setShowDatePicker(false);
     }
   };
 
+  const confirmIOSDate = () => {
+    setPreferredDate(format(tempDate, 'yyyy-MM-dd'));
+    setShowDatePicker(false);
+  };
+
+  const handleMealTimeSelect = (time: 'lunch' | 'dinner') => setMealTime(time);
+
+  // Place Order
   const handlePlaceOrder = async () => {
-    // 1. Validations
-    if (orderType === 'delivery' && !selectedAddress) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Please select a delivery address.");
+    if (orderType === 'delivery' && !selectedAddressId) {
+      toast.error('Please select a delivery address');
       return;
     }
     if (!preferredDate) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Please select a preferred date.");
+      toast.error('Please select a preferred date');
       return;
     }
-    if (!termsAccepted) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Please agree to the Terms & Conditions.");
+    if (!termsAgreed) {
+      toast.error('You must agree to the Terms & Conditions');
       return;
     }
 
-    // 2. Time Validation (9 AM and 6 PM Logic)
+    // Time validation (same as Next.js)
     const today = new Date();
-    const isToday =
-      preferredDate.getDate() === today.getDate() &&
-      preferredDate.getMonth() === today.getMonth() &&
-      preferredDate.getFullYear() === today.getFullYear();
-
+    const todayStr = format(today, 'yyyy-MM-dd');
     const currentHour = today.getHours();
 
-    if (isToday) {
+    if (preferredDate === todayStr) {
       if (mealTime === 'lunch' && currentHour >= 9) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert(
-          "Time Limit Exceeded!",
-          "Today's lunch orders are accepted until 9 AM only. Please select a future date."
-        );
+        setTimeAlert({
+          show: true,
+          title: 'Time Limit Exceeded!',
+          message: "Today's lunch orders are accepted until 9 AM only. Please select a future date.",
+        });
         return;
       }
       if (mealTime === 'dinner' && currentHour >= 18) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert(
-          "Time Limit Exceeded!",
-          "Today's dinner orders are accepted until 6 PM only. Please select a future date."
-        );
+        setTimeAlert({
+          show: true,
+          title: 'Time Limit Exceeded!',
+          message: "Today's dinner orders are accepted until 6 PM only. Please select a future date.",
+        });
         return;
       }
     }
 
     setIsSubmitting(true);
-    Keyboard.dismiss();
-
     try {
       const orderPayload = {
-        preferredDate: format(preferredDate, 'yyyy-MM-dd'),
+        preferredDate,
         mealTime,
         instructions,
         name: user?.name || 'Customer',
-        phone: user?.phone || '',
+        altPhone: user?.phone || '',
         items,
         subtotal,
-        deliveryFee: currentDeliveryFee,
+        deliveryFee,
         total: finalTotal,
         discount: couponDiscount + coinDiscountAmount,
-        couponCode: checkoutState.couponCode,
-        useCoins: checkoutState.useCoins,
+        couponCode: couponDiscount > 0 ? couponCode : '',
+        useCoins,
         orderType,
-        deliveryAddress: selectedAddress
-          ? selectedAddress.address
-          : 'Store Pickup',
-        coordinates: selectedAddress ? selectedAddress.coordinates : null,
+        address: selectedAddress?.address || 'Store Pickup',
+        deliveryAddress: selectedAddress?.address || undefined,
+        coordinates: selectedAddress?.coordinates || null,
       };
 
       const res = await fetch(`${API_URL}/orders`, {
@@ -165,423 +272,309 @@ export default function CheckoutPaymentScreen() {
         body: JSON.stringify(orderPayload),
       });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || 'Order placement failed');
 
-      // Success
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success("Order Placed Successfully! 🎉");
       clearCart();
-
-      // Navigate to Orders Page
+      toast.success('Order Placed Successfully!');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(shop)/account/orders');
     } catch (error: any) {
+      toast.error(error.message || 'Failed to place order');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error(error.message || "Failed to place order.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (!isInitialized)
+    return (
+      <View className="flex-1 justify-center items-center bg-white">
+        <ActivityIndicator size="large" color="#e11d48" />
+      </View>
+    );
+
   return (
-    <View className="flex-1 bg-gray-50">
-      {/* HEADER */}
-      <View
-        className="bg-white pb-2 shadow-sm"
-        style={{
-          paddingTop: insets.top + 6,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 6,
-          elevation: 4,
-        }}
-      >
-        <View className="flex-row items-center px-4 py-2">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="h-10 w-10 bg-gray-100 rounded-full items-center justify-center mr-3"
-          >
-            <ArrowLeft size={20} color="#374151" />
-          </TouchableOpacity>
-          <Text className="text-2xl font-extrabold text-gray-900 font-sans tracking-tight">
-            Checkout
-          </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      className="flex-1 bg-white"
+      style={{ paddingTop: insets.top }}
+    >
+      {/* Time Validation Alert */}
+      <Modal visible={timeAlert.show} transparent animationType="fade">
+        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+          <View className="bg-white w-full rounded-2xl p-6">
+            <View className="flex-row items-center gap-2 mb-2">
+              <AlertCircle size={24} color="#dc2626" />
+              <Text className="text-lg font-bold text-red-600">{timeAlert.title}</Text>
+            </View>
+            <Text className="text-gray-600 mb-6">{timeAlert.message}</Text>
+            <TouchableOpacity
+              onPress={() => setTimeAlert({ show: false, title: '', message: '' })}
+              className="bg-red-600 py-3 rounded-xl items-center"
+            >
+              <Text className="text-white font-bold">I Understand</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      </Modal>
+
+      {/* Header */}
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
+        <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
+          <ArrowLeft size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text className="text-lg font-bold text-gray-900">Checkout</Text>
+        <View className="w-10" />
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
+      <ScrollView
+        className="flex-1 px-4"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
-        <ScrollView
-          className="flex-1 px-4 pt-4"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 140 }} // extra space for bottom bar
-        >
-          {/* DELIVERY METHOD */}
-          <View className="bg-white p-5 rounded-2xl border border-gray-100 mb-4 shadow-sm">
-            <Text className="text-sm font-bold text-gray-900 font-sans mb-3">
-              Delivery Method
-            </Text>
-            <View className="flex-row gap-3 bg-gray-100 p-1.5 rounded-xl">
-              <TouchableOpacity
-                onPress={() => {
-                  setOrderType('delivery');
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                className={`flex-1 py-2.5 items-center justify-center rounded-lg ${
-                  orderType === 'delivery' ? 'bg-white shadow-sm' : ''
-                }`}
-              >
-                <Text
-                  className={`font-bold font-sans ${
-                    orderType === 'delivery' ? 'text-primary' : 'text-gray-500'
-                  }`}
-                >
-                  Delivery
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setOrderType('pickup');
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                className={`flex-1 py-2.5 items-center justify-center rounded-lg ${
-                  orderType === 'pickup' ? 'bg-white shadow-sm' : ''
-                }`}
-              >
-                <Text
-                  className={`font-bold font-sans ${
-                    orderType === 'pickup' ? 'text-primary' : 'text-gray-500'
-                  }`}
-                >
-                  Pickup
-                </Text>
+        {/* Delivery Method */}
+        <Text className="text-base font-bold text-gray-900 mt-6 mb-3">Delivery Method</Text>
+        <View className="flex-row bg-gray-100 rounded-xl p-1 mb-6">
+          <SegmentButton selected={orderType === 'delivery'} onPress={() => setOrderType('delivery')}>
+            Delivery
+          </SegmentButton>
+          <SegmentButton selected={orderType === 'pickup'} onPress={() => setOrderType('pickup')}>
+            Pickup
+          </SegmentButton>
+        </View>
+
+        {/* Address Selection (Delivery) */}
+        {orderType === 'delivery' ? (
+          <View className="mb-6">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-base font-bold text-gray-900">Select Address</Text>
+              <TouchableOpacity onPress={() => router.push('/(shop)/account/addresses')}>
+                <View className="flex-row items-center">
+                  <Plus size={16} color="#e11d48" />
+                  <Text className="text-primary font-medium ml-1">Add New</Text>
+                </View>
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* ADDRESS SELECTION */}
-          {orderType === 'delivery' ? (
-            <View className="bg-white p-5 rounded-2xl border border-gray-100 mb-4 shadow-sm">
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-sm font-bold text-gray-900 font-sans">
-                  Select Address
-                </Text>
+            {addresses.length === 0 ? (
+              <View className="items-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <MapPin size={40} color="#9ca3af" className="mb-3" />
+                <Text className="text-gray-500 mb-4">No saved addresses found.</Text>
                 <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    toast.info('Manage Addresses from Account');
-                  }}
+                  onPress={() => router.push('/(shop)/account/addresses')}
+                  className="bg-primary px-6 py-2 rounded-xl"
                 >
-                  <Text className="text-primary font-bold text-xs font-sans">
-                    + ADD NEW
-                  </Text>
+                  <Text className="text-white font-bold">Add Address</Text>
                 </TouchableOpacity>
               </View>
-
-              {addresses.length === 0 ? (
-                <View className="items-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                  <MapPin size={32} color="#d1d5db" />
-                  <Text className="text-gray-500 font-sans mt-2">
-                    No saved addresses found.
-                  </Text>
-                </View>
-              ) : (
-                <View className="space-y-3">
-                  {addresses.map((addr: any) => {
-                    const isSelected =
-                      selectedAddressId === (addr.id || addr._id);
-                    return (
-                      <TouchableOpacity
-                        key={addr.id || addr._id}
-                        onPress={() => {
-                          setSelectedAddressId(addr.id || addr._id);
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                        className={`p-4 rounded-xl border-2 flex-row items-center ${
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-gray-100 bg-gray-50'
-                        }`}
-                      >
-                        <View
-                          className={`h-10 w-10 rounded-full items-center justify-center mr-3 ${
-                            isSelected
-                              ? 'bg-primary/20'
-                              : 'bg-white border border-gray-200'
-                          }`}
-                        >
-                          {getIcon(addr.name)}
-                        </View>
-                        <View className="flex-1">
-                          <Text className="font-bold text-gray-900 text-sm font-sans mb-0.5">
-                            {addr.name}
-                          </Text>
-                          <Text
-                            className="text-xs text-gray-500 font-sans"
-                            numberOfLines={1}
-                          >
-                            {addr.address}
-                          </Text>
-                          <View className="flex-row items-center gap-2 mt-1.5">
-                            <Text className="text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded font-bold text-gray-600">
-                              Dist: {addr.distanceText}
-                            </Text>
-                            <Text
-                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                                addr.deliveryFee === 0
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-orange-100 text-orange-700'
-                              }`}
-                            >
-                              Fee:{' '}
-                              {addr.deliveryFee === 0
-                                ? 'FREE'
-                                : formatPrice(addr.deliveryFee)}
-                            </Text>
-                          </View>
-                        </View>
-                        <View className="ml-2">
-                          {isSelected ? (
-                            <CheckCircle2 size={24} color="#e11d48" />
-                          ) : (
-                            <Circle size={24} color="#d1d5db" />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          ) : (
-            <View className="bg-blue-50 p-5 rounded-2xl border border-blue-100 mb-4 items-center">
-              <Text className="font-bold text-blue-900 text-base font-sans mb-1">
-                Store Location
-              </Text>
-              <Text className="text-blue-800 text-center font-sans mb-3 text-sm">
-                Janai, Garbagan, Hooghly (PIN: 712304)
-              </Text>
-              <TouchableOpacity
-                className="flex-row items-center bg-white px-4 py-2 rounded-full shadow-sm"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  toast.info('Map integration coming soon');
-                }}
-              >
-                <MapPin size={14} color="#e11d48" />
-                <Text className="text-primary font-bold text-xs font-sans ml-1.5">
-                  View on Maps
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* PREFERENCES (Date & Time) */}
-          <View className="bg-white p-5 rounded-2xl border border-gray-100 mb-4 shadow-sm">
-            <Text className="text-sm font-bold text-gray-900 font-sans mb-4">
-              Preferences
-            </Text>
-
-            <View className="flex-row gap-3 mb-4">
-              <View className="flex-1">
-                <Text className="text-xs font-bold text-gray-500 mb-1.5 ml-1 font-sans">
-                  Date
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowDatePicker(true);
-                  }}
-                  className="h-12 bg-gray-50 border border-gray-200 rounded-xl flex-row items-center px-3 justify-between"
-                >
-                  <Text
-                    className={`text-sm font-sans font-medium ${
-                      preferredDate ? 'text-gray-900' : 'text-gray-400'
-                    }`}
-                  >
-                    {preferredDate
-                      ? format(preferredDate, 'MMM do, yyyy')
-                      : 'Pick a date'}
-                  </Text>
-                  <CalendarIcon size={18} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
-
-              <View className="flex-1">
-                <Text className="text-xs font-bold text-gray-500 mb-1.5 ml-1 font-sans">
-                  Time
-                </Text>
-                <View className="flex-row bg-gray-100 p-1 rounded-xl h-12">
-                  <TouchableOpacity
-                    onPress={() => {
-                      setMealTime('lunch');
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    className={`flex-1 items-center justify-center rounded-lg ${
-                      mealTime === 'lunch' ? 'bg-white shadow-sm' : ''
-                    }`}
-                  >
-                    <Text
-                      className={`font-bold text-xs font-sans ${
-                        mealTime === 'lunch'
-                          ? 'text-gray-900'
-                          : 'text-gray-500'
-                      }`}
-                    >
-                      Lunch
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setMealTime('dinner');
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    className={`flex-1 items-center justify-center rounded-lg ${
-                      mealTime === 'dinner' ? 'bg-white shadow-sm' : ''
-                    }`}
-                  >
-                    <Text
-                      className={`font-bold text-xs font-sans ${
-                        mealTime === 'dinner'
-                          ? 'text-gray-900'
-                          : 'text-gray-500'
-                      }`}
-                    >
-                      Dinner
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            <Text className="text-xs font-bold text-gray-500 mb-1.5 ml-1 font-sans">
-              Cooking Instructions (Optional)
-            </Text>
-            <View className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 min-h-[80px]">
-              <TextInput
-                placeholder="E.g., Less spicy, extra onions..."
-                placeholderTextColor="#9ca3af"
-                value={instructions}
-                onChangeText={setInstructions}
-                multiline
-                className="text-sm font-sans text-gray-900 h-full"
-                textAlignVertical="top"
-              />
-            </View>
+            ) : (
+              addresses.map((addr: any) => (
+                <AddressCard
+                  key={addr.id}
+                  address={addr}
+                  isSelected={selectedAddressId === addr.id}
+                  onSelect={() => setSelectedAddressId(addr.id)}
+                />
+              ))
+            )}
           </View>
+        ) : (
+          <View className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <Text className="font-bold text-blue-900 text-sm">Store Pickup Location</Text>
+            <Text className="text-blue-800 mt-1">Janai, Garbagan, Hooghly (PIN: 712304)</Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://maps.google.com/?q=22.717958,88.260207')}
+              className="flex-row items-center mt-2"
+            >
+              <MapPin size={14} color="#2563eb" />
+              <Text className="text-blue-600 underline text-sm ml-1">View on Maps</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          {/* TERMS & CONDITIONS */}
+        {/* Date & Meal Time */}
+        <Text className="text-base font-bold text-gray-900 mb-3">Preferences</Text>
+        <View className="flex-row gap-4 mb-4">
+          {/* Date Picker */}
           <TouchableOpacity
-            onPress={() => {
-              setTermsAccepted(!termsAccepted);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            className="flex-row items-start bg-white p-4 rounded-2xl border border-gray-100 mb-6 shadow-sm"
+            onPress={handleDatePress}
+            className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-xl flex-row items-center px-3"
           >
-            <View className="mt-0.5 mr-3">
-              {termsAccepted ? (
-                <CheckCircle2 size={20} color="#16a34a" />
-              ) : (
-                <Circle size={20} color="#d1d5db" />
-              )}
-            </View>
-            <Text className="flex-1 text-sm text-gray-600 font-sans leading-5">
-              I agree to the{' '}
-              <Text className="font-bold text-primary">Terms & Conditions</Text>{' '}
-              and{' '}
-              <Text className="font-bold text-primary">Refund Policy</Text>.
+            <CalendarIcon size={18} color="#6b7280" />
+            <Text className={`ml-2 text-sm ${preferredDate ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+              {preferredDate ? format(new Date(preferredDate), 'MMM do, yyyy') : 'Pick a date'}
             </Text>
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* STICKY BOTTOM PAY BAR (Edge-to-Edge) */}
+          {/* Meal Time Dropdown */}
+          <TouchableOpacity
+            className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-xl flex-row items-center px-3"
+          >
+            <Text className="text-sm font-medium text-gray-900">{mealTime === 'lunch' ? 'Lunch' : 'Dinner'}</Text>
+            <View className="ml-auto flex-row items-center">
+              <TouchableOpacity
+                onPress={() => handleMealTimeSelect('lunch')}
+                className={`px-3 py-1 rounded-lg mr-1 ${mealTime === 'lunch' ? 'bg-primary' : 'bg-gray-200'}`}
+              >
+                <Text className={mealTime === 'lunch' ? 'text-white font-bold' : 'text-gray-600'}>Lunch</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleMealTimeSelect('dinner')}
+                className={`px-3 py-1 rounded-lg ${mealTime === 'dinner' ? 'bg-primary' : 'bg-gray-200'}`}
+              >
+                <Text className={mealTime === 'dinner' ? 'text-white font-bold' : 'text-gray-600'}>Dinner</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Instructions */}
+        <View className="mb-6">
+          <Text className="text-xs text-gray-500 mb-2 ml-1">Cooking Instructions (Optional)</Text>
+          <TextInput
+            value={instructions}
+            onChangeText={setInstructions}
+            placeholder="Any special request..."
+            placeholderTextColor="#9ca3af"
+            multiline
+            numberOfLines={3}
+            className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm min-h-[80px]"
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* Terms & Conditions */}
+        <View className="flex-row items-start mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <Switch
+            value={termsAgreed}
+            onValueChange={setTermsAgreed}
+            trackColor={{ false: '#d1d5db', true: '#fecaca' }}
+            thumbColor={termsAgreed ? '#e11d48' : '#f4f3f4'}
+          />
+          <View className="ml-3 flex-1">
+            <Text className="text-sm text-gray-600">
+              I agree to the{' '}
+              <Text
+                className="text-primary underline font-medium"
+                onPress={() => Linking.openURL('https://www.bumbaskitchen.app/terms')}
+              >
+                Terms & Conditions
+              </Text>{' '}
+              and Refund Policy.
+            </Text>
+          </View>
+        </View>
+
+        {/* Order Summary */}
+        <View className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+          <Text className="font-bold text-lg text-gray-900 mb-4">Order Summary</Text>
+          {items.map((item: any) => {
+            const imageSrc = (item.image && item.image[0]?.url) || item.image?.url || PLACEHOLDER_IMAGE_URL;
+            return (
+              <View key={item.id} className="flex-row items-center mb-4">
+                <View className="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 mr-3">
+                  <Image source={{ uri: optimizeImageUrl(imageSrc) }} className="h-full w-full" contentFit="cover" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-medium text-sm text-gray-800" numberOfLines={1}>{item.name}</Text>
+                  <Text className="text-xs text-gray-500">Qty: {item.quantity}</Text>
+                </View>
+                <Text className="font-semibold text-sm">{formatPrice(item.price * item.quantity)}</Text>
+              </View>
+            );
+          })}
+
+          <View className="border-t border-gray-100 pt-4 space-y-2">
+            <View className="flex-row justify-between">
+              <Text className="text-gray-600 text-sm">Subtotal</Text>
+              <Text className="font-medium">{formatPrice(subtotal)}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-gray-600 text-sm">Delivery Fee</Text>
+              <Text className={deliveryFee === 0 ? 'text-green-600 font-medium' : 'font-medium'}>
+                {deliveryFee === 0 ? 'Free' : formatPrice(deliveryFee)}
+              </Text>
+            </View>
+            {couponDiscount > 0 && (
+              <View className="flex-row justify-between">
+                <View className="flex-row items-center">
+                  <Ticket size={14} color="#16a34a" />
+                  <Text className="text-green-700 text-sm ml-1">Coupon</Text>
+                </View>
+                <Text className="text-green-700 font-medium">- {formatPrice(couponDiscount)}</Text>
+              </View>
+            )}
+            {useCoins && coinDiscountAmount > 0 && (
+              <View className="flex-row justify-between">
+                <View className="flex-row items-center">
+                  <Coins size={14} color="#d97706" />
+                  <Text className="text-amber-700 text-sm ml-1">Coins</Text>
+                </View>
+                <Text className="text-amber-700 font-medium">- {formatPrice(coinDiscountAmount)}</Text>
+              </View>
+            )}
+            <View className="border-t border-gray-100 pt-2 flex-row justify-between">
+              <Text className="font-bold text-lg">Total</Text>
+              <Text className="font-extrabold text-xl text-primary">{formatPrice(finalTotal)}</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Fixed Bottom Button */}
       <View
-        className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-4"
-        style={{
-          paddingBottom: insets.bottom + 12,
-          elevation: 20,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -10 },
-          shadowOpacity: 0.1,
-          shadowRadius: 10,
-        }}
+        className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pb-4 pt-3"
+        style={{ paddingBottom: insets.bottom + 8 }}
       >
         <TouchableOpacity
           onPress={handlePlaceOrder}
-          disabled={
-            isSubmitting || (orderType === 'delivery' && !selectedAddress)
-          }
-          className={`w-full h-14 rounded-2xl items-center justify-center flex-row shadow-lg ${
-            isSubmitting || (orderType === 'delivery' && !selectedAddress)
+          disabled={isSubmitting || (orderType === 'delivery' && !selectedAddressId)}
+          className={`h-14 rounded-2xl items-center justify-center flex-row ${
+            isSubmitting || (orderType === 'delivery' && !selectedAddressId)
               ? 'bg-gray-300'
               : 'bg-primary'
           }`}
-          activeOpacity={0.9}
-          style={{
-            shadowColor: '#e11d48',
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.35,
-            shadowRadius: 12,
-            elevation: 10,
-          }}
         >
           {isSubmitting ? (
-            <>
-              <ActivityIndicator color="#fff" />
-              <Text className="text-white font-bold text-lg font-sans ml-2">
-                Processing...
-              </Text>
-            </>
+            <ActivityIndicator color="white" className="mr-2" />
           ) : (
-            <>
-              <Lock size={18} color="#ffffff" />
-              <Text className="text-white font-bold text-lg font-sans ml-2">
-                Place Order • {formatPrice(finalTotal)}
-              </Text>
-            </>
+            <Text className="text-white font-bold text-lg">
+              Place Order — {formatPrice(finalTotal)}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* DatePicker Component (Hidden unless triggered) */}
+      {/* Date Picker Modal */}
       {showDatePicker && Platform.OS === 'ios' ? (
-        <Modal transparent={true} animationType="slide">
-          <View className="flex-1 justify-end bg-black/50">
-            <View
-              className="bg-white rounded-t-3xl p-4"
-              style={{ paddingBottom: insets.bottom + 16 }}
-            >
+        <Modal transparent animationType="slide">
+          <View className="flex-1 justify-end bg-black/40">
+            <View className="bg-white rounded-t-3xl p-4" style={{ paddingBottom: insets.bottom + 20 }}>
               <DateTimePicker
-                value={preferredDate || new Date()}
+                value={tempDate}
                 mode="date"
                 display="spinner"
-                onChange={onDateChange}
+                onChange={(e, date) => setTempDate(date || tempDate)}
                 minimumDate={new Date()}
               />
               <TouchableOpacity
-                onPress={() => setShowDatePicker(false)}
-                className="mt-4 items-center p-3.5 bg-primary rounded-xl"
+                onPress={confirmIOSDate}
+                className="bg-primary py-3 rounded-xl mt-4 items-center"
               >
-                <Text className="text-white font-bold text-base font-sans">
-                  Confirm Date
-                </Text>
+                <Text className="text-white font-bold">Done</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
       ) : showDatePicker ? (
         <DateTimePicker
-          value={preferredDate || new Date()}
+          value={tempDate}
           mode="date"
           display="calendar"
-          onChange={onDateChange}
+          onChange={onDateSelected}
           minimumDate={new Date()}
         />
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
