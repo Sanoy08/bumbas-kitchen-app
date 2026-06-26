@@ -231,137 +231,142 @@ export default function OrderSummaryScreen() {
         </View>
 
         {/* ─── COUPON CARD (NOW FULLY MATCHING NEXT.JS) ─── */}
-        <View className="mb-5 relative">
-          {/* Left notch */}
-          <View
-            style={{
-              position: 'absolute',
-              left: -12,
-              top: '50%',
-              marginTop: -12, // -12 because height 24
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: '#f9fafb', // gray-50
-              borderRightWidth: 1,
-              borderColor: '#e5e7eb',
-              zIndex: 10,
-            }}
-          />
-          {/* Right notch */}
-          <View
-            style={{
-              position: 'absolute',
-              right: -12,
-              top: '50%',
-              marginTop: -12,
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: '#f9fafb', // gray-50
-              borderLeftWidth: 1,
-              borderColor: '#e5e7eb',
-              zIndex: 10,
-            }}
-          />
-          {/* Main coupon container */}
-          <View className="bg-white rounded-xl border-2 border-dashed border-gray-200 overflow-hidden p-6">
-            {/* Title */}
-            <View className="flex-row items-center gap-2 mb-4">
-              <Ticket size={20} color="#e11d48" />
-              <Text className="font-bold text-gray-800">Apply Coupon</Text>
-            </View>
+<View className="mb-5 relative">
+  {/* Left notch */}
+  <View
+    style={{
+      position: 'absolute',
+      left: -12,
+      top: '50%',
+      marginTop: -12,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: '#f9fafb',
+      borderRightWidth: 1,
+      borderColor: '#e5e7eb',
+      zIndex: 10,
+    }}
+  />
+  {/* Right notch */}
+  <View
+    style={{
+      position: 'absolute',
+      right: -12,
+      top: '50%',
+      marginTop: -12,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: '#f9fafb',
+      borderLeftWidth: 1,
+      borderColor: '#e5e7eb',
+      zIndex: 10,
+    }}
+  />
+  {/* Main coupon container */}
+  <View className="bg-white rounded-xl border-2 border-dashed border-gray-200 overflow-hidden p-6">
+    {/* Title */}
+    <View className="flex-row items-center gap-2 mb-4">
+      <Ticket size={20} color="#e11d48" />
+      <Text className="font-bold text-gray-800">Apply Coupon</Text>
+    </View>
 
-            {couponDiscount > 0 ? (
-              <View className="bg-green-50 border border-green-200 rounded-lg p-4 flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3">
-                  {/* Circle icon container */}
-                  <View className="h-8 w-8 bg-green-100 rounded-full items-center justify-center">
-                    <CheckCircle2 size={20} color="#16a34a" />
-                  </View>
-                  <View>
-                    <Text className="font-bold text-green-800 text-sm">
-                      '{couponCode}' Applied
-                    </Text>
-                    <Text className="text-xs text-green-600 font-medium">
-                      You saved {formatPrice(couponDiscount)}
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    removeCoupon();
-                    toast.info('Coupon removed');
-                  }}
-                >
-                  <X size={20} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View className="flex-row gap-2">
-                <TextInput
-                  placeholder="Enter Coupon Code"
-                  placeholderTextColor="#9ca3af"
-                  value={couponCode}
-                  onChangeText={(text) => setCouponCode(text.toUpperCase())}
-                  className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-lg px-3 font-medium uppercase tracking-wider text-sm"
-                  autoCapitalize="characters"
-                />
-                <TouchableOpacity
-                  onPress={handleApplyCoupon}
-                  disabled={isApplyingCoupon || !couponCode}
-                  className="bg-primary h-11 px-6 rounded-lg items-center justify-center shadow-sm"
-                  activeOpacity={0.8}
-                >
-                  {isApplyingCoupon ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text className="text-white font-bold text-sm">APPLY</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+    {couponDiscount > 0 ? (
+      <View className="bg-green-50 border border-green-200 rounded-lg p-4 flex-row items-center justify-between">
+        <View className="flex-row items-center gap-3">
+          <View className="h-8 w-8 bg-green-100 rounded-full items-center justify-center">
+            <CheckCircle2 size={20} color="#16a34a" />
           </View>
-        </View>
-
-        {/* ─── ITEMS LIST ─── */}
-        <View className="mb-6 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center gap-2">
-              <ShoppingBag size={18} color="#6b7280" />
-              <Text className="font-bold text-lg text-gray-800">Items in Cart</Text>
-            </View>
-            <Text className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md font-medium">
-              {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+          <View>
+            <Text className="font-bold text-green-800 text-sm">
+              '{couponCode}' Applied
+            </Text>
+            <Text className="text-xs text-green-600 font-medium">
+              You saved {formatPrice(couponDiscount)}
             </Text>
           </View>
-
-          {items.map((item) => {
-            const imageSrc =
-              (item.image && Array.isArray(item.image) ? item.image[0]?.url : item.image?.url) ||
-              PLACEHOLDER_IMAGE_URL;
-            return (
-              <View key={item.id} className="flex-row items-center gap-3 mb-4 last:mb-0">
-                <View className="h-14 w-14 rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
-                  <Image
-                    source={{ uri: imageSrc }}
-                    className="h-full w-full"
-                    resizeMode="cover"
-                  />
-                </View>
-                <View className="flex-1 min-w-0">
-                  <Text className="font-semibold text-sm text-gray-800 truncate">{item.name}</Text>
-                  <Text className="text-xs text-gray-500 mt-1">
-                    Qty: {item.quantity} × {formatPrice(item.price)}
-                  </Text>
-                </View>
-                <Text className="font-bold text-sm text-gray-900">
-                  {formatPrice(item.price * item.quantity)}
-                </Text>
-              </View>
-            );
-          })}
         </View>
+        <TouchableOpacity
+          onPress={() => {
+            removeCoupon();
+            toast.info('Coupon removed');
+          }}
+        >
+          <X size={20} color="#9ca3af" />
+        </TouchableOpacity>
+      </View>
+    ) : (
+      <View className="flex-row gap-2">
+  <TextInput
+    placeholder="Enter Coupon Code"
+    placeholderTextColor="#9ca3af"
+    value={couponCode}
+    onChangeText={(text) => setCouponCode(text.toUpperCase())}
+    className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-lg px-3 font-medium uppercase tracking-wider text-sm"
+    textAlignVertical="center"          // Android-এর জন্য vertical center
+    style={{ paddingTop: 0, paddingBottom: 0 }}  // iOS ও অন্যান্য ডিফল্ট প্যাডিং দূর করতে
+    autoCapitalize="characters"
+  />
+  <TouchableOpacity
+    onPress={handleApplyCoupon}
+    disabled={isApplyingCoupon || !couponCode}
+    className={`h-11 px-6 rounded-lg items-center justify-center shadow-sm ${
+      couponCode ? 'bg-primary' : 'bg-gray-300'
+    }`}
+    activeOpacity={0.8}
+  >
+    {isApplyingCoupon ? (
+      <ActivityIndicator color="#fff" size="small" />
+    ) : (
+      <Text className={`font-bold text-sm ${couponCode ? 'text-white' : 'text-gray-500'}`}>
+        APPLY
+      </Text>
+    )}
+  </TouchableOpacity>
+</View>
+    )}
+  </View>
+</View>
+
+        {/* ─── ITEMS LIST (MATCHING NEXT.JS) ─── */}
+<View className="mb-6 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+  <View className="flex-row items-center justify-between mb-4">
+    <View className="flex-row items-center gap-2">
+      <ShoppingBag size={20} color="#6b7280" />
+      <Text className="font-bold text-lg text-gray-800">Items in Cart</Text>
+    </View>
+    <Text className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-md font-medium">
+      {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+    </Text>
+  </View>
+
+  {items.map((item) => {
+    const imageSrc =
+      (item.image && Array.isArray(item.image) ? item.image[0]?.url : item.image?.url) ||
+      PLACEHOLDER_IMAGE_URL;
+    return (
+      <View key={item.id} className="flex-row items-center gap-4 mb-7 last:mb-0">
+        <View className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
+          <Image
+            source={{ uri: imageSrc }}
+            className="h-full w-full"
+            resizeMode="cover"
+          />
+        </View>
+        <View className="flex-1 min-w-0">
+          <Text className="font-semibold text-sm text-gray-800 truncate">{item.name}</Text>
+          <Text className="text-xs text-gray-500 mt-1 font-medium">
+            Qty: {item.quantity} × {formatPrice(item.price)}
+          </Text>
+        </View>
+        <Text className="font-bold text-sm text-gray-900">
+          {formatPrice(item.price * item.quantity)}
+        </Text>
+      </View>
+    );
+  })}
+</View>
 
         {/* ─── BILL SUMMARY ─── */}
         <View className="bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden mb-6">
