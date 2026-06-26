@@ -2,10 +2,10 @@
 
 import { Tabs, usePathname } from 'expo-router';
 import { Home, ShoppingCart, User } from 'lucide-react-native';
-import { StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native';
 import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { useCartStore } from '@/store/cartStore'; 
+import { useCartStore } from '@/store/cartStore';
 import { useTabBarStore } from '@/store/tabBarStore'; // 🟢 নতুন স্টোর ইম্পোর্ট করা হলো
 
 export default function ShopLayout() {
@@ -24,14 +24,14 @@ export default function ShopLayout() {
   // 🟢 নির্দিষ্ট পেজে (যেমন: checkout, menus, search) ট্যাব বার লুকানোর লজিক
   // =========================================================================
   const shouldHideTabBar = 
-    pathname.includes('/checkout') || // 🔴 Checkout এর যেকোনো পেজে (summary, payment) বারটি হাইড হবে
+    pathname.includes('/checkout') || // 🔴 Checkout Summary পেজের জন্য
     pathname.includes('/menus/') || 
     pathname.includes('/search') ||
     (pathname === '/cart' && isCartNotEmpty); 
 
   // 🟢 স্লাইড আপ/ডাউন অ্যানিমেশন লজিক
   useEffect(() => {
-    // যদি নির্দিষ্ট পেজ হয় অথবা ইউজার স্ক্রোল ডাউন করে, তবে ট্যাব বার নিচে স্লাইড হয়ে যাবে (hide)
+    // যদি নির্দিষ্ট পেজ হয় অথবা ইউজার স্ক্রোল ডাউন করে, তবে ট্যাব বার নিচে স্লাইড হয়ে যাবে (hide)
     const toValue = shouldHideTabBar || !isTabBarVisible ? 100 : 0; // 100 দিলে পুরোটাই স্ক্রিনের নিচে চলে যাবে
 
     Animated.timing(translateY, {
@@ -55,6 +55,7 @@ export default function ShopLayout() {
         tabBarStyle: [
           styles.tabBar,
           { transform: [{ translateY }] }, // 🔴 Animated Transform অ্যাপ্লাই করা হলো
+          // shouldHideTabBar && { display: 'none' } // এটি মুছে ফেলা হলো কারণ আমরা অ্যানিমেশন ব্যবহার করছি
         ],
         tabBarActiveTintColor: '#e11d48',
         tabBarInactiveTintColor: '#9ca3af',
@@ -112,12 +113,8 @@ export default function ShopLayout() {
         }}
       />
 
-      {/* ==================================================================== */}
-      {/* 🔴 যেসব পেজের বোতাম ট্যাব বারে দেখাতে চান না (Hidden from Tab Bar) */}
-      {/* ==================================================================== */}
-
-      <Tabs.Screen name="checkout/summary" options={{ href: null }} /> 
-      <Tabs.Screen name="checkout/payment" options={{ href: null }} /> 
+      <Tabs.Screen name="checkout/index" options={{ href: null }} /> 
+      {/* 🔴 আপনার checkout পেজের রাউট নাম অনুযায়ী উপরের লাইনটি ঠিক করে নেবেন */}
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
