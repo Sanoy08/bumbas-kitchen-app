@@ -158,7 +158,7 @@ export default function OrderSummaryScreen() {
       couponDiscount,
       useCoins,
     });
-    router.push('/checkout');
+    router.push('/(shop)/checkout/payment');
   };
 
   if (!isInitialized)

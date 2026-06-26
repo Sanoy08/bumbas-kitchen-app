@@ -21,7 +21,6 @@ import {
   UIManager,
   View,
 } from 'react-native';
-// 👇 Use FlatList from react-native-gesture-handler
 import { FlatList, Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import emptyCartAnimation from '../../../assets/animations/empty-cart.json';
@@ -31,7 +30,6 @@ import { optimizeImageUrl } from '@/lib/imageUtils';
 import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
 
-// Enable LayoutAnimation on Android
 if (
   Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -151,7 +149,6 @@ const CartItem = React.memo(
             accessibilityRole="button"
             disabled={isRemoving}
           >
-            {/* Inline delete button */}
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
@@ -241,7 +238,6 @@ export default function CartScreen() {
   const totalPrice = getTotalPrice();
   const itemCount = items.length;
 
-  // 👇 Ref for the gesture‑handler FlatList
   const flatListRef = useRef<FlatList>(null);
 
   const handleQuantityChange = useCallback(
@@ -312,7 +308,7 @@ export default function CartScreen() {
         item={item}
         onRemove={confirmRemove}
         onQuantityChange={handleQuantityChange}
-        simultaneousHandlers={flatListRef} // 👈 passed correctly
+        simultaneousHandlers={flatListRef}
         isRemoving={removingIds.includes(item.id)}
       />
     ),
@@ -320,6 +316,47 @@ export default function CartScreen() {
   );
 
   const keyExtractor = useCallback((item: any) => item.id, []);
+
+  // Footer component with total & proceed (just like the summary page’s bottom section)
+  const ListFooter = () => (
+    <View className="bg-white rounded-3xl px-5 py-4 mx-4 mb-4 border border-gray-100 shadow-lg"
+      style={{
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+      }}
+    >
+      <View className="flex-row items-center justify-between">
+        <View>
+          <Text className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
+            Total
+          </Text>
+          <Text className="text-2xl font-extrabold text-gray-900">
+            {formatPrice(totalPrice)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/(shop)/checkout/summary')}
+          className="bg-primary flex-row items-center px-6 py-3.5 rounded-2xl shadow-lg"
+          style={{
+            shadowColor: '#e11d48',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.35,
+            shadowRadius: 12,
+            elevation: 10,
+          }}
+          activeOpacity={0.9}
+          accessibilityLabel="Proceed to checkout"
+          accessibilityRole="button"
+        >
+          <Text className="text-white font-bold text-base mr-2">Proceed</Text>
+          <ArrowRight size={18} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -368,59 +405,21 @@ export default function CartScreen() {
       </View>
 
       {itemCount > 0 ? (
-        <>
-          <FlatList
-            ref={flatListRef} // 👈 gesture‑handler ref
-            data={items}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            className="flex-1 px-4 pt-4"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 120 }}
-          />
-
-          {/* Floating Checkout Bar */}
-          <View
-            className="absolute left-4 right-4 bg-white rounded-3xl px-5 py-4 flex-row items-center justify-between border border-gray-100"
-            style={{
-              bottom: insets.bottom + 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.15,
-              shadowRadius: 20,
-              elevation: 15,
-            }}
-          >
-            <View>
-              <Text className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
-                Total
-              </Text>
-              <Text className="text-2xl font-extrabold text-gray-900">
-                {formatPrice(totalPrice)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => router.push('/(shop)/checkout/summary')}
-              className="bg-primary flex-row items-center px-6 py-3.5 rounded-2xl shadow-lg"
-              style={{
-                shadowColor: '#e11d48',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.35,
-                shadowRadius: 12,
-                elevation: 10,
-              }}
-              activeOpacity={0.9}
-              accessibilityLabel="Proceed to checkout"
-              accessibilityRole="button"
-            >
-              <Text className="text-white font-bold text-base mr-2">Proceed</Text>
-              <ArrowRight size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </>
+        <FlatList
+          ref={flatListRef}
+          data={items}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          className="flex-1 px-4 pt-4"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}   // ← account page-এর মতো 80
+          ListFooterComponent={<ListFooter />}
+        />
       ) : (
-        /* Empty State */
-        <View className="flex-1 bg-white justify-center items-center px-8" style={{ paddingBottom: 100 }}>
+        <View
+          className="flex-1 bg-white justify-center items-center px-8"
+          style={{ paddingBottom: 20 }}   // ← empty state-এও 80
+        >
           <View className="w-64 h-64 mb-4">
             <LottieView
               source={emptyCartAnimation}
