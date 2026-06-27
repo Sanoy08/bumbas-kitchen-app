@@ -1,22 +1,19 @@
-// src\store\cartStore.ts
-
-// src/store/cartStore.ts
-
 import type { CartItem, Product } from '@/lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Pusher from 'pusher-js';
-import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { useAuthStore } from './authStore'; // Auth Store থেকে ইউজার ডেটা নেওয়ার জন্য
+import { useAuthStore } from './authStore';
 
-// API URL Setup
+// Toast use korar jonno (jodi react-native-toast-message use koren)
+// import Toast from 'react-native-toast-message';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 type CheckoutState = {
   couponCode: string;
   couponDiscount: number;
-  useCoins: boolean;
+  useCoins: boolean;coinDiscount?: number;
 };
 
 interface CartState {
@@ -24,7 +21,9 @@ interface CartState {
   checkoutState: CheckoutState;
   isSyncing: boolean;
   isDirty: boolean;
-  
+  isInitialized: boolean;
+  syncIntervalId: NodeJS.Timeout | null;
+
   // Actions
   addItem: (product: Product, quantity?: number, showToast?: boolean) => void;
   removeItem: (id: string) => void;
@@ -32,11 +31,15 @@ interface CartState {
   clearCart: () => void;
   setCheckoutData: (data: Partial<CheckoutState>) => void;
   setCartItems: (items: CartItem[]) => void;
-  
+  setIsInitialized: (val: boolean) => void;
+
   // Sync logic
+  fetchCartFromDB: () => Promise<void>;
   syncToDatabase: () => Promise<void>;
   initPusher: () => void;
-  
+  startAutoSync: () => void; // ★ Notun: 30s Interval Sync
+  stopAutoSync: () => void;
+
   // Getters
   getItemCount: () => number;
   getTotalPrice: () => number;
@@ -49,8 +52,44 @@ export const useCartStore = create<CartState>()(
       checkoutState: { couponCode: '', couponDiscount: 0, useCoins: false },
       isSyncing: false,
       isDirty: false,
+      isInitialized: false,
+      syncIntervalId: null,
 
-      // ★ Add Item
+      setIsInitialized: (val) => set({ isInitialized: val }),
+
+      // ★ Next.js er moto App khullar por Initial Fetch
+      fetchCartFromDB: async () => {
+        const token = useAuthStore.getState().token;
+        if (!token) {
+            set({ isInitialized: true });
+            return;
+        }
+
+        try {
+          const res = await fetch(`${API_URL}/cart`, {
+            method: 'GET',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}` 
+            }
+          });
+          const data = await res.json();
+          if (data.success && data.items) {
+            set({ items: data.items, isDirty: false });
+          } else {
+             // DB theke fail korle kintu local storage e thakle dirty true kora (Next.js behavior)
+             if (get().items.length > 0) {
+                 set({ isDirty: true });
+             }
+          }
+        } catch (error) {
+          console.error("Cart Fetch failed", error);
+        } finally {
+            set({ isInitialized: true });
+        }
+      },
+
+      // ★ Add Item (Next.js image logic and Toast setup)
       addItem: (product, quantity = 1, showToast = true) => {
         const { items } = get();
         const existingItem = items.find((item) => item.id === product.id);
@@ -58,7 +97,7 @@ export const useCartStore = create<CartState>()(
         const currentQty = existingItem ? existingItem.quantity : 0;
 
         if (currentQty + quantity > maxStock) {
-          Alert.alert('Stock Limit', `Only ${maxStock} items available.`);
+          // Toast.show({ type: 'error', text1: `Only ${maxStock} items available.` });
           return;
         }
 
@@ -73,15 +112,18 @@ export const useCartStore = create<CartState>()(
             slug: product.slug,
             name: product.name,
             price: product.price,
-            image: product.images && product.images.length > 0 ? product.images : { id: 'def', url: '', alt: product.name },
+            // ★ FIX: Next.js er moto Array er poriborte Index 0 theke neoya hocche
+            image: product.images && product.images.length > 0 ? product.images[0] : { id: 'def', url: '', alt: product.name },
             quantity: quantity,
           };
           newItems = [...items, newItem];
         }
 
         set({ items: newItems, isDirty: true });
-        // React Native-এ toast.success এর বদলে আপাতত আমরা কিছু দিচ্ছি না, 
-        // আপনি চাইলে 'react-native-toast-message' লাইব্রেরি ব্যবহার করতে পারেন।
+
+        if (showToast) {
+           // Toast.show({ type: 'success', text1: `Added "${product.name}" to cart` });
+        }
       },
 
       // ★ Remove Item
@@ -90,6 +132,7 @@ export const useCartStore = create<CartState>()(
           items: state.items.filter((item) => item.id !== id),
           isDirty: true,
         }));
+        // Toast.show({ type: 'info', text1: "Item removed" });
       },
 
       // ★ Update Quantity
@@ -107,8 +150,8 @@ export const useCartStore = create<CartState>()(
       // ★ Clear Cart
       clearCart: () => {
         set({ items: [], checkoutState: { couponCode: '', couponDiscount: 0, useCoins: false }, isDirty: true });
-        const user = useAuthStore.getState().user;
-        if (user) {
+        if (useAuthStore.getState().token) {
+          // Empty pathanor jonno database e sathei sathei sync korbe
           get().syncToDatabase();
         }
       },
@@ -121,18 +164,21 @@ export const useCartStore = create<CartState>()(
         set({ items, isDirty: false });
       },
 
-      // ★ Sync to Database (Vercel Backend)
+      // ★ Database e POST Request (Direct call kora jabe na, 30s interval e hobe)
       syncToDatabase: async () => {
         const { items } = get();
-        const user = useAuthStore.getState().user;
+        const token = useAuthStore.getState().token; 
         
-        if (!user) return;
+        if (!token) return;
         
         set({ isSyncing: true });
         try {
           await fetch(`${API_URL}/cart`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}` 
+            },
             body: JSON.stringify({ items }),
           });
           set({ isDirty: false, isSyncing: false });
@@ -140,6 +186,30 @@ export const useCartStore = create<CartState>()(
           console.error("Cart Sync failed", error);
           set({ isSyncing: false });
         }
+      },
+
+      // ★ 30-Second Auto Sync Interval (Exact Next.js Logic)
+      startAutoSync: () => {
+         // Clear any existing intervals
+         get().stopAutoSync();
+         
+         const interval = setInterval(() => {
+            const { isDirty, isSyncing } = get();
+            const token = useAuthStore.getState().token;
+            if (token && isDirty && !isSyncing) {
+               get().syncToDatabase();
+            }
+         }, 30000);
+         
+         set({ syncIntervalId: interval });
+      },
+
+      stopAutoSync: () => {
+         const { syncIntervalId } = get();
+         if (syncIntervalId) {
+            clearInterval(syncIntervalId);
+            set({ syncIntervalId: null });
+         }
       },
 
       // ★ Pusher Real-time Init
@@ -155,7 +225,6 @@ export const useCartStore = create<CartState>()(
         
         channel.bind('cart-updated', (data: { items: CartItem[] }) => {
           const { isSyncing } = get();
-          // যদি অ্যাপ নিজে সিঙ্ক না করে থাকে, তবেই পুশার থেকে ডেটা নেবে
           if (!isSyncing) {
             set({ items: data.items, isDirty: false });
           }
@@ -163,6 +232,7 @@ export const useCartStore = create<CartState>()(
 
         return () => {
           pusher.unsubscribe(`user-${user.id}`);
+          pusher.disconnect();
         };
       },
 
@@ -173,7 +243,6 @@ export const useCartStore = create<CartState>()(
     {
       name: 'bumbas-kitchen-cart',
       storage: createJSONStorage(() => AsyncStorage),
-      // শুধুমাত্র items এবং checkoutState লোকালি সেভ হবে
       partialize: (state) => ({ items: state.items, checkoutState: state.checkoutState }),
     }
   )

@@ -2,6 +2,7 @@
 
 import { AlertProvider } from '@/components/ui/CustomAlert';
 import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore'; // ★ CartStore import kora holo
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, useFonts } from '@expo-google-fonts/poppins';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
@@ -16,7 +17,7 @@ import { Toaster } from 'sonner-native';
 import "../../global.css";
 
 import { AppUpdater } from '@/components/AppUpdater';
-import { usePushNotification } from '@/hooks/usePushNotification'; // ★ হুক ইমপোর্ট
+import { usePushNotification } from '@/hooks/usePushNotification';
 
 SplashScreen.preventAutoHideAsync();
 const { width } = Dimensions.get('window');
@@ -46,6 +47,18 @@ export default function RootLayout() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const contentFadeAnim = useRef(new Animated.Value(1)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
+
+  // ★ App load howar sathe sathe 30s auto-sync chalu korar jonno
+  useEffect(() => {
+    const startSync = useCartStore.getState().startAutoSync;
+    const stopSync = useCartStore.getState().stopAutoSync;
+
+    startSync(); // Interval start holo
+
+    return () => {
+      stopSync(); // App background/unmount e stop korbe
+    };
+  }, []);
 
   useEffect(() => {
     initAuth();
@@ -119,7 +132,7 @@ export default function RootLayout() {
   <AlertProvider>
     <StatusBar style="dark" />
     
-    {/* ★ গ্লোবাল বটম সেফ এরিয়া: সমস্ত পেজ নেভিগেশন বারের উপরে থাকবে */}
+    {/* ★ গ্লোবাল বটম সেফ এরিয়া: সমস্ত পেজ নেভিগেশন বারের উপরে থাকবে */}
     <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
       <Stack screenOptions={{ headerShown: false }} />
     </SafeAreaView>

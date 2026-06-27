@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { useCartStore } from './cartStore'; // ★ Cart Store ইমপোর্ট করা হলো
 
 export type User = {
   id: string;
@@ -16,7 +17,7 @@ export type User = {
   wallet?: any;
   dob?: string;
   anniversary?: string;
-  savedAddresses?: any[]; // ★ Added
+  savedAddresses?: any[];
 };
 
 interface AuthState {
@@ -32,23 +33,29 @@ const TOKEN_KEY = 'auth_token';
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isInitialized: false,
 
-      // লগিন: ইউজার ডেটা Zustand-এ এবং টোকেন Secure Store-এ সেভ হবে
+      // লগইন: ইউজার ডেটা Zustand-এ এবং টোকেন Secure Store-এ সেভ হবে
       login: async (userData, token) => {
         if (token) {
           await SecureStore.setItemAsync(TOKEN_KEY, token);
         }
         set({ user: userData, token });
+
+        // ★ লগইন হওয়ার পর Cart ডাটা ব্যাকএন্ড থেকে ফেচ করা হবে
+        useCartStore.getState().fetchCartFromDB();
       },
 
       // লগআউট: টোকেন ডিলিট করে স্টেট ক্লিয়ার করা হবে
       logout: async () => {
         await SecureStore.deleteItemAsync(TOKEN_KEY);
         set({ user: null, token: null });
+
+        // ★ লগআউট হওয়ার পর Cart ক্লিয়ার করে দেওয়া হবে
+        useCartStore.getState().clearCart();
       },
 
       // অ্যাপ ওপেন হওয়ার সাথে সাথে টোকেন চেক করার ফাংশন
@@ -56,6 +63,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const token = await SecureStore.getItemAsync(TOKEN_KEY);
           set({ token, isInitialized: true });
+
+          // ★ অ্যাপ ওপেন হলে টোকেন থাকলে Cart ডাটা ফেচ হবে
+          if (token) {
+            useCartStore.getState().fetchCartFromDB();
+          }
         } catch (error) {
           set({ token: null, isInitialized: true });
         }
@@ -65,7 +77,7 @@ export const useAuthStore = create<AuthState>()(
       name: 'bumbas_user_cache',
       storage: createJSONStorage(() => AsyncStorage),
       // AsyncStorage-এ শুধুমাত্র ইউজার ডেটা সেভ থাকবে (জিরো-সেকেন্ড লোডের জন্য), টোকেন নয়
-      partialize: (state) => ({ user: state.user }), 
+      partialize: (state) => ({ user: state.user }),
     }
   )
 );

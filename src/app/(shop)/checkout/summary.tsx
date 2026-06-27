@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
   ArrowRight,
   Check,
@@ -52,11 +52,11 @@ export default function OrderSummaryScreen() {
   const totalPrice = getTotalPrice();
   const itemCount = getItemCount();
 
-  // অ্যানিমেশন ভ্যালু (কয়েন সেভিংস বক্সের জন্য)
+  // অ্যানিমেশন ভ্যালু
   const savingsOpacity = useRef(new Animated.Value(0)).current;
   const savingsTranslateY = useRef(new Animated.Value(-10)).current;
 
-  // Fetch wallet
+  // 1. Fetch wallet
   useEffect(() => {
     const fetchWallet = async () => {
       try {
@@ -74,12 +74,17 @@ export default function OrderSummaryScreen() {
     if (user) fetchWallet();
   }, [user]);
 
-  // Cart empty guard
-  if (isInitialized) {
-    if (itemCount === 0) {
-      return <Redirect href="/(shop)/" />;
+  // 2. Auth & Cart Check (Next.js er moto)
+  useEffect(() => {
+    if (isInitialized) {
+      if (!user) {
+        toast.error("Please login to continue.");
+        router.push('/login'); // আপনার অ্যাপের লগইন রাউট অনুযায়ী চেঞ্জ করে নিতে পারেন
+      } else if (itemCount === 0) {
+        router.push('/(shop)/');
+      }
     }
-  }
+  }, [isInitialized, user, itemCount, router]);
 
   const removeCoupon = () => {
     setCouponCode('');
@@ -131,7 +136,7 @@ export default function OrderSummaryScreen() {
     }
   };
 
-  // অ্যানিমেশন কন্ট্রোল (useCoins টগল হলে)
+  // অ্যানিমেশন কন্ট্রোল
   useEffect(() => {
     Animated.parallel([
       Animated.timing(savingsOpacity, {
@@ -151,17 +156,19 @@ export default function OrderSummaryScreen() {
   const coinDiscountAmount = useCoins ? Math.min(walletBalance, Math.floor(maxCoinDiscount)) : 0;
   const finalTotal = Math.max(0, totalPrice - couponDiscount - coinDiscountAmount);
 
+  // 3. Checkout Data (Next.js er moto coinDiscount pathano holo)
   const handleProceed = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCheckoutData({
       couponCode: couponDiscount > 0 ? couponCode : '',
       couponDiscount,
       useCoins,
+      coinDiscount: coinDiscountAmount // ★ Added missing property
     });
     router.push('/checkout');
   };
 
-  if (!isInitialized)
+  if (!isInitialized || !user || itemCount === 0)
     return (
       <View className="flex-1 justify-center items-center bg-white">
         <ActivityIndicator size="large" color="#e11d48" />
@@ -178,6 +185,7 @@ export default function OrderSummaryScreen() {
     year: 'numeric'
   }).format(new Date());
 
+  // ... (বাকি UI কোড সম্পূর্ণ একই থাকবে) ...
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       {/* Progress Steps */}
