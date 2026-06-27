@@ -1,39 +1,55 @@
 // src/app/(shop)/checkout/index.tsx
-import { formatPrice } from '@/lib/utils';
-import { useAuthStore } from '@/store/authStore';
-import { useCartStore } from '@/store/cartStore';
-import { format } from 'date-fns';
-import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
 import {
-    AlertCircle,
-    Briefcase,
-    Calendar as CalendarIcon,
-    CheckSquare,
-    ChevronDown,
-    ChevronUp,
-    Coins,
-    Home,
-    MapPin,
-    Plus,
-    Square,
-    Ticket,
-    X
-} from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
-import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Animated,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Switch,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { format } from 'date-fns';
+import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
+import { formatPrice } from '@/lib/utils';
+import { PLACEHOLDER_IMAGE_URL } from '@/lib/constants';
+import { optimizeImageUrl } from '@/lib/imageUtils'; // if available, else replace with direct URL
 import { toast } from 'sonner-native';
+import * as Haptics from 'expo-haptics';
+import {
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  Loader2,
+  Ticket,
+  Coins,
+  Calendar as CalendarIcon,
+  AlertCircle,
+  Home,
+  Briefcase,
+  Plus,
+  CheckSquare,
+  Square,
+  ShoppingBag,
+  Receipt,
+  Sparkles,
+  Wallet,
+  CheckCircle2,
+  X,
+  ArrowRight,
+} from 'lucide-react-native';
+import { Calendar } from 'react-native-calendars'; // or a custom calendar component
+import { LinearGradient } from 'expo-linear-gradient';
+import { AppState } from 'react-native';
 
 // Note: If you want to use a custom swipeable calendar, you can build one.
 // Below I'm using `react-native-calendars` for simplicity, but you can replace it with your own SwipeableCalendar.
