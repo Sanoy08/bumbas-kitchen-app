@@ -342,7 +342,7 @@ export default function CartScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push('/(shop)/checkout/summary')}
+          onPress={() => router.push('/(checkout)/summary')}
           className="bg-primary flex-row items-center px-6 py-3.5 rounded-2xl shadow-lg"
           style={{
             shadowColor: '#e11d48',

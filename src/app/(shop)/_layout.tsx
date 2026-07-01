@@ -104,11 +104,6 @@ export default function ShopLayout() {
       />
 
       {/* ─── Hidden Screens ─── */}
-      <Tabs.Screen name="checkout/summary" options={{ href: null }} />
-      <Tabs.Screen name="checkout/final" options={{ href: null }} />
-      {/* ★★★ এখানে success যোগ করুন ★★★ */}
-      <Tabs.Screen name="checkout/success" options={{ href: null }} />
-
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />

@@ -1,25 +1,26 @@
 // src/app/(shop)/checkout/success.tsx
 
 import { formatPrice } from '@/lib/utils';
+import { useCartStore } from '@/store/cartStore'; // ✅ store import
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { ArrowRight, Home, ShoppingBag, Sparkles } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import {
-    Dimensions,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -39,6 +40,14 @@ export default function OrderSuccessScreen() {
   const name = params.name || 'Guest';
   const amount = params.amount ? parseFloat(params.amount) : 0;
   const coins = parseInt(params.coins || '0', 10);
+
+  // ✅ Cart clear function
+  const clearCart = useCartStore((state) => state.clearCart);
+
+  // ✅ Cart clear on mount (final page already unmounted)
+  useEffect(() => {
+    clearCart();
+  }, []);
 
   // Shared values for animation
   const lottieScale = useSharedValue(1);
@@ -94,7 +103,7 @@ export default function OrderSuccessScreen() {
           <View style={styles.lottieContainer}>
             <LottieView
               ref={lottieRef}
-              source={require('../../../../assets/animations/success.json')}
+              source={require('../../../assets/animations/success.json')}
               autoPlay
               loop={false}
               style={styles.lottie}

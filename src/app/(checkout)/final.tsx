@@ -254,7 +254,7 @@ export default function FinalCheckoutScreen() {
   const { showAlert } = useAlert();
 
   const { user, isInitialized } = useAuthStore();
-  const { items, getTotalPrice, getItemCount, clearCart, checkoutState } = useCartStore();
+  const { items, getTotalPrice, getItemCount, checkoutState } = useCartStore();
 
   const { couponCode, couponDiscount, useCoins, coinDiscount: savedCoinDiscount } = checkoutState;
 
@@ -418,7 +418,7 @@ export default function FinalCheckoutScreen() {
       if (!res.ok) throw new Error(data.error || 'Order placement failed');
 
       setIsSuccess(true);
-      clearCart();
+      // ❗ আগে এখানে clearCart() ছিল, এখন সরানো হয়েছে
 
       const orderNum = data.orderId || '0000';
       const eligibleAmountForCoins = Math.max(0, totalPrice - couponDiscount);
@@ -429,7 +429,7 @@ export default function FinalCheckoutScreen() {
         toast.info(`You earned ${earnedCoins} coins!`);
       }
 
-      // ✅ FIXED: Use relative path 'success' with query string (more reliable)
+      // ✅ success পেজে replace করে নেভিগেট (clearCart সেখানে হবে)
       router.replace({
         pathname: 'success',
         params: {

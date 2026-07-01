@@ -165,7 +165,7 @@ export default function OrderSummaryScreen() {
       useCoins,
       coinDiscount: coinDiscountAmount // ★ Added missing property
     });
-    router.push('/checkout/final');
+    router.push('/(checkout)/final');
   };
 
   if (!isInitialized || !user || itemCount === 0)
