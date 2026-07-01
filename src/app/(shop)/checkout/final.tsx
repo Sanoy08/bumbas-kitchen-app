@@ -428,7 +428,17 @@ export default function FinalCheckoutScreen() {
       if (earnedCoins > 0) {
         toast.info(`You earned ${earnedCoins} coins!`);
       }
-      router.push('/(shop)/account/orders');
+
+      // ✅ FIXED: Use relative path 'success' with query string (more reliable)
+      router.replace({
+        pathname: 'success',
+        params: {
+          orderId: orderNum,
+          name: user?.name || 'Guest',
+          amount: finalTotal.toString(),
+          coins: earnedCoins.toString(),
+        },
+      });
     } catch (error: any) {
       toast.error(error.message || 'Failed to place order.');
     } finally {

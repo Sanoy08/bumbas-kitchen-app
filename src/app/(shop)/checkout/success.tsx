@@ -19,11 +19,11 @@ import Animated, {
     useAnimatedStyle,
     useSharedValue,
     withSpring,
-    withTiming
+    withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function OrderSuccessScreen() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function OrderSuccessScreen() {
   const amount = params.amount ? parseFloat(params.amount) : 0;
   const coins = parseInt(params.coins || '0', 10);
 
-  // Animation shared values
+  // Shared values for animation
   const lottieScale = useSharedValue(1);
   const lottieTranslateY = useSharedValue(0);
   const contentTranslateY = useSharedValue(50);
@@ -48,14 +48,12 @@ export default function OrderSuccessScreen() {
 
   const lottieRef = useRef<LottieView>(null);
 
-  // Trigger animation after a delay
   useEffect(() => {
+    // After 1.5s, shrink & move Lottie up, then slide content in
     const timer = setTimeout(() => {
-      // Shrink Lottie & move up
       lottieScale.value = withSpring(0.5, { damping: 12, stiffness: 100 });
       lottieTranslateY.value = withTiming(-120, { duration: 600, easing: Easing.out(Easing.ease) });
 
-      // Slide content in from bottom
       contentTranslateY.value = withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) });
       contentOpacity.value = withTiming(1, { duration: 600 });
     }, 1500);
@@ -63,11 +61,9 @@ export default function OrderSuccessScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Make Lottie loop infinitely after first play
-  const handleLottieAnimationFinish = () => {
-    if (lottieRef.current) {
-      lottieRef.current.play(95, -1); // loop from frame 95 to end
-    }
+  const handleLottieFinish = () => {
+    // Loop from frame 95 onwards
+    lottieRef.current?.play(95, -1);
   };
 
   // Animated styles
@@ -93,7 +89,7 @@ export default function OrderSuccessScreen() {
       />
 
       <View style={styles.wrapper}>
-        {/* Lottie Container – animated */}
+        {/* Lottie */}
         <Animated.View style={[styles.lottieWrapper, lottieStyle]}>
           <View style={styles.lottieContainer}>
             <LottieView
@@ -103,19 +99,19 @@ export default function OrderSuccessScreen() {
               loop={false}
               style={styles.lottie}
               speed={0.8}
-              onAnimationFinish={handleLottieAnimationFinish}
+              onAnimationFinish={handleLottieFinish}
             />
           </View>
         </Animated.View>
 
-        {/* Content – slides in from bottom */}
+        {/* Content */}
         <Animated.View style={[styles.content, contentStyle]}>
           <Text style={styles.title}>🎉 Order Placed!</Text>
           <Text style={styles.subtitle} numberOfLines={2}>
             Awesome, {name}! Your food is getting ready.
           </Text>
 
-          {/* Order Details Card */}
+          {/* Order Details */}
           <View style={styles.card}>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>ORDER ID</Text>
@@ -130,7 +126,7 @@ export default function OrderSuccessScreen() {
             </View>
           </View>
 
-          {/* Coins Earned Card */}
+          {/* Coins Earned */}
           <View style={[styles.card, styles.coinsCard]}>
             <View style={styles.cardRow}>
               <View style={styles.coinsLeft}>
@@ -173,16 +169,13 @@ export default function OrderSuccessScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   wrapper: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingBottom: 20, // extra bottom space to prevent clipping
+    paddingBottom: 20,
   },
   lottieWrapper: {
     width: 200,

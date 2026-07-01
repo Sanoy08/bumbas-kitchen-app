@@ -6,37 +6,29 @@ import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useCartStore } from '@/store/cartStore';
-import { useTabBarStore } from '@/store/tabBarStore'; // 🟢 নতুন স্টোর ইম্পোর্ট করা হলো
+import { useTabBarStore } from '@/store/tabBarStore';
 
 export default function ShopLayout() {
   const pathname = usePathname();
   
-  // ★ কার্টের আইটেম সংখ্যা ট্র্যাক করুন
   const items = useCartStore((state) => state.items);
   const itemCount = items.length; 
   const isCartNotEmpty = itemCount > 0;
 
-  // 🟢 Tab Bar ভিজিবিলিটি স্টেট এবং অ্যানিমেটেড ভ্যালু
   const isTabBarVisible = useTabBarStore((state) => state.isVisible);
   const translateY = useRef(new Animated.Value(0)).current;
 
-  // =========================================================================
-  // 🟢 নির্দিষ্ট পেজে (যেমন: checkout, menus, search) ট্যাব বার লুকানোর লজিক
-  // =========================================================================
   const shouldHideTabBar = 
-    pathname.includes('/checkout') || // 🔴 Checkout Summary পেজের জন্য
+    pathname.includes('/checkout') || 
     pathname.includes('/menus/') || 
     pathname.includes('/search') ||
     (pathname === '/cart' && isCartNotEmpty); 
 
-  // 🟢 স্লাইড আপ/ডাউন অ্যানিমেশন লজিক
   useEffect(() => {
-    // যদি নির্দিষ্ট পেজ হয় অথবা ইউজার স্ক্রোল ডাউন করে, তবে ট্যাব বার নিচে স্লাইড হয়ে যাবে (hide)
-    const toValue = shouldHideTabBar || !isTabBarVisible ? 100 : 0; // 100 দিলে পুরোটাই স্ক্রিনের নিচে চলে যাবে
-
+    const toValue = shouldHideTabBar || !isTabBarVisible ? 100 : 0;
     Animated.timing(translateY, {
       toValue: toValue,
-      duration: 300, // 300ms ধরে স্মুথ অ্যানিমেশন হবে
+      duration: 300,
       useNativeDriver: true,
     }).start();
   }, [shouldHideTabBar, isTabBarVisible]);
@@ -54,8 +46,7 @@ export default function ShopLayout() {
         },
         tabBarStyle: [
           styles.tabBar,
-          { transform: [{ translateY }] }, // 🔴 Animated Transform অ্যাপ্লাই করা হলো
-          // shouldHideTabBar && { display: 'none' } // এটি মুছে ফেলা হলো কারণ আমরা অ্যানিমেশন ব্যবহার করছি
+          { transform: [{ translateY }] },
         ],
         tabBarActiveTintColor: '#e11d48',
         tabBarInactiveTintColor: '#9ca3af',
@@ -85,7 +76,6 @@ export default function ShopLayout() {
               >
                 <View style={styles.floatingButton}>
                   <ShoppingCart color="#fff" size={22} strokeWidth={2.5} style={{ marginTop: 10 }} />
-                  
                   {itemCount > 0 && (
                     <View style={styles.badgeContainer}>
                       <Text style={styles.badgeText}>
@@ -113,8 +103,12 @@ export default function ShopLayout() {
         }}
       />
 
+      {/* ─── Hidden Screens ─── */}
       <Tabs.Screen name="checkout/summary" options={{ href: null }} />
       <Tabs.Screen name="checkout/final" options={{ href: null }} />
+      {/* ★★★ এখানে success যোগ করুন ★★★ */}
+      <Tabs.Screen name="checkout/success" options={{ href: null }} />
+
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
