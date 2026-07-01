@@ -8,28 +8,28 @@ import { format, isSameDay, startOfDay } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import {
-    AlertCircle,
-    ArrowLeft,
-    Calendar as CalendarIcon,
-    Check,
-    ChevronDown,
-    ChevronUp,
-    Home,
-    Lock,
-    MapPin,
-    Plus,
-    X
+  AlertCircle,
+  ArrowLeft,
+  Calendar as CalendarIcon,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Home,
+  Lock,
+  MapPin,
+  Plus,
+  X,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Animated,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,19 +37,17 @@ import { toast } from 'sonner-native';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
-// --- Helper: Floating Label TextInput (similar to Next.js) ---
+// --- Floating Label Input ---
 const FloatingLabelInput = ({
   label,
   value,
   onChangeText,
   multiline = false,
-  numberOfLines = 4,
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
   multiline?: boolean;
-  numberOfLines?: number;
 }) => {
   const [focused, setFocused] = useState(false);
   const isFloating = focused || value.length > 0;
@@ -59,10 +57,10 @@ const FloatingLabelInput = ({
       <TextInput
         className={`px-4 pb-2.5 pt-6 w-full text-sm text-gray-900 bg-white border rounded-xl ${
           focused ? 'border-primary' : 'border-gray-300'
-        } min-h-[${multiline ? 100 : 50}px]`}
+        } ${multiline ? 'min-h-[100px]' : 'h-[50px]'}`}
         style={{ textAlignVertical: 'top' }}
         multiline={multiline}
-        numberOfLines={numberOfLines}
+        numberOfLines={multiline ? 4 : 1}
         value={value}
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
@@ -70,10 +68,13 @@ const FloatingLabelInput = ({
         placeholder=""
       />
       <Text
-        className={`absolute left-4 top-4 text-sm transition-all ${
+        className={`absolute left-4 text-sm transition-all ${
           isFloating ? 'text-primary -translate-y-1 scale-75' : 'text-gray-500'
         }`}
-        style={{ transform: [{ translateY: isFloating ? -12 : 0 }] }}
+        style={{
+          top: isFloating ? 8 : 14,
+          transform: [{ translateY: 0 }],
+        }}
       >
         {label}
       </Text>
@@ -81,7 +82,7 @@ const FloatingLabelInput = ({
   );
 };
 
-// --- Swipeable Calendar Component ---
+// --- Swipeable Calendar ---
 const SwipeableCalendar = ({
   selected,
   onSelect,
@@ -98,18 +99,8 @@ const SwipeableCalendar = ({
   const [direction, setDirection] = useState(0);
 
   const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
   const currentYear = new Date().getFullYear();
   const years = [currentYear, currentYear + 1];
@@ -127,17 +118,15 @@ const SwipeableCalendar = ({
     setViewDate(newDate);
   };
 
-  // Generate days for the current month
   const generateDays = () => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay(); // 0=Sun
+    const startDayOfWeek = firstDay.getDay();
 
     const days = [];
-    // Empty cells for days before start
     for (let i = 0; i < startDayOfWeek; i++) {
       days.push(null);
     }
@@ -149,21 +138,15 @@ const SwipeableCalendar = ({
 
   const days = generateDays();
 
-  const onPanGestureEvent = ({ nativeEvent }: any) => {
-    // Not needed
-  };
-
   const onHandlerStateChange = (event: any) => {
     if (event.nativeEvent.state === State.END) {
       const { translationX } = event.nativeEvent;
       if (translationX < -50) {
-        // swipe left -> next month
         setDirection(1);
         const newDate = new Date(viewDate);
         newDate.setMonth(viewDate.getMonth() + 1);
         setViewDate(newDate);
       } else if (translationX > 50) {
-        // swipe right -> previous month
         setDirection(-1);
         const newDate = new Date(viewDate);
         newDate.setMonth(viewDate.getMonth() - 1);
@@ -207,10 +190,8 @@ const SwipeableCalendar = ({
 
   return (
     <View className="p-4 bg-white rounded-3xl">
-      {/* Month/Year selector */}
       <View className="flex-row items-center justify-between mb-4">
         <View className="flex-row items-center space-x-2">
-          {/* Month picker - simple buttons */}
           <TouchableOpacity
             onPress={() => handleMonthChange(viewDate.getMonth() - 1)}
             className="p-2 bg-gray-100 rounded-full"
@@ -248,7 +229,6 @@ const SwipeableCalendar = ({
         </View>
       </View>
 
-      {/* Swipeable days grid */}
       <PanGestureHandler onHandlerStateChange={onHandlerStateChange}>
         <Animated.View className="w-full">
           <View className="flex-row flex-wrap">
@@ -267,7 +247,7 @@ const SwipeableCalendar = ({
   );
 };
 
-// --- Main Page ---
+// --- Main Screen ---
 export default function FinalCheckoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -276,11 +256,11 @@ export default function FinalCheckoutScreen() {
   const { user, isInitialized } = useAuthStore();
   const { items, getTotalPrice, getItemCount, clearCart, checkoutState } = useCartStore();
 
-  // Extract checkout data from summary
   const { couponCode, couponDiscount, useCoins, coinDiscount: savedCoinDiscount } = checkoutState;
 
-  // Local states
-  const [orderType, setOrderType] = useState<'delivery' | 'pickup'>('delivery');
+  // Always delivery – no toggle
+  const orderType = 'delivery';
+
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -288,41 +268,35 @@ export default function FinalCheckoutScreen() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
-  // Form fields
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const [mealTime, setMealTime] = useState<'lunch' | 'dinner'>('lunch');
   const [instructions, setInstructions] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Calendar modal
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
 
-  // Time validation error modal
   const [timeValidationError, setTimeValidationError] = useState<{
     show: boolean;
     title: string;
     message: string;
   }>({ show: false, title: '', message: '' });
 
-  // Wallet earn rate (for display, not strictly needed)
   const [earnRate, setEarnRate] = useState(2);
 
-  // Computed values
   const totalPrice = getTotalPrice();
   const itemCount = getItemCount();
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
-  const currentDeliveryFee = orderType === 'delivery' ? selectedAddress?.deliveryFee || 0 : 0;
+  const currentDeliveryFee = selectedAddress?.deliveryFee || 0;
   const coinDiscountAmount = useCoins ? savedCoinDiscount || 0 : 0;
   const finalTotal = Math.max(0, totalPrice + currentDeliveryFee - couponDiscount - coinDiscountAmount);
 
-  // Fetch addresses and wallet rate
+  // Fetch addresses and wallet
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
       try {
-        // Addresses
         const resAddr = await fetch(`${API_URL}/user/addresses`);
         const dataAddr = await resAddr.json();
         if (dataAddr.success && dataAddr.addresses) {
@@ -331,7 +305,6 @@ export default function FinalCheckoutScreen() {
           if (defaultAddr) setSelectedAddressId(defaultAddr.id);
         }
 
-        // Wallet for earn rate
         const resWallet = await fetch(`${API_URL}/wallet`);
         const dataWallet = await resWallet.json();
         if (dataWallet.success && dataWallet.wallet) {
@@ -358,7 +331,6 @@ export default function FinalCheckoutScreen() {
     }
   }, [isInitialized, user, itemCount, isSuccess]);
 
-  // --- Handlers ---
   const toggleAddressSelection = (id: string) => {
     setSelectedAddressId(id);
   };
@@ -373,8 +345,7 @@ export default function FinalCheckoutScreen() {
   };
 
   const handlePlaceOrder = async () => {
-    // Validation
-    if (orderType === 'delivery' && !selectedAddress) {
+    if (!selectedAddress) {
       toast.error('Please select a delivery address.');
       return;
     }
@@ -389,7 +360,6 @@ export default function FinalCheckoutScreen() {
       return;
     }
 
-    // Time validation (same logic as Next.js)
     const today = new Date();
     const todayStr = format(today, 'yyyy-MM-dd');
     const selectedDateStr = format(preferredDate, 'yyyy-MM-dd');
@@ -432,10 +402,10 @@ export default function FinalCheckoutScreen() {
         discount: couponDiscount + coinDiscountAmount,
         couponCode: couponDiscount > 0 ? couponCode : '',
         useCoins: useCoins,
-        orderType: orderType,
-        address: orderType === 'delivery' ? selectedAddress?.address : 'Store Pickup',
-        deliveryAddress: orderType === 'delivery' ? selectedAddress?.address : undefined,
-        coordinates: orderType === 'delivery' ? selectedAddress?.coordinates : null,
+        orderType: 'delivery',
+        address: selectedAddress.address,
+        deliveryAddress: selectedAddress.address,
+        coordinates: selectedAddress.coordinates,
       };
 
       const res = await fetch(`${API_URL}/orders`, {
@@ -447,21 +417,17 @@ export default function FinalCheckoutScreen() {
 
       if (!res.ok) throw new Error(data.error || 'Order placement failed');
 
-      // Success
       setIsSuccess(true);
       clearCart();
 
       const orderNum = data.orderId || '0000';
-      // Calculate earned coins (same logic)
       const eligibleAmountForCoins = Math.max(0, totalPrice - couponDiscount);
       const earnedCoins = Math.floor((eligibleAmountForCoins * earnRate) / 100);
 
-      // Show success toast and navigate
       toast.success(`Order #${orderNum} placed successfully!`);
       if (earnedCoins > 0) {
         toast.info(`You earned ${earnedCoins} coins!`);
       }
-      // Navigate to orders
       router.push('/(shop)/account/orders');
     } catch (error: any) {
       toast.error(error.message || 'Failed to place order.');
@@ -470,7 +436,6 @@ export default function FinalCheckoutScreen() {
     }
   };
 
-  // Loading state
   if (!isInitialized) {
     return (
       <View className="flex-1 justify-center items-center bg-white">
@@ -480,14 +445,12 @@ export default function FinalCheckoutScreen() {
   }
 
   if (itemCount === 0 && !isSuccess) {
-    return null; // will redirect
+    return null;
   }
 
-  // Helper: render address icon
   const getIcon = (name: string) => {
     const n = name.toLowerCase();
     if (n.includes('home')) return <Home size={20} color="#e11d48" />;
-    if (n.includes('work') || n.includes('office')) return <MapPin size={20} color="#e11d48" />;
     return <MapPin size={20} color="#e11d48" />;
   };
 
@@ -506,7 +469,7 @@ export default function FinalCheckoutScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        {/* Order Summary (Mobile collapsible) */}
+        {/* Order Summary (collapsible) */}
         <View className="lg:hidden mb-6">
           <TouchableOpacity
             activeOpacity={0.8}
@@ -544,17 +507,13 @@ export default function FinalCheckoutScreen() {
                   <Text>{formatPrice(totalPrice)}</Text>
                 </View>
                 <View className="flex-row justify-between text-gray-500">
-                  <Text>Delivery Fee {orderType === 'pickup' && '(Pickup)'}</Text>
+                  <Text>Delivery Fee</Text>
                   <Text
                     className={
                       currentDeliveryFee === 0 ? 'text-green-600 font-medium' : 'font-medium'
                     }
                   >
-                    {orderType === 'pickup'
-                      ? 'Free'
-                      : currentDeliveryFee === 0
-                      ? 'Free'
-                      : formatPrice(currentDeliveryFee)}
+                    {currentDeliveryFee === 0 ? 'Free' : formatPrice(currentDeliveryFee)}
                   </Text>
                 </View>
                 {couponDiscount > 0 && (
@@ -574,143 +533,87 @@ export default function FinalCheckoutScreen() {
           )}
         </View>
 
-        {/* Delivery Method */}
+        {/* Delivery Address Selection (always visible, no toggle) */}
         <View className="mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Delivery Method</Text>
-          <View className="flex-row bg-gray-100 rounded-2xl p-1">
-            <TouchableOpacity
-              onPress={() => setOrderType('delivery')}
-              className={`flex-1 py-3 rounded-xl ${
-                orderType === 'delivery' ? 'bg-white shadow-sm border border-primary/10' : ''
-              }`}
-            >
-              <Text
-                className={`text-center font-bold ${
-                  orderType === 'delivery' ? 'text-primary' : 'text-gray-600'
-                }`}
-              >
-                Delivery
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setOrderType('pickup')}
-              className={`flex-1 py-3 rounded-xl ${
-                orderType === 'pickup' ? 'bg-white shadow-sm border border-primary/10' : ''
-              }`}
-            >
-              <Text
-                className={`text-center font-bold ${
-                  orderType === 'pickup' ? 'text-primary' : 'text-gray-600'
-                }`}
-              >
-                Pickup
-              </Text>
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-lg font-bold text-gray-900">Select Delivery Address</Text>
+            <TouchableOpacity onPress={handleAddAddress} className="flex-row items-center">
+              <Plus size={18} color="#e11d48" />
+              <Text className="text-primary font-bold ml-1">Add New</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Address Selection / Pickup Info */}
-        {orderType === 'delivery' ? (
-          <View className="mb-6">
-            <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-lg font-bold text-gray-900">Select Delivery Address</Text>
-              <TouchableOpacity onPress={handleAddAddress} className="flex-row items-center">
-                <Plus size={18} color="#e11d48" />
-                <Text className="text-primary font-bold ml-1">Add New</Text>
+          {addresses.length === 0 ? (
+            <View className="py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-300 items-center">
+              <MapPin size={40} color="#9ca3af" />
+              <Text className="text-gray-500 mt-3">No saved addresses</Text>
+              <TouchableOpacity onPress={handleAddAddress} className="mt-3">
+                <Text className="text-primary font-bold">Add your first address</Text>
               </TouchableOpacity>
             </View>
-
-            {addresses.length === 0 ? (
-              <View className="py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-300 items-center">
-                <MapPin size={40} color="#9ca3af" />
-                <Text className="text-gray-500 mt-3">No saved addresses</Text>
-                <TouchableOpacity onPress={handleAddAddress} className="mt-3">
-                  <Text className="text-primary font-bold">Add your first address</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View className="space-y-3">
-                {addresses.map((addr) => (
-                  <TouchableOpacity
-                    key={addr.id}
-                    onPress={() => toggleAddressSelection(addr.id)}
-                    activeOpacity={0.7}
-                    className={`border rounded-2xl p-4 ${
-                      selectedAddressId === addr.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <View className="flex-row items-start">
-                      <View
-                        className={`h-10 w-10 rounded-xl items-center justify-center mr-3 ${
-                          selectedAddressId === addr.id ? 'bg-primary' : 'bg-primary/10'
-                        }`}
-                      >
-                        {getIcon(addr.name)}
+          ) : (
+            <View className="space-y-3">
+              {addresses.map((addr) => (
+                <TouchableOpacity
+                  key={addr.id}
+                  onPress={() => toggleAddressSelection(addr.id)}
+                  activeOpacity={0.7}
+                  className={`border rounded-2xl p-4 ${
+                    selectedAddressId === addr.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <View className="flex-row items-start">
+                    <View
+                      className={`h-10 w-10 rounded-xl items-center justify-center mr-3 ${
+                        selectedAddressId === addr.id ? 'bg-primary' : 'bg-primary/10'
+                      }`}
+                    >
+                      {getIcon(addr.name)}
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row justify-between items-center">
+                        <Text className="font-bold text-gray-900">{addr.name}</Text>
+                        {selectedAddressId === addr.id && (
+                          <View className="h-2 w-2 rounded-full bg-primary" />
+                        )}
                       </View>
-                      <View className="flex-1">
-                        <View className="flex-row justify-between items-center">
-                          <Text className="font-bold text-gray-900">{addr.name}</Text>
-                          {selectedAddressId === addr.id && (
-                            <View className="h-2 w-2 rounded-full bg-primary" />
-                          )}
-                        </View>
-                        <Text className="text-sm text-gray-500 mt-1" numberOfLines={2}>
-                          {addr.address}
-                        </Text>
-                        <View className="flex-row mt-2 space-x-2">
-                          {addr.distanceText && (
-                            <View className="bg-gray-100 px-2 py-0.5 rounded-md">
-                              <Text className="text-xs text-gray-600">Dist: {addr.distanceText}</Text>
-                            </View>
-                          )}
-                          <View
-                            className={`px-2 py-0.5 rounded-md ${
-                              addr.deliveryFee === 0 ? 'bg-green-100' : 'bg-orange-100'
+                      <Text className="text-sm text-gray-500 mt-1" numberOfLines={2}>
+                        {addr.address}
+                      </Text>
+                      <View className="flex-row mt-2 space-x-2">
+                        {addr.distanceText && (
+                          <View className="bg-gray-100 px-2 py-0.5 rounded-md">
+                            <Text className="text-xs text-gray-600">Dist: {addr.distanceText}</Text>
+                          </View>
+                        )}
+                        <View
+                          className={`px-2 py-0.5 rounded-md ${
+                            addr.deliveryFee === 0 ? 'bg-green-100' : 'bg-orange-100'
+                          }`}
+                        >
+                          <Text
+                            className={`text-xs font-bold ${
+                              addr.deliveryFee === 0 ? 'text-green-700' : 'text-orange-700'
                             }`}
                           >
-                            <Text
-                              className={`text-xs font-bold ${
-                                addr.deliveryFee === 0 ? 'text-green-700' : 'text-orange-700'
-                              }`}
-                            >
-                              Fee: {addr.deliveryFee === 0 ? 'FREE' : formatPrice(addr.deliveryFee)}
-                            </Text>
-                          </View>
+                            Fee: {addr.deliveryFee === 0 ? 'FREE' : formatPrice(addr.deliveryFee)}
+                          </Text>
                         </View>
                       </View>
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        ) : (
-          <View className="bg-blue-50 p-4 rounded-2xl border border-blue-200 mb-6">
-            <Text className="text-center font-bold text-blue-900 text-lg">
-              📍 Store Location: Janai, Garbagan, Hooghly (PIN: 712304)
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                // Open maps with coordinates
-                const url = `https://maps.google.com/?q=22.717958,88.260207`;
-                // Use Linking if needed, but we'll just show a toast
-                toast.info('View on Maps (link would open here)');
-              }}
-              className="mt-2 flex-row items-center justify-center"
-            >
-              <MapPin size={16} color="#e11d48" />
-              <Text className="text-primary font-bold ml-1">View on Maps</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
 
         {/* Preferences */}
         <View className="mb-6">
           <Text className="text-lg font-bold text-gray-900 mb-3">Preferences</Text>
 
-          {/* Date & Meal Time */}
           <View className="flex-row space-x-4">
             <View className="flex-1">
               <Text className="text-xs text-gray-500 ml-1 mb-1">Date</Text>
@@ -751,7 +654,6 @@ export default function FinalCheckoutScreen() {
             </View>
           </View>
 
-          {/* Instructions */}
           <View className="mt-4">
             <FloatingLabelInput
               label="Cooking Instructions (Optional)"
@@ -790,11 +692,9 @@ export default function FinalCheckoutScreen() {
         {/* Place Order Button */}
         <TouchableOpacity
           onPress={handlePlaceOrder}
-          disabled={isSubmitting || (orderType === 'delivery' && !selectedAddress)}
+          disabled={isSubmitting || !selectedAddress}
           className={`h-14 rounded-2xl flex-row items-center justify-center shadow-lg ${
-            isSubmitting || (orderType === 'delivery' && !selectedAddress)
-              ? 'bg-gray-300'
-              : 'bg-primary'
+            isSubmitting || !selectedAddress ? 'bg-gray-300' : 'bg-primary'
           }`}
           style={{
             shadowColor: '#e11d48',
