@@ -113,8 +113,8 @@ export default function ShopLayout() {
         }}
       />
 
-      <Tabs.Screen name="checkout/index" options={{ href: null }} /> 
-      {/* 🔴 আপনার checkout পেজের রাউট নাম অনুযায়ী উপরের লাইনটি ঠিক করে নেবেন */}
+      <Tabs.Screen name="checkout/summary" options={{ href: null }} />
+      <Tabs.Screen name="checkout/final" options={{ href: null }} />
       <Tabs.Screen name="account/orders" options={{ href: null }} />
       <Tabs.Screen name="account/addresses" options={{ href: null }} />
       <Tabs.Screen name="account/wallet/index" options={{ href: null }} />

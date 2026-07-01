@@ -79,7 +79,7 @@ export default function OrderSummaryScreen() {
     if (isInitialized) {
       if (!user) {
         toast.error("Please login to continue.");
-        router.push('/login'); // আপনার অ্যাপের লগইন রাউট অনুযায়ী চেঞ্জ করে নিতে পারেন
+        router.push('/(auth)/login'); // আপনার অ্যাপের লগইন রাউট অনুযায়ী চেঞ্জ করে নিতে পারেন
       } else if (itemCount === 0) {
         router.push('/(shop)/');
       }
@@ -165,7 +165,7 @@ export default function OrderSummaryScreen() {
       useCoins,
       coinDiscount: coinDiscountAmount // ★ Added missing property
     });
-    router.push('/checkout');
+    router.push('/checkout/final');
   };
 
   if (!isInitialized || !user || itemCount === 0)
