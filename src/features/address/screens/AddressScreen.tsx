@@ -2,8 +2,8 @@
 
 import { useRouter } from 'expo-router';
 import { AlertCircle, Briefcase, Home, Info, Loader2, MapPin, Pencil, Plus, Search, Trash2, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { ActivityIndicator, Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 // ★ react-native-maps সরিয়ে WebView আনা হলো
@@ -47,6 +47,30 @@ export function AddressScreen() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      slideAnim.setValue(Dimensions.get('window').height);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isDialogOpen]);
+
+  const closeDialog = () => {
+    Animated.timing(slideAnim, {
+      toValue: Dimensions.get('window').height,
+      duration: 300,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setIsDialogOpen(false);
+    });
+  };
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const [isMapReady, setIsMapReady] = useState(false);
@@ -201,7 +225,7 @@ export function AddressScreen() {
       
       if (res.ok) {
         toast.success(editingId ? "Address updated!" : "Address saved!");
-        setIsDialogOpen(false);
+        closeDialog();
         fetchAddresses();
       } else {
         const data = await res.json();
@@ -391,21 +415,32 @@ export function AddressScreen() {
       {/* --- ADD / EDIT MODAL --- */}
       <Modal
         visible={isDialogOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setIsDialogOpen(false)}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={closeDialog}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
-        >
-          <View style={{ flex: 1, backgroundColor: '#f9fafb', paddingTop: Platform.OS === 'android' ? insets.top : 0 }}>
-            <View className="flex-row items-center justify-between p-5 border-b border-gray-100 bg-white shadow-sm z-10">
-              <Text className="text-xl font-extrabold text-gray-900 font-sans">{editingId ? 'Edit Address' : 'Add New Address'}</Text>
-              <TouchableOpacity onPress={() => setIsDialogOpen(false)} className="p-2.5 bg-gray-100 rounded-full active:bg-gray-200">
-                <X size={20} color="#4b5563" />
-              </TouchableOpacity>
-            </View>
+        <View className="flex-1 justify-end bg-black/50">
+          <TouchableOpacity 
+            className="absolute inset-0" 
+            activeOpacity={1} 
+            onPress={closeDialog} 
+          />
+          <Animated.View style={{ transform: [{ translateY: slideAnim }], height: '92%' }}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ flex: 1, backgroundColor: '#f9fafb', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 20 }}
+            >
+              
+              <View className="items-center pt-3 pb-2 bg-white">
+                <View className="w-12 h-1.5 bg-gray-200 rounded-full" />
+              </View>
+
+              <View className="flex-row items-center justify-between px-5 pb-4 pt-1 border-b border-gray-100 bg-white shadow-sm z-10">
+                <Text className="text-xl font-extrabold text-gray-900 font-sans">{editingId ? 'Edit Address' : 'Add New Address'}</Text>
+                <TouchableOpacity onPress={closeDialog} className="p-2.5 bg-gray-100 rounded-full active:bg-gray-200">
+                  <X size={20} color="#4b5563" />
+                </TouchableOpacity>
+              </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
             
@@ -544,8 +579,9 @@ export function AddressScreen() {
             </TouchableOpacity>
             
           </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+          </Animated.View>
+        </View>
       </Modal>
       </View>
     </View>
