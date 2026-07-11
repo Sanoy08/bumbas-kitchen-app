@@ -1,0 +1,10 @@
+// src\lib\utils.ts
+
+export function formatPrice(price: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price).replace('₹', '₹ ');
+}

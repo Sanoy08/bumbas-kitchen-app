@@ -1,0 +1,472 @@
+// src/app/(shop)/checkout/success.tsx
+
+import { formatPrice } from '@/shared/utils/utils';
+import { useCartStore } from '@/shared/store/cartStore';
+import { WebView } from 'react-native-webview';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowRight, Home, ShoppingBag, Sparkles } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
+import { useEffect } from 'react';
+import {
+  Dimensions,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Image,
+} from 'react-native';
+import Animated, {
+  Easing,
+  FadeInDown,
+  FadeInUp,
+  interpolate,
+  useAnimatedStyle,
+  useAnimatedProps,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+  ZoomIn,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const { width } = Dimensions.get('window');
+
+// Animated Ring Component for the pulse effect
+const PulseRing = ({ delay = 0, scaleTo = 1.5, opacityTo = 0 }) => {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(1, { duration: 2000, easing: Easing.out(Easing.quad) }),
+        -1,
+        false
+      )
+    );
+  }, []);
+
+  const style = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: interpolate(progress.value, [0, 1], [0.8, scaleTo]) }],
+      opacity: interpolate(progress.value, [0, 1], [0.6, opacityTo]),
+    };
+  });
+
+  return <Animated.View style={[styles.pulseRing, style]} />;
+};
+
+export function SuccessScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{
+    orderId: string;
+    name: string;
+    amount: string;
+    coins: string;
+  }>();
+
+  const orderId = params.orderId || '---';
+  const name = params.name || 'Guest';
+  const amount = params.amount ? parseFloat(params.amount) : 0;
+  const coins = parseInt(params.coins || '0', 10);
+
+  const clearCart = useCartStore((state) => state.clearCart);
+
+  useEffect(() => {
+    clearCart();
+  }, []);
+
+  const checkScale = useSharedValue(0);
+  const iconTranslate = useSharedValue(20);
+  const checkDrawProgress = useSharedValue(0);
+
+  // New shared values for the sequence
+  const iconMainTranslateY = useSharedValue(160); // Starts 160px lower (centered)
+  const iconMainScale = useSharedValue(1.25); // Starts slightly larger
+
+  const detailsOpacity1 = useSharedValue(0);
+  const detailsOpacity2 = useSharedValue(0);
+  const detailsOpacity3 = useSharedValue(0);
+  const detailsOpacity4 = useSharedValue(0);
+
+  const soundAsset = require('../../../../assets/sounds/success.mp3');
+  const soundUri = Image.resolveAssetSource(soundAsset).uri;
+
+  useEffect(() => {
+    // 1. Initial checkmark pop-in
+    checkScale.value = withDelay(200, withSpring(1, { damping: 12, stiffness: 100 }));
+    iconTranslate.value = withDelay(300, withSpring(0, { damping: 10, stiffness: 80 }));
+
+    // Draw the checkmark
+    checkDrawProgress.value = withDelay(500, withTiming(1, { duration: 600, easing: Easing.out(Easing.exp) }));
+
+    // 2. Move the checkmark up to its final position after a 0.89s pause
+    const moveUpConfig = { duration: 800, easing: Easing.out(Easing.exp) };
+    iconMainTranslateY.value = withDelay(890, withTiming(0, moveUpConfig));
+    iconMainScale.value = withDelay(890, withTiming(1, moveUpConfig));
+
+    // 3. Staggered reveal of the details
+    const fadeConfig = { duration: 600, easing: Easing.out(Easing.ease) };
+    detailsOpacity1.value = withDelay(990, withTiming(1, fadeConfig));
+    detailsOpacity2.value = withDelay(1140, withTiming(1, fadeConfig));
+    detailsOpacity3.value = withDelay(1290, withTiming(1, fadeConfig));
+    detailsOpacity4.value = withDelay(1440, withTiming(1, fadeConfig));
+  }, []);
+
+  const checkAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
+
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: iconTranslate.value }],
+    opacity: interpolate(iconTranslate.value, [20, 0], [0, 1]),
+  }));
+
+  const iconWrapperStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: iconMainTranslateY.value },
+      { scale: iconMainScale.value }
+    ]
+  }));
+
+  const animatedCheckProps = useAnimatedProps(() => {
+    const length = 24;
+    return {
+      strokeDashoffset: length - length * checkDrawProgress.value,
+    };
+  });
+
+  const createDetailStyle = (opacityVal: Animated.SharedValue<number>) => useAnimatedStyle(() => ({
+    opacity: opacityVal.value,
+    transform: [{ translateY: interpolate(opacityVal.value, [0, 1], [30, 0]) }]
+  }));
+
+  const detailStyle1 = createDetailStyle(detailsOpacity1);
+  const detailStyle2 = createDetailStyle(detailsOpacity2);
+  const detailStyle3 = createDetailStyle(detailsOpacity3);
+  const detailStyle4 = createDetailStyle(detailsOpacity4);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+        <LinearGradient
+        colors={['#fff1f2', '#ffffff']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      <View style={styles.wrapper}>
+        {/* Animated Checkmark UI (Initially Centered) */}
+        <Animated.View style={[styles.iconContainer, iconWrapperStyle]}>
+          <PulseRing delay={0} scaleTo={1.6} opacityTo={0} />
+          <PulseRing delay={1000} scaleTo={2} opacityTo={0} />
+          
+          <Animated.View style={[styles.iconCircle, checkAnimatedStyle]}>
+            <LinearGradient
+              colors={['#f43f5e', '#e11d48']}
+              style={styles.iconGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Animated.View style={iconAnimatedStyle}>
+                <Svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                  <AnimatedPath
+                    d="M4 12L9 17L20 6"
+                    strokeDasharray={24}
+                    animatedProps={animatedCheckProps}
+                  />
+                </Svg>
+              </Animated.View>
+            </LinearGradient>
+          </Animated.View>
+        </Animated.View>
+
+        {/* Text Content */}
+        <Animated.View style={[styles.content, detailStyle1]}>
+          <Text style={styles.title}>🎉 Order Placed!</Text>
+          <Text style={styles.subtitle} numberOfLines={2}>
+            Awesome, {name}! Your food is getting ready.
+          </Text>
+        </Animated.View>
+
+        {/* Order Details Card */}
+        <Animated.View style={[styles.cardContainer, detailStyle2]}>
+          <View style={styles.card}>
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>ORDER ID</Text>
+              <Text style={styles.cardValue}>#{orderId}</Text>
+            </View>
+            <View style={styles.cardDivider} />
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>AMOUNT PAID</Text>
+              <Text style={[styles.cardValue, styles.amountText]}>
+                {formatPrice(amount)}
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Coins Earned */}
+        {coins > 0 && (
+          <Animated.View style={[styles.cardContainer, detailStyle3]}>
+            <View style={[styles.card, styles.coinsCard]}>
+              <View style={styles.cardRow}>
+                <View style={styles.coinsLeft}>
+                  <View style={styles.coinsIconWrap}>
+                    <Sparkles size={20} color="#e11d48" />
+                  </View>
+                  <Text style={styles.coinsTitle}>Coins Earned</Text>
+                </View>
+                <Text style={styles.coinsAmount}>+{coins}</Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Actions */}
+        <Animated.View style={[styles.buttonGroup, coins > 0 ? detailStyle4 : detailStyle3]}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.button, styles.primaryButton]}
+            onPress={() => router.push('/(shop)/account/orders')}
+          >
+            <ShoppingBag size={20} color="#fff" />
+            <Text style={styles.buttonText}>View Order</Text>
+            <ArrowRight size={18} color="#fff" style={styles.buttonIcon} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles.button, styles.secondaryButton]}
+            onPress={() => router.push('/(shop)')}
+          >
+            <Home size={20} color="#4b5563" />
+            <Text style={styles.secondaryButtonText}>Back to Home</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.footerText}>
+            You will receive a confirmation notification shortly.
+          </Text>
+        </Animated.View>
+      </View>
+    </SafeAreaView>
+      
+    <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+      <WebView
+        source={{
+          html: `
+            <!DOCTYPE html>
+            <html>
+              <body>
+                <audio id="audio" src="${soundUri}" autoplay></audio>
+                <script>
+                  document.getElementById("audio").play().catch(e => console.log(e));
+                </script>
+              </body>
+            </html>
+          `,
+          baseUrl: ''
+        }}
+        originWhitelist={['*']}
+        mediaPlaybackRequiresUserAction={false}
+        allowFileAccess={true}
+        allowFileAccessFromFileURLs={true}
+        allowUniversalAccessFromFileURLs={true}
+        style={{ width: 0, height: 0, display: 'none' }}
+        containerStyle={{ width: 0, height: 0, display: 'none' }}
+      />
+    </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  wrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+  },
+  iconContainer: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+    marginTop: -20,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#ffe4e6',
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  iconGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500',
+    paddingHorizontal: 20,
+  },
+  cardContainer: {
+    width: '100%',
+    maxWidth: 400,
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    width: '100%',
+    borderWidth: 1.5,
+    borderColor: '#f1f5f9',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94a3b8',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  cardValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  amountText: {
+    color: '#e11d48',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 14,
+  },
+  coinsCard: {
+    backgroundColor: '#fff1f2',
+    borderColor: '#ffe4e6',
+    borderWidth: 1,
+    paddingVertical: 16,
+  },
+  coinsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  coinsIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ffe4e6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coinsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#9f1239',
+    marginLeft: 10,
+  },
+  coinsAmount: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#e11d48',
+  },
+  buttonGroup: {
+    width: '100%',
+    maxWidth: 400,
+    marginTop: 16,
+    gap: 12,
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  primaryButton: {
+    backgroundColor: '#e11d48',
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  buttonIcon: {
+    marginLeft: 2,
+  },
+  secondaryButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+  },
+  secondaryButtonText: {
+    color: '#475569',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  footerText: {
+    marginTop: 20,
+    fontSize: 13,
+    color: '#94a3b8',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+});
