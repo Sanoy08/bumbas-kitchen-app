@@ -67,15 +67,30 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
           const translateX = interpolate(
             value,
             [-1, 0, 1],
-            [-windowWidth * 0.25, 0, windowWidth] 
+            [-windowWidth * 0.25, 0, windowWidth],
+            Extrapolation.CLAMP
           );
 
           // We want the entering item (value > 0) to be on top of the leaving item (value < 0)
-          const zIndex = interpolate(value, [-1, 0, 1], [0, 1, 2]);
+          const zIndex = Math.round(interpolate(
+            value, 
+            [-1, 0, 1], 
+            [0, 1, 2],
+            Extrapolation.CLAMP
+          ));
+
+          // Fade out items that are not adjacent to prevent looping glitches
+          const opacity = interpolate(
+            value,
+            [-2, -1, 0, 1, 2],
+            [0, 1, 1, 1, 0],
+            Extrapolation.CLAMP
+          );
 
           return {
             transform: [{ translateX }],
             zIndex,
+            opacity,
           };
         }}
         renderItem={({ item }) => (
