@@ -190,7 +190,12 @@ export function AccountScreen() {
     });
   };
 
-  const getInitials = (name: string) => name ? name.split(' ').map(n => n).join('').toUpperCase().substring(0, 2) : 'U';
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
   const hasDob = !!user?.dob;
   const hasAnniversary = !!user?.anniversary;
 
@@ -212,12 +217,8 @@ export function AccountScreen() {
 
         {/* --- PROFILE INFO --- */}
         <View className="flex-row items-center mb-4">
-          <View className="h-16 w-16 rounded-full border-2 border-gray-100 overflow-hidden bg-gray-50 items-center justify-center">
-            {user?.picture ? (
-              <Image source={{ uri: user.picture }} className="w-full h-full" contentFit="cover" />
-            ) : (
-              <Text className="text-primary font-bold text-xl">{getInitials(user.name)}</Text>
-            )}
+          <View className="h-16 w-16 rounded-full border-2 border-gray-100 overflow-hidden bg-rose-100 items-center justify-center">
+            <Text className="text-primary font-bold text-xl">{getInitials(user.name)}</Text>
           </View>
           <View className="flex-1 ml-4">
             <Text className="text-xl font-bold text-gray-900 font-sans" numberOfLines={1}>{user.name}</Text>

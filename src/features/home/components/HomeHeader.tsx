@@ -25,6 +25,15 @@ const getDisplayAddress = (user: any) => {
   return parts.slice(0, 2).join(',').trim();
 };
 
+const getUserInitial = (user: any) => {
+  if (!user) return null;
+  const name = user.name || user.firstName;
+  if (name && typeof name === 'string' && name.trim().length > 0) {
+    return name.trim().charAt(0).toUpperCase();
+  }
+  return null;
+};
+
 export const HomeHeader = ({
   headerAnimatedStyle,
   locationRowStyle,
@@ -37,6 +46,8 @@ export const HomeHeader = ({
 }: HomeHeaderProps) => {
   const { user } = useAuthStore();
   const router = useRouter();
+
+  const userInitial = getUserInitial(user);
 
   return (
     <Animated.View
@@ -66,9 +77,13 @@ export const HomeHeader = ({
         </View>
         <TouchableOpacity
           onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')}
-          className="h-10 w-10 bg-white/90 rounded-full items-center justify-center"
+          className="h-10 w-10 bg-white/90 rounded-full items-center justify-center border border-gray-100 shadow-sm"
         >
-          <User size={20} color="#e11d48" />
+          {userInitial ? (
+            <Text className="text-primary font-black text-lg">{userInitial}</Text>
+          ) : (
+            <User size={20} color="#e11d48" />
+          )}
         </TouchableOpacity>
       </Animated.View>
 

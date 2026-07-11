@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { ArrowLeft, TicketPercent } from 'lucide-react-native';
+import { ArrowLeft, TicketPercent, Copy } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import { toast } from 'sonner-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 
@@ -24,50 +26,61 @@ const CouponCard = ({ coupon }: { coupon: any }) => {
   const finalDesc = description ? description : defaultDesc;
 
   return (
-    <View className="mb-5">
-      <View className="flex-row bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" style={{ elevation: 2 }}>
+    <View className="mb-6 relative">
+      {/* Main Ticket Container */}
+      <View className="flex-row bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden" style={{ elevation: 3, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
         
-        {/* Left Side: Brand / Discount Info (30%) */}
-        <View className="w-[30%] bg-primary justify-center items-center p-3 relative">
-          <Text className="text-white font-black text-3xl tracking-tighter" numberOfLines={1} adjustsFontSizeToFit>{discountText}</Text>
-          <Text className="text-white/90 font-bold text-[10px] tracking-widest mt-1 uppercase">OFF</Text>
+        {/* Left Side: Brand / Discount Info (32%) */}
+        <View className="w-[32%] bg-rose-50/60 justify-center items-center p-4 relative border-r-[1.5px] border-dashed border-rose-200">
+          <View className="bg-white rounded-full p-2.5 mb-2 shadow-sm border border-rose-100">
+            <TicketPercent size={22} color="#e11d48" />
+          </View>
+          <Text className="text-rose-600 font-black text-2xl tracking-tighter" numberOfLines={1} adjustsFontSizeToFit>{discountText}</Text>
+          <Text className="text-rose-400 font-bold text-[9px] tracking-[0.15em] mt-1 uppercase">Discount</Text>
         </View>
 
-        {/* Right Side: Details & Code (70%) */}
-        <View className="w-[70%] p-4 bg-white border-l-[1.5px] border-dashed border-gray-300 justify-between">
+        {/* Right Side: Details & Code (68%) */}
+        <View className="w-[68%] p-5 bg-white justify-between">
           <View>
-            <Text className="text-sm font-bold text-gray-900 mb-1 leading-snug">{finalDesc}</Text>
+            <Text className="text-[15px] font-bold text-gray-800 mb-1.5 leading-snug">{finalDesc}</Text>
             {minOrder > 0 && (
-              <Text className="text-xs text-gray-500 font-medium">Min. order: ₹{minOrder}</Text>
+              <Text className="text-[11px] text-gray-500 font-medium">Min. order: <Text className="text-gray-700 font-bold">₹{minOrder}</Text></Text>
             )}
           </View>
           
-          <View className="mt-4 flex-row items-center justify-between">
-            <View className="bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 border-dashed flex-1 mr-3 items-center justify-center">
-              <Text className="text-primary font-black text-base tracking-widest" selectable={true}>{code}</Text>
+          <View className="mt-5 flex-row items-center justify-between">
+            <View className="bg-gray-50/80 px-3 py-2.5 rounded-xl border border-gray-200/80 border-dashed flex-1 mr-3 items-center justify-center">
+              <Text className="text-gray-800 font-black text-[15px] tracking-[0.15em]" selectable={true}>{code}</Text>
             </View>
-            <View className="bg-red-50 border border-red-100 px-2.5 py-2 rounded-lg">
-              <Text className="text-[9px] font-bold text-primary uppercase tracking-wider">Hold to Copy</Text>
-            </View>
+            <TouchableOpacity 
+              className="bg-primary px-3.5 py-3 rounded-xl flex-row items-center shadow-sm"
+              onPress={async () => {
+                await Clipboard.setStringAsync(code);
+                toast.success('Coupon code copied!');
+              }}
+              activeOpacity={0.8}
+            >
+              <Copy size={14} color="#ffffff" />
+              <Text className="text-[10px] font-bold text-white uppercase tracking-wider ml-1.5">Copy</Text>
+            </TouchableOpacity>
           </View>
           
-          <View className="mt-4 border-t border-gray-100 pt-2 flex-row justify-between items-center">
-            <Text className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
-              {validUntil ? `Expires: ${format(new Date(validUntil), 'MMM dd, yyyy')}` : 'No Expiry Date'}
+          <View className="mt-5 border-t border-gray-100 pt-3 flex-row justify-between items-center">
+            <Text className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+              {validUntil ? `Valid till ${format(new Date(validUntil), 'MMM dd, yyyy')}` : 'No Expiry Date'}
             </Text>
+            <Text className="text-[10px] text-rose-500 font-bold uppercase tracking-wider">T&C Apply</Text>
           </View>
         </View>
 
-        {/* The Cutouts */}
-        {/* Top Cutout */}
+        {/* The Cutouts to make it look like a real ticket */}
         <View 
-          className="absolute top-0 w-8 h-8 bg-gray-50 rounded-full border border-gray-200" 
-          style={{ left: '30%', transform: [{ translateX: -16 }, { translateY: -16 }] }} 
+          className="absolute top-0 w-6 h-6 bg-gray-50 rounded-full border-b border-rose-100" 
+          style={{ left: '32%', transform: [{ translateX: -12 }, { translateY: -12 }] }} 
         />
-        {/* Bottom Cutout */}
         <View 
-          className="absolute bottom-0 w-8 h-8 bg-gray-50 rounded-full border border-gray-200" 
-          style={{ left: '30%', transform: [{ translateX: -16 }, { translateY: 16 }] }} 
+          className="absolute bottom-0 w-6 h-6 bg-gray-50 rounded-full border-t border-rose-100" 
+          style={{ left: '32%', transform: [{ translateX: -12 }, { translateY: 12 }] }} 
         />
         
       </View>
@@ -119,25 +132,26 @@ export function CouponsScreen() {
               <ActivityIndicator size="large" color="#e11d48" />
             </View>
           ) : coupons.length > 0 ? (
-            <View>
+            <View className="pb-10">
               {coupons.map((coupon, idx) => (
                 <CouponCard key={coupon._id || idx} coupon={coupon} />
               ))}
             </View>
           ) : (
-            <View className="items-center justify-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
-              <View className="h-16 w-16 bg-gray-50 rounded-full items-center justify-center mb-4">
-                <TicketPercent size={32} color="#d1d5db" />
+            <View className="items-center justify-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm" style={{ elevation: 2 }}>
+              <View className="h-20 w-20 bg-rose-50 rounded-full items-center justify-center mb-5">
+                <TicketPercent size={36} color="#e11d48" />
               </View>
-              <Text className="text-lg font-bold text-gray-900">No coupons available</Text>
-              <Text className="text-sm text-gray-500 mt-1 mb-6 text-center px-6">
+              <Text className="text-xl font-bold text-gray-900 mb-2">No coupons available</Text>
+              <Text className="text-sm text-gray-500 mb-8 text-center px-8 leading-relaxed">
                 You don't have any active coupons right now. Check back later for exciting offers!
               </Text>
               <TouchableOpacity
                 onPress={() => router.push('/(shop)/explore')}
-                className="bg-primary px-6 py-3 rounded-xl shadow-sm"
+                className="bg-primary px-8 py-3.5 rounded-2xl shadow-md"
+                activeOpacity={0.9}
               >
-                <Text className="text-white font-bold">Order Now</Text>
+                <Text className="text-white font-bold text-base tracking-wide">Explore Menu</Text>
               </TouchableOpacity>
             </View>
           )}
