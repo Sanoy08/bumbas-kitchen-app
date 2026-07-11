@@ -55,7 +55,7 @@ export const MiddleSlider = ({ slides }: MiddleSliderProps) => {
         autoPlay={true}
         autoPlayInterval={4000}
         data={slides}
-        scrollAnimationDuration={1000}
+        scrollAnimationDuration={450}
         mode="parallax"
         modeConfig={{
           parallaxScrollingScale: 0.92,
@@ -67,21 +67,20 @@ export const MiddleSlider = ({ slides }: MiddleSliderProps) => {
         }}
         renderItem={({ item }) => (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Link href={item.clickUrl || '/menus'} asChild>
-              <TouchableOpacity activeOpacity={0.9} style={{ width: cardWidth, height: cardHeight }}>
-                <View 
-                  className="w-full h-full rounded-[20px] overflow-hidden bg-gray-50 border border-gray-100 shadow-sm"
-                  style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
-                >
+            <View 
+              style={{ width: cardWidth, height: cardHeight, backgroundColor: '#f9fafb', borderRadius: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+            >
+              <Link href={item.clickUrl || '/menus'} asChild>
+                <TouchableOpacity activeOpacity={0.85} style={{ width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden' }}>
                   <Image
                     source={{ uri: optimizeImageUrl(item.imageUrl) }}
                     style={{ width: '100%', height: '100%' }}
                     contentFit="cover"
                     transition={300}
                   />
-                </View>
-              </TouchableOpacity>
-            </Link>
+                </TouchableOpacity>
+              </Link>
+            </View>
           </View>
         )}
       />

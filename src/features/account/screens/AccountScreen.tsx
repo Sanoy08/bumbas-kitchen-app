@@ -25,7 +25,8 @@ import {
     ScrollView,
     Text,
     TouchableOpacity,
-    View
+    View,
+    RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -76,6 +77,7 @@ export function AccountScreen() {
   
   // Forms & Loading
   const [isSaving, setIsSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [dob, setDob] = useState("");
   const [anniversary, setAnniversary] = useState("");
 
@@ -95,6 +97,31 @@ export function AccountScreen() {
     if (user.anniversary) setAnniversary(user.anniversary);
     if (user.wallet?.currentBalance) setWalletBalance(user.wallet.currentBalance);
   }, [user, isInitialized]);
+
+  const onRefresh = async () => {
+    if (!user) return;
+    setRefreshing(true);
+    try {
+      const res = await fetch(`${API_URL}/wallet`);
+      const data = await res.json();
+      if (data.success && data.wallet) {
+        useAuthStore.setState((state) => ({
+          user: state.user ? {
+            ...state.user,
+            wallet: {
+              ...state.user.wallet,
+              currentBalance: data.wallet.balance || 0,
+            }
+          } : null
+        }));
+        setWalletBalance(data.wallet.balance || 0);
+      }
+    } catch (error) {
+      console.log('Account refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const openDatePicker = (type: 'dob' | 'anniversary') => {
     setActiveDatePicker(type);
@@ -210,7 +237,21 @@ export function AccountScreen() {
   return (
     // ★ Added paddingTop using insets.top to avoid status bar overlap
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-      <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80, paddingTop: 20 }}>
+      <ScrollView 
+        className="flex-1 px-4" 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: 80, paddingTop: 20 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#e11d48"
+            colors={['#e11d48', '#f59e0b', '#10b981']}
+            progressBackgroundColor="#ffffff"
+            progressViewOffset={10}
+          />
+        }
+      >
         
         {/* --- HEADER --- */}
         <Text className="text-3xl font-bold text-gray-900 mb-6 font-sans">My Account</Text>
@@ -262,6 +303,7 @@ export function AccountScreen() {
 
         {/* --- MENU LIST --- */}
         <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/(shop)/account/orders')} />
+        <MenuItem icon={Heart} title="My Favorites" subtitle="View and order your favorite dishes" onPress={() => router.push('/(shop)/account/favorites')} />
         <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => router.push('/(shop)/account/addresses')} />
         <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/(shop)/account/wallet')} />
         <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => router.push('/(shop)/account/coupons')} />

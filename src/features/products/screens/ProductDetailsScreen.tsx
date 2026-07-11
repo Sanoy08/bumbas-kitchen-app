@@ -13,7 +13,8 @@ import {
   Minus,
   Plus,
   ShoppingCart,
-  Star
+  Star,
+  ArrowRight
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -32,6 +33,8 @@ import {
   UIManager,
   View,
 } from 'react-native';
+import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel';
+import { default as Reanimated, Extrapolation, interpolate, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
@@ -61,6 +64,7 @@ export function ProductDetailsScreen() {
   const [product, setProduct] = useState<any>(null);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [randomItems, setRandomItems] = useState<any[]>([]);
+  const [moreItems, setMoreItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [quantity, setQuantity] = useState(1);
@@ -76,7 +80,7 @@ export function ProductDetailsScreen() {
   const inlineCartRef = useRef<View>(null);
   const cartIconRef = useRef<View>(null);
   const scrollViewRef = useRef<ScrollView>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const carouselRef = useRef<ICarouselInstance>(null);
 
   // Header fade animation
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -89,6 +93,14 @@ export function ProductDetailsScreen() {
   useEffect(() => {
     const fetchProductFromCache = async () => {
       if (!slug) return;
+
+      // Immediately clear previous product so old UI never flashes
+      setProduct(null);
+      setRelatedProducts([]);
+      setRandomItems([]);
+      setMoreItems([]);
+      setActiveSlide(0);
+      setShowFullDesc(false);
       setIsLoading(true);
 
       // Reset scroll position and animated values for new screen load
@@ -130,8 +142,11 @@ export function ProductDetailsScreen() {
         const otherProducts = allProducts.filter(
           (p: any) => p.id !== foundProduct.id
         );
-        const shuffled = otherProducts.sort(() => 0.5 - Math.random());
+        const shuffled = [...otherProducts].sort(() => 0.5 - Math.random());
         setRandomItems(shuffled.slice(0, 8));
+        
+        // Take next 12 items for the grid
+        setMoreItems(shuffled.slice(8, 20));
 
         setIsLoading(false);
       } catch (error) {
@@ -288,7 +303,8 @@ export function ProductDetailsScreen() {
   };
 
   // --- Loading & Error ---
-  if (isLoading) {
+  // Show loader if loading OR if cached product doesn't match current slug (stale state from component reuse)
+  if (isLoading || (product && product.slug !== slug)) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator size="large" color="#e11d48" />
@@ -451,43 +467,82 @@ export function ProductDetailsScreen() {
         scrollEventThrottle={16}
       >
         {/* Image Slider (Swipeable) */}
-        <FlatList
-          ref={flatListRef}
-          data={displayImages}
-          renderItem={renderImageItem}
-          keyExtractor={(item, index) => item.id || index.toString()}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(event) => {
-            const index = Math.round(
-              event.nativeEvent.contentOffset.x / screenWidth
-            );
-            setActiveSlide(index);
-          }}
-          initialScrollIndex={0}
-          getItemLayout={(data, index) => ({
-            length: screenWidth,
-            offset: screenWidth * index,
-            index,
-          })}
-        />
+        <View style={{ width: screenWidth, height: screenWidth, backgroundColor: '#f9fafb' }}>
+          <Carousel
+            ref={carouselRef}
+            loop={displayImages.length > 1}
+            width={screenWidth}
+            height={screenWidth}
+            autoPlay={displayImages.length > 1}
+            autoPlayInterval={4000}
+            data={displayImages}
+            scrollAnimationDuration={400}
+            onSnapToItem={(index) => setActiveSlide(index)}
+            customAnimation={(value: number) => {
+              "worklet";
+              const translateX = interpolate(
+                value,
+                [-1, 0, 1],
+                [-screenWidth * 0.25, 0, screenWidth],
+                Extrapolation.CLAMP
+              );
+              const zIndex = Math.round(interpolate(
+                value, 
+                [-1, 0, 1], 
+                [0, 1, 2],
+                Extrapolation.CLAMP
+              ));
+              const opacity = interpolate(
+                value,
+                [-2, -1, 0, 1, 2],
+                [0, 1, 1, 1, 0],
+                Extrapolation.CLAMP
+              );
+              return { transform: [{ translateX }], zIndex, opacity };
+            }}
+            renderItem={({ item }) => {
+              const imageUrl = item.url ? optimizeImageUrl(item.url) : PLACEHOLDER_IMAGE_URL;
+              return (
+                <View style={{ width: screenWidth, height: screenWidth, overflow: 'hidden' }}>
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                  {isOutOfStock && (
+                    <View className="absolute inset-0 flex items-center justify-center bg-black/10 z-10">
+                      <View
+                        className="bg-red-600 px-6 py-2 rounded-lg shadow-lg"
+                        style={{ transform: [{ rotate: '-10deg' }] }}
+                      >
+                        <Text className="text-white font-black text-xl font-sans tracking-widest uppercase">
+                          Sold Out
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            }}
+          />
 
-        {/* Dots */}
-        {displayImages.length > 1 && (
-          <View className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none justify-end pb-4">
-            <View className="flex-row justify-center gap-1.5 z-20">
-              {displayImages.map((_: any, idx: number) => (
-                <View
-                  key={idx}
-                  className={`h-1.5 rounded-full transition-all shadow-sm ${
-                    activeSlide === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/60'
-                  }`}
-                />
-              ))}
+          {/* Dots */}
+          {displayImages.length > 1 && (
+            <View className="absolute bottom-4 left-0 right-0 pointer-events-none justify-end">
+              <View className="flex-row justify-center gap-1.5 z-20">
+                {displayImages.map((_: any, idx: number) => (
+                  <View
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all shadow-sm ${
+                      activeSlide === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/60'
+                    }`}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* Thumbnails */}
         {displayImages.length > 1 && (
@@ -497,24 +552,32 @@ export function ProductDetailsScreen() {
             className="px-4 mt-4"
             contentContainerStyle={{ gap: 12, paddingRight: 32 }}
           >
-            {displayImages.map((img: any, idx: number) => (
-              <TouchableOpacity
-                key={idx}
-                onPress={() => {
-                  setActiveSlide(idx);
-                  flatListRef.current?.scrollToIndex({ index: idx, animated: true });
-                }}
-                className={`h-16 w-16 rounded-xl overflow-hidden bg-gray-100 border-2 ${
-                  activeSlide === idx ? 'border-primary' : 'border-transparent'
-                }`}
-              >
+            {displayImages.map((img: any, idx: number) => {
+              const THUMBNAIL_GAP = 12;
+              const THUMBNAIL_WIDTH = (screenWidth - 32 - (THUMBNAIL_GAP * 3)) / 4;
+              
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    if (activeSlide !== idx) {
+                      carouselRef.current?.scrollTo({ count: idx - activeSlide, animated: true });
+                      setActiveSlide(idx);
+                    }
+                  }}
+                  style={{ width: THUMBNAIL_WIDTH, height: THUMBNAIL_WIDTH }}
+                  className={`rounded-xl overflow-hidden bg-gray-100 border-2 ${
+                    activeSlide === idx ? 'border-primary' : 'border-transparent'
+                  }`}
+                >
                 <Image
                   source={{ uri: optimizeImageUrl(img.url) }}
                   style={{ width: '100%', height: '100%' }}
                   contentFit="cover"
                 />
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </ScrollView>
         )}
 
@@ -696,8 +759,38 @@ export function ProductDetailsScreen() {
             )}
           </View>
 
+          {/* Complete Your Meal */}
+          {randomItems.length > 0 && (
+            <View className="mb-10">
+              <View className="flex-row items-center justify-between mb-5">
+                <Text className="text-xl font-bold text-gray-900 font-sans">
+                  Complete Your Meal
+                </Text>
+                <View className="flex-row items-center bg-gray-100 px-2.5 py-1 rounded-full">
+                  <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mr-1 font-sans">Swipe</Text>
+                  <ArrowRight size={12} color="#6b7280" />
+                </View>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="-mx-4 px-4 pb-4"
+                contentContainerStyle={{ gap: 16, paddingRight: 32 }}
+              >
+                {randomItems.map((p) => (
+                  <View
+                    key={p.id || p._id}
+                    style={{ width: screenWidth * 0.45, height: 230 }}
+                  >
+                    <ProductCard product={p} />
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* About This Dish */}
-          <View className="mb-10">
+          <View className="mt-2 pt-8 border-t border-gray-100">
             <View className="border-b-2 border-gray-900 pb-1 mb-5 self-start">
               <Text className="text-xl font-bold text-gray-900 font-sans">
                 About This Dish :
@@ -758,29 +851,32 @@ export function ProductDetailsScreen() {
             )}
           </View>
 
-          {/* Complete Your Meal */}
-          {randomItems.length > 0 && (
-            <View className="mt-6 pt-8 border-t border-gray-100">
-              <View className="flex-row items-center justify-between mb-5">
-                <Text className="text-xl font-bold text-gray-900 font-sans">
-                  Complete Your Meal
-                </Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="-mx-4 px-4 pb-4"
-                contentContainerStyle={{ gap: 16, paddingRight: 32 }}
-              >
-                {randomItems.map((p) => (
-                  <View
-                    key={p.id || p._id}
-                    style={{ width: screenWidth * 0.45, height: 230 }}
-                  >
-                    <ProductCard product={p} />
+          {/* More to Explore Grid (12 items, fixed-height 2-column grid) */}
+          {moreItems.length > 0 && (
+            <View className="mt-4 pt-8 border-t border-gray-100">
+              <Text className="text-xl font-bold text-gray-900 font-sans mb-5">
+                More to Explore
+              </Text>
+              {/* Use rows of 2 with explicit heights to prevent layout jumps */}
+              {Array.from({ length: Math.ceil(moreItems.length / 2) }).map((_, rowIdx) => {
+                const left = moreItems[rowIdx * 2];
+                const right = moreItems[rowIdx * 2 + 1];
+                const cardWidth = (screenWidth - 32 - 12) / 2;
+                return (
+                  <View key={rowIdx} style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+                    {left && (
+                      <View style={{ width: cardWidth, height: 240 }}>
+                        <ProductCard product={left} />
+                      </View>
+                    )}
+                    {right && (
+                      <View style={{ width: cardWidth, height: 240 }}>
+                        <ProductCard product={right} />
+                      </View>
+                    )}
                   </View>
-                ))}
-              </ScrollView>
+                );
+              })}
             </View>
           )}
         </View>
@@ -814,41 +910,79 @@ export function ProductDetailsScreen() {
           <View className="flex-row w-full gap-3">
             <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-xl h-14 px-1.5">
               <TouchableOpacity
-                onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (inCart) {
+                    if (cartItem.quantity > 1) {
+                      updateQuantity(product.id, cartItem.quantity - 1);
+                    } else {
+                      removeItem(product.id);
+                    }
+                  } else {
+                    setQuantity((q) => Math.max(1, q - 1));
+                  }
+                }}
                 className="h-10 w-10 items-center justify-center bg-white rounded-lg shadow-sm border border-gray-100"
               >
                 <Minus size={18} color="#374151" />
               </TouchableOpacity>
               <Text className="w-10 text-center text-lg font-black text-gray-900 font-sans">
-                {quantity}
+                {inCart ? cartItem.quantity : quantity}
               </Text>
               <TouchableOpacity
-                onPress={() => setQuantity((q) => q + 1)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (inCart) {
+                    updateQuantity(product.id, cartItem.quantity + 1);
+                  } else {
+                    setQuantity((q) => q + 1);
+                  }
+                }}
                 className="h-10 w-10 items-center justify-center bg-white rounded-lg shadow-sm border border-gray-100"
               >
                 <Plus size={18} color="#374151" />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              onPress={handleAddToCart}
-              className="flex-1 h-14 bg-primary rounded-xl flex-row items-center justify-center shadow-md px-2"
-              style={{
-                shadowColor: '#e11d48',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 5,
-              }}
-              
-            >
-              <ShoppingCart size={20} color="#ffffff" className="mr-2" />
-              <Text className="text-white font-bold text-base font-sans">
-                Add
-              </Text>
-              <Text className="text-white font-black text-base ml-2 font-sans opacity-90">
-                • {formatPrice(product.price * quantity)}
-              </Text>
-            </TouchableOpacity>
+            {inCart ? (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/(shop)/cart');
+                }}
+                className="flex-1 h-14 bg-green-600 rounded-xl flex-row items-center justify-center shadow-md px-2"
+                style={{
+                  shadowColor: '#16a34a',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 5,
+                }}
+              >
+                <ShoppingCart size={20} color="#ffffff" className="mr-2" />
+                <Text className="text-white font-bold text-base font-sans">
+                  View Cart
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleAddToCart}
+                className="flex-1 h-14 bg-primary rounded-xl flex-row items-center justify-center shadow-md px-2"
+                style={{
+                  shadowColor: '#e11d48',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 5,
+                }}
+              >
+                <ShoppingCart size={20} color="#ffffff" className="mr-2" />
+                <Text className="text-white font-bold text-base font-sans">
+                  Add
+                </Text>
+                <Text className="text-white font-black text-base ml-2 font-sans opacity-90">
+                  • {formatPrice(product.price * quantity)}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
       )}

@@ -111,6 +111,7 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
             style={{ width: '100%', height: '100%' }}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory-disk"
           />
 
           {isOutOfStock && <View className="absolute inset-0 bg-black/20 z-0" />}

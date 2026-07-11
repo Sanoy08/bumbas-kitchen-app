@@ -55,7 +55,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
         autoPlay={true}
         autoPlayInterval={4000}
         data={slides}
-        scrollAnimationDuration={800}
+        scrollAnimationDuration={400}
         onSnapToItem={(index) => setCurrentIndex(index)}
         onProgressChange={(_, absoluteProgress) => {
           progressValue.value = absoluteProgress;
@@ -94,16 +94,18 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
           };
         }}
         renderItem={({ item }) => (
-          <Link href={item.clickUrl || '/menus'} asChild>
-            <TouchableOpacity activeOpacity={0.9} style={{ width: windowWidth, height: windowWidth, overflow: 'hidden' }}>
-              <Image
-                source={{ uri: optimizeImageUrl(item.imageUrl) }}
-                style={{ width: windowWidth, height: windowWidth }}
-                contentFit="cover"
-                transition={200}
-              />
-            </TouchableOpacity>
-          </Link>
+          <View style={{ width: windowWidth, height: windowWidth, backgroundColor: '#f9fafb' }}>
+            <Link href={item.clickUrl || '/menus'} asChild>
+              <TouchableOpacity activeOpacity={0.85} style={{ width: windowWidth, height: windowWidth, overflow: 'hidden' }}>
+                <Image
+                  source={{ uri: optimizeImageUrl(item.imageUrl) }}
+                  style={{ width: windowWidth, height: windowWidth }}
+                  contentFit="cover"
+                  transition={200}
+                />
+              </TouchableOpacity>
+            </Link>
+          </View>
         )}
       />
       

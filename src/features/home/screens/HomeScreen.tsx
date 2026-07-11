@@ -1,7 +1,7 @@
 // src/features/home/screens/HomeScreen.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, {
   Extrapolation,
@@ -18,6 +18,7 @@ import { toast } from 'sonner-native';
 import NotificationPrompt from '@/shared/components/shop/NotificationPrompt';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
 import { useAuthStore } from '@/shared/store/authStore';
+import { useCartStore } from '@/shared/store/cartStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
 
 import {
@@ -65,6 +66,7 @@ export function HomeScreen() {
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
   const [productDisplayCount, setProductDisplayCount] = useState(PRODUCTS_PER_PAGE);
+  const [refreshing, setRefreshing] = useState(false);
 
   // --- Scroll/Animation Refs & Values ---
   const scrollViewRef = useRef<Animated.ScrollView>(null);
@@ -118,23 +120,90 @@ export function HomeScreen() {
     }
   }, [activeCategory]);
 
-  useEffect(() => {
-    const fetchHomeData = async () => {
+  const fetchHomeData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) console.log('🔄 [Refresh] Fetching Home Data from:', `${API_URL}/home-data`);
+    try {
       const cachedData = await AsyncStorage.getItem('bumbas_home_data');
-      if (cachedData) setHomeData(JSON.parse(cachedData));
-      try {
-        const res = await fetch(`${API_URL}/home-data`);
-        const data = await res.json();
-        if (data?.data) {
-          setHomeData(data.data);
-          await AsyncStorage.setItem('bumbas_home_data', JSON.stringify(data.data));
+      if (cachedData && !isRefresh) setHomeData(JSON.parse(cachedData));
+      
+      const res = await fetch(`${API_URL}/home-data`);
+      const data = await res.json();
+      if (data?.data) {
+        if (isRefresh) {
+          console.log('✅ [Refresh] Home Data fetched successfully!');
+          console.log(`   - Hero Slides: ${data.data.heroSlides?.length || 0}`);
+          console.log(`   - Bestsellers: ${data.data.bestsellers?.length || 0}`);
+          console.log(`   - All Products: ${data.data.allProducts?.length || 0}`);
         }
-      } catch (e) {
-        console.log('Home sync failed', e);
+        setHomeData(data.data);
+        await AsyncStorage.setItem('bumbas_home_data', JSON.stringify(data.data));
       }
-    };
-    fetchHomeData();
+    } catch (e) {
+      console.log('❌ [Refresh] Home sync failed:', e);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchHomeData();
+  }, [fetchHomeData]);
+
+  const onRefresh = useCallback(async () => {
+    console.log('\n=============================================');
+    console.log('🔽 PULL TO REFRESH TRIGGERED');
+    console.log('=============================================');
+    setRefreshing(true);
+    
+    const promises: Promise<any>[] = [fetchHomeData(true)];
+
+    if (user) {
+      console.log(`👤 User Logged In: ${user.name || user.phone}`);
+      
+      // 1. Sync Cart
+      console.log('🔄 [Refresh] Fetching Cart Data...');
+      promises.push(
+        useCartStore.getState().fetchCartFromDB()
+          .then(() => {
+            const cartItems = useCartStore.getState().items;
+            console.log(`✅ [Refresh] Cart Data fetched! Total Items: ${cartItems.length}`);
+          })
+          .catch(e => console.log('❌ [Refresh] Cart sync failed:', e))
+      );
+      
+      // 2. Sync Wallet & update User context
+      console.log('🔄 [Refresh] Fetching Wallet Data from:', `${API_URL}/wallet`);
+      promises.push(
+        fetch(`${API_URL}/wallet`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.wallet) {
+              console.log('✅ [Refresh] Wallet Data fetched successfully!');
+              console.log(`   - Balance: ₹${data.wallet.balance || 0}`);
+              console.log(`   - Tier: ${data.wallet.tier || 'N/A'}`);
+              console.log(`   - Total Spent: ₹${data.wallet.totalSpent || 0}`);
+              
+              useAuthStore.setState((state) => ({
+                user: state.user ? {
+                  ...state.user,
+                  wallet: {
+                    ...state.user.wallet,
+                    currentBalance: data.wallet.balance || 0,
+                  }
+                } : null
+              }));
+            }
+          })
+          .catch((e) => console.log('❌ [Refresh] Wallet sync failed:', e))
+      );
+    } else {
+      console.log('👤 No User Logged In. Skipping user-specific APIs (Cart, Wallet).');
+    }
+
+    await Promise.allSettled(promises);
+    console.log('=============================================');
+    console.log('✅ ALL PULL TO REFRESH APIs COMPLETED');
+    console.log('=============================================\n');
+    setRefreshing(false);
+  }, [fetchHomeData, user]);
 
   useEffect(() => {
     if (user) {
@@ -381,6 +450,16 @@ export function HomeScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#e11d48"
+            colors={['#e11d48', '#f59e0b', '#10b981']}
+            progressBackgroundColor="#ffffff"
+            progressViewOffset={10}
+          />
+        }
         className="flex-1"
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
