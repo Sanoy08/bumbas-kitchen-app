@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { Ban, Minus, Plus, ShoppingCart } from 'lucide-react-native';
+import { memo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import { PLACEHOLDER_IMAGE_URL } from '@/shared/constants/constants';
@@ -19,12 +20,12 @@ type ProductCardProps = {
   product: Product;
 };
 
-export function ProductCard({ product }: ProductCardProps) {
-  const items = useCartStore((state) => state.items);
+export const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
+  // Only subscribe to this specific product's cart item — not the whole cart array.
+  // This means only THIS card re-renders when its own quantity changes.
+  const cartItem = useCartStore((state) => state.items.find((item: CartItem) => item.id === product.id));
   const addItem = useCartStore((state) => state.addItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
-
-  const cartItem = items.find((item: CartItem) => item.id === product.id);
   const isOutOfStock = product.stock <= 0;
 
   const triggerVibration = async (style: Haptics.ImpactFeedbackStyle) => {
@@ -156,4 +157,4 @@ export function ProductCard({ product }: ProductCardProps) {
       </TouchableOpacity>
     </Link>
   );
-}
+});

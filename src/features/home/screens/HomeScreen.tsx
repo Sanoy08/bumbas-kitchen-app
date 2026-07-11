@@ -1,7 +1,8 @@
 // src/features/home/screens/HomeScreen.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Platform, Text, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -428,7 +429,7 @@ export function HomeScreen() {
               <Text className="text-gray-500 font-sans">No items available</Text>
             </View>
           ) : (
-            <FlatList
+            <FlashList
               data={displayedProducts}
               renderItem={({ item }) => (
                 <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
@@ -437,9 +438,8 @@ export function HomeScreen() {
               )}
               keyExtractor={(item) => item.id}
               numColumns={2}
-              nestedScrollEnabled={true}
+              estimatedItemSize={258}
               scrollEnabled={false}
-              columnWrapperStyle={{ justifyContent: 'space-between' }}
               ListFooterComponent={
                 hasMore ? (
                   <View className="py-6 items-center justify-center mt-2">
