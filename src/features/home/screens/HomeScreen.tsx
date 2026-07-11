@@ -1,5 +1,5 @@
-// src/features/home/screens/HomeScreen.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
@@ -148,6 +148,7 @@ export function HomeScreen() {
   }, [fetchHomeData]);
 
   const onRefresh = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('\n=============================================');
     console.log('🔽 PULL TO REFRESH TRIGGERED');
     console.log('=============================================');
@@ -203,6 +204,7 @@ export function HomeScreen() {
     console.log('✅ ALL PULL TO REFRESH APIs COMPLETED');
     console.log('=============================================\n');
     setRefreshing(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [fetchHomeData, user]);
 
   useEffect(() => {
@@ -455,9 +457,9 @@ export function HomeScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#e11d48"
-            colors={['#e11d48', '#f59e0b', '#10b981']}
+            colors={['#e11d48']}
             progressBackgroundColor="#ffffff"
-            progressViewOffset={10}
+            progressViewOffset={20}
           />
         }
         className="flex-1"

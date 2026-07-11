@@ -1,6 +1,7 @@
 // src\app\(shop)\account\index.tsx
 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -100,6 +101,7 @@ export function AccountScreen() {
 
   const onRefresh = async () => {
     if (!user) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     try {
       const res = await fetch(`${API_URL}/wallet`);
@@ -120,6 +122,7 @@ export function AccountScreen() {
       console.log('Account refresh failed:', error);
     } finally {
       setRefreshing(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   };
 
@@ -246,9 +249,9 @@ export function AccountScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#e11d48"
-            colors={['#e11d48', '#f59e0b', '#10b981']}
+            colors={['#e11d48']}
             progressBackgroundColor="#ffffff"
-            progressViewOffset={10}
+            progressViewOffset={20}
           />
         }
       >
