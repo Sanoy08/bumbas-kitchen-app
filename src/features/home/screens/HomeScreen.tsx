@@ -322,9 +322,8 @@ export function HomeScreen() {
         transform: [{ translateY: 0 }],
       };
     }
-    // Hero mode: appears when scrolled past category position
-    // Added a small -5px buffer to prevent flickering due to minor layout shifts
-    const triggerY = categoryY.value - collapsedHeaderHeight - 5;
+    // Removed the negative buffer so it perfectly overlaps the original bar when sticking
+    const triggerY = categoryY.value - collapsedHeaderHeight + 2;
     const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
     return {
       opacity: isSticking ? 1 : 0,

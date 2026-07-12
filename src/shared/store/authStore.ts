@@ -29,6 +29,7 @@ interface AuthState {
   login: (userData: User, token?: string) => Promise<void>;
   logout: () => Promise<void>;
   initAuth: () => Promise<void>;
+  updateUser: (data: Partial<User>) => void;
 }
 
 const TOKEN_KEY = 'auth_token';
@@ -73,6 +74,13 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           set({ token: null, isInitialized: true });
         }
+      },
+
+      // Update user details partially without requiring full login
+      updateUser: (data) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...data } : null,
+        }));
       },
     }),
     {

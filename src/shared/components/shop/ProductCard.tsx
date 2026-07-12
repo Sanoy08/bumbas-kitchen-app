@@ -92,9 +92,9 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
     <Link href={`/menus/${product.slug}`} asChild>
       <TouchableOpacity 
         activeOpacity={0.9} 
-        className={`flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm ${isOutOfStock ? 'opacity-70' : ''}`}
+        className={`m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col ${isOutOfStock ? 'opacity-70' : ''}`}
       >
-        {/* ইমেজের অংশটি এখন শুধু View */}
+        {/* Image wrapper: uses aspect ratio but allows parent to define total size */}
         <View className="aspect-square w-full relative overflow-hidden bg-gray-50">
           {isOutOfStock ? (
             <View className="absolute top-2 right-2 bg-red-500 px-2 py-1 rounded-md z-10">
@@ -117,17 +117,17 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
           {isOutOfStock && <View className="absolute inset-0 bg-black/20 z-0" />}
         </View>
 
-        <View className="p-3 flex-1 justify-between">
-          <Text className="font-semibold text-sm leading-tight text-gray-900" numberOfLines={2}>
+        <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
+          <Text className="font-semibold text-sm md:text-base leading-tight text-gray-900" numberOfLines={2}>
             {product.name}
           </Text>
 
-          <View className="flex-row items-center justify-between mt-3">
-            <Text className={`font-bold text-base ${isOutOfStock ? 'text-gray-400' : 'text-primary'}`}>
+          <View className="flex-row items-center justify-between mt-2 flex-wrap gap-y-2">
+            <Text className={`font-bold text-[15px] md:text-base ${isOutOfStock ? 'text-gray-400' : 'text-primary'}`}>
               {formatPrice(product.price)}
             </Text>
 
-            <View>
+            <View className="flex-shrink-0">
               {isOutOfStock ? (
                 <View className="flex-row items-center bg-gray-100 px-2 py-1.5 rounded-full border border-gray-200">
                   <Ban size={12} color="#9ca3af" />
@@ -146,10 +146,10 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
               ) : (
                 <TouchableOpacity
                   onPress={handleAdd}
-                  className="h-8 px-3.5 bg-primary items-center justify-center rounded-full flex-row shadow-sm"
+                  className="h-8 px-3 md:px-4 bg-primary items-center justify-center rounded-full flex-row shadow-sm"
                 >
                   <ShoppingCart size={14} color="#fff" />
-                  <Text className="text-white text-xs font-semibold ml-1.5">Add</Text>
+                  <Text className="text-white text-xs md:text-sm font-semibold ml-1.5">Add</Text>
                 </TouchableOpacity>
               )}
             </View>
