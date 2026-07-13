@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl } from 'react-native';
+import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl, DeviceEventEmitter } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, {
   Extrapolation,
@@ -20,6 +20,7 @@ import { ProductCard } from '@/shared/components/shop/ProductCard';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
+import { useAlert } from '@/shared/components/ui';
 
 import {
   BestsellerSection,
@@ -31,6 +32,7 @@ import {
   HomeHeader,
   MiddleSlider,
   OffersSection,
+  SectionHeading,
 } from '../components';
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -46,6 +48,7 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const isTabBarVisibleStore = useTabBarStore((state) => state.isVisible);
   const setTabBarVisible = useTabBarStore((state) => state.setVisibility);
+  const { showAlert } = useAlert();
 
   // --- Data State ---
   const [homeData, setHomeData] = useState({
@@ -138,15 +141,44 @@ export function HomeScreen() {
         }
         setHomeData(data.data);
         await AsyncStorage.setItem('bumbas_home_data', JSON.stringify(data.data));
+        
+        // Validate special offers in the cart against current active offers
+        if (data.data.offers) {
+          const removedItems = useCartStore.getState().validateSpecialOffers(data.data.offers);
+          if (removedItems.length > 0) {
+            showAlert({
+              title: 'Offer Expired',
+              message: `The following special offers are no longer available and were removed from your cart:\n\n${removedItems.map(item => `• ${item}`).join('\n')}`,
+              cancelText: '',
+            });
+          }
+        }
       }
     } catch (e) {
       console.log('❌ [Refresh] Home sync failed:', e);
     }
   }, []);
 
+  // --- Lifecycle ---
   useEffect(() => {
     fetchHomeData();
-  }, [fetchHomeData]);
+
+    // Listen for network restoration to fetch data if the user opened the app offline
+    const networkSubscription = DeviceEventEmitter.addListener('network_restored', () => {
+      console.log('Network restored, refreshing home data...');
+      fetchHomeData();
+    });
+
+    // Onboarding listener
+    const onboardingSub = DeviceEventEmitter.addListener('onboarding_finished', () => {
+      fetchHomeData();
+    });
+
+    return () => {
+      networkSubscription.remove();
+      onboardingSub.remove();
+    };
+  }, []);
 
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -496,17 +528,15 @@ export function HomeScreen() {
           <>
             <BestsellerSection bestsellers={homeData.bestsellers} />
             <OffersSection offers={homeData.offers} />
-            <MiddleSlider slides={homeData.sliderImages} />
             <FeaturesSection />
+            <MiddleSlider slides={homeData.sliderImages} />
             <DailySpecialSection product={dailySpecial} />
           </>
         )}
 
         {/* Products Grid */}
-        <View className="bg-white px-4 pt-2 pb-4">
-          <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
-            {activeCategory === 'All' ? 'EXPLORE MORE' : `Fresh from ${activeCategory}`}
-          </Text>
+        <View className="bg-white px-4 py-8">
+          <SectionHeading title={activeCategory === 'All' ? 'Explore More' : `Fresh from ${activeCategory}`} />
 
           {filteredProducts.length === 0 ? (
             <View className="py-12 items-center">

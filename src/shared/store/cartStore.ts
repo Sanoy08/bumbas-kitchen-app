@@ -32,6 +32,7 @@ interface CartState {
   setCheckoutData: (data: Partial<CheckoutState>) => void;
   setCartItems: (items: CartItem[]) => void;
   setIsInitialized: (val: boolean) => void;
+  validateSpecialOffers: (activeOffers: any[]) => string[];
 
   // Sync logic
   fetchCartFromDB: () => Promise<void>;
@@ -173,6 +174,35 @@ export const useCartStore = create<CartState>()(
 
       setCartItems: (items) => {
         set({ items, isDirty: false });
+      },
+
+      validateSpecialOffers: (activeOffers) => {
+        const { items, removeItem } = get();
+        const removedItemNames: string[] = [];
+        
+        items.forEach((item) => {
+          if (item.isSpecialOffer) {
+            // Check if it exists in the active offers list
+            const activeOffer = activeOffers.find((offer) => offer.id === item.id);
+            
+            // It's invalid if not found, OR if its orderCutoffTime has passed
+            const isMissing = !activeOffer;
+            const isExpired = activeOffer?.orderCutoffTime && new Date() > new Date(activeOffer.orderCutoffTime);
+            const isItemExpired = item.orderCutoffTime && new Date() > new Date(item.orderCutoffTime);
+            
+            if (isMissing || isExpired || isItemExpired) {
+              // Note: removeItem internally sets isDirty to true
+              removeItem(item.id);
+              removedItemNames.push(item.name);
+            }
+          }
+        });
+        
+        if (removedItemNames.length > 0 && useAuthStore.getState().token) {
+          get().syncToDatabase();
+        }
+        
+        return removedItemNames;
       },
 
       // ★ Database e POST Request (Direct call kora jabe na, 30s interval e hobe)

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, Mic, Search, User } from 'lucide-react-native
 import { Text, TouchableOpacity, View } from 'react-native';
 import Animated, { AnimatedStyle } from 'react-native-reanimated';
 import { useAuthStore } from '@/shared/store/authStore';
+import { AnimatedSearchText } from './AnimatedSearchText';
 
 interface HomeHeaderProps {
   headerAnimatedStyle: AnimatedStyle<any>;
@@ -101,7 +102,7 @@ export const HomeHeader = ({
           className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5"
         >
           <Search size={20} color="#e11d48" />
-          <Text className="flex-1 ml-2.5 text-gray-500 font-medium font-sans">Search "namkeen"</Text>
+          <AnimatedSearchText />
           <View className="border-l border-gray-300 pl-3 py-0.5">
             <Mic size={20} color="#e11d48" />
           </View>

@@ -16,8 +16,9 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import "../../global.css";
 
-import { AppUpdater, Onboarding } from '@/shared/components/common';
+import { AppUpdater, Onboarding, NoInternetScreen } from '@/shared/components/common';
 import { usePushNotification } from '@/shared/hooks/usePushNotification';
+import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
 
 SplashScreen.preventAutoHideAsync();
 const { width } = Dimensions.get('window');
@@ -29,6 +30,9 @@ export default function RootLayout() {
 
   // ★ গ্লোবাল পুশ নোটিফিকেশন অ্যাক্টিভেশন
   usePushNotification();
+
+  // ★ Network Connectivity
+  const { isConnected, checkConnection } = useNetworkStatus();
 
   const [fontsLoaded, fontError] = useFonts({
     Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold,
@@ -52,6 +56,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     initAuth();
+    
+    // Listen for network restoration to re-authenticate if it failed initially
+    const networkSubscription = DeviceEventEmitter.addListener('network_restored', () => {
+      console.log('Network restored, re-initializing auth...');
+      initAuth();
+    });
+    
     const checkFirstRun = async () => {
       const firstRun = await AsyncStorage.getItem('isFirstRun');
       if (firstRun === null) {
@@ -62,6 +73,10 @@ export default function RootLayout() {
       }
     };
     checkFirstRun();
+
+    return () => {
+      networkSubscription.remove();
+    };
   }, [initAuth]);
 
   useEffect(() => {
@@ -111,6 +126,12 @@ export default function RootLayout() {
             <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#F8F9FA', elevation: 15, justifyContent: 'center', alignItems: 'center' }}>
               <LottieView source={require('../../assets/animations/splash.json')} autoPlay loop style={{ width: width * 1.2, height: width * 1.2 }} resizeMode="cover" />
             </Animated.View>
+          )}
+
+          {!isConnected && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'white' }}>
+              <NoInternetScreen onRetry={checkConnection} />
+            </View>
           )}
 
           <AppUpdater />

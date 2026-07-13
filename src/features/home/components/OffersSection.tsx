@@ -1,12 +1,13 @@
 // src/features/home/components/OffersSection.tsx
 import { useEffect, useState, useRef } from 'react';
-import { Image, ScrollView, View, TouchableOpacity, Text, Dimensions, Modal, Animated, StyleSheet, Pressable } from 'react-native';
+import { Image, ScrollView, View, TouchableOpacity, Text, Dimensions, Modal, Animated, StyleSheet, Pressable, PanResponder, Easing } from 'react-native';
 import { X, ShoppingCart, Clock } from 'lucide-react-native';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
 import { toast } from 'sonner-native';
 import { format } from 'date-fns';
 import { useAlert } from '@/shared/components/ui';
+import { SectionHeading } from './SectionHeading';
 
 const { width, height } = Dimensions.get('window');
 const ITEM_WIDTH = width - 32; // 16px padding on left and right
@@ -60,8 +61,10 @@ export const OffersSection = ({ offers }: OffersSectionProps) => {
     setSelectedOffer(offer);
     Animated.spring(slideAnim, {
       toValue: 0,
+      damping: 26,
+      stiffness: 220,
+      mass: 1,
       useNativeDriver: true,
-      bounciness: 4,
     }).start();
   };
 
@@ -69,9 +72,40 @@ export const OffersSection = ({ offers }: OffersSectionProps) => {
     Animated.timing(slideAnim, {
       toValue: height,
       duration: 300,
+      easing: Easing.in(Easing.ease),
       useNativeDriver: true,
-    }).start(() => setSelectedOffer(null));
+    }).start(() => {
+      setSelectedOffer(null);
+      slideAnim.setValue(height);
+    });
   };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 120 || gestureState.vy > 0.5) {
+          closeModal();
+        } else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            damping: 26,
+            stiffness: 220,
+            mass: 1,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const handleAddToCart = () => {
     if (selectedOffer) {
@@ -112,10 +146,8 @@ export const OffersSection = ({ offers }: OffersSectionProps) => {
   if (!offers || offers.length === 0) return null;
 
   return (
-    <View className="px-4 pt-4 pb-2">
-      <Text className="text-sm font-bold tracking-widest text-gray-500 uppercase mb-4 font-sans">
-        SPECIAL OFFERS
-      </Text>
+    <View className="px-4 py-8">
+      <SectionHeading title="Special Offers" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled>
         {offers.map((offer, index) => (
           <TouchableOpacity 
@@ -148,13 +180,19 @@ export const OffersSection = ({ offers }: OffersSectionProps) => {
               <TouchableOpacity 
                 onPress={closeModal} 
                 activeOpacity={0.7}
-                className="bg-black p-4 rounded-full shadow-xl"
+                style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
+                className="shadow-2xl border-2 border-white/20"
               >
                 <X size={28} color="white" />
               </TouchableOpacity>
             </View>
 
-            <View className="bg-white rounded-t-[32px] pt-6 px-6 pb-8 shadow-2xl flex-shrink">
+            <View className="bg-white rounded-t-[32px] px-6 pb-8 shadow-2xl flex-shrink">
+              {/* Drag Handle for Swipe Down */}
+              <View {...panResponder.panHandlers} className="w-full pt-4 pb-6 items-center">
+                <View className="w-12 h-1.5 bg-gray-300 rounded-full" />
+              </View>
+
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
               {selectedOffer && (
                 <>

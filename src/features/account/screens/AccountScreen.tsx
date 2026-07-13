@@ -16,9 +16,10 @@ import {
     ShoppingBag,
     Sparkles,
     TicketPercent,
-    Wallet
+    Wallet,
+    X
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
     ActivityIndicator,
     Modal,
@@ -27,13 +28,19 @@ import {
     Text,
     TouchableOpacity,
     View,
-    RefreshControl
+    RefreshControl,
+    Animated,
+    PanResponder,
+    Pressable,
+    Dimensions,
+    StyleSheet
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
 import { useAlert } from '@/shared/components/ui'; // ★ Custom Alert import
 import { useAuthStore } from '@/shared/store/authStore';
+import { CustomCalendarModal } from '@/shared/components/common';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
@@ -75,6 +82,49 @@ export function AccountScreen() {
   
   const [walletBalance, setWalletBalance] = useState(0);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  
+  const { height } = Dimensions.get('window');
+  const slideAnim = useRef(new Animated.Value(height)).current;
+
+  const openEditModal = () => {
+    setIsEditProfileOpen(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      damping: 26,
+      stiffness: 220,
+      mass: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeEditModal = () => {
+    Animated.timing(slideAnim, {
+      toValue: height,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => setIsEditProfileOpen(false));
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) slideAnim.setValue(gestureState.dy);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 120 || gestureState.vy > 0.5) closeEditModal();
+        else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            damping: 26,
+            stiffness: 220,
+            mass: 1,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
   
   // Forms & Loading
   const [isSaving, setIsSaving] = useState(false);
@@ -196,7 +246,7 @@ export function AccountScreen() {
       
       await login(resData.user);
       toast.success("Profile Updated Successfully! 🎉");
-      setIsEditProfileOpen(false);
+      closeEditModal();
     } catch (e: any) { 
       toast.error(e.message || "An error occurred");
     } finally {
@@ -276,7 +326,7 @@ export function AccountScreen() {
         <View className="h-[1px] bg-gray-100 w-full mb-2" />
 
         <View className="items-end mb-4">
-          <TouchableOpacity onPress={() => setIsEditProfileOpen(true)} className="py-2 px-3">
+          <TouchableOpacity onPress={openEditModal} className="py-2 px-3">
             <Text className="text-primary font-semibold font-sans">Edit Profile</Text>
           </TouchableOpacity>
         </View>
@@ -317,16 +367,35 @@ export function AccountScreen() {
       </ScrollView>
 
       {/* --- EDIT PROFILE MODAL --- */}
-      <Modal visible={isEditProfileOpen} animationType="fade" presentationStyle="formSheet">
-        <View className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between p-4 border-b border-gray-100 mt-4">
-            <Text className="text-lg font-bold text-gray-900 font-sans">Edit Profile Details</Text>
-            <TouchableOpacity onPress={() => setIsEditProfileOpen(false)} className="p-2">
-              <Text className="text-gray-500 font-semibold font-sans">Close</Text>
-            </TouchableOpacity>
-          </View>
+      <Modal visible={isEditProfileOpen} transparent animationType="fade" onRequestClose={closeEditModal}>
+        <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-end">
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeEditModal} />
           
-          <ScrollView className="flex-1 px-4 pt-6" contentContainerStyle={{ paddingBottom: 60 }}>
+          <Animated.View 
+            className="w-full flex-1 justify-end"
+            style={{ transform: [{ translateY: slideAnim }], maxHeight: height * 0.85 }}
+          >
+            {/* Floating Close Button */}
+            <View className="items-center mb-4">
+              <TouchableOpacity 
+                onPress={closeEditModal} 
+                activeOpacity={0.7}
+                style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
+                className="shadow-2xl border-2 border-white/20"
+              >
+                <X size={28} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="bg-white rounded-t-[32px] px-6 pb-8 shadow-2xl flex-shrink">
+              {/* Drag Handle */}
+              <View {...panResponder.panHandlers} className="w-full pt-4 pb-4 items-center">
+                <View className="w-12 h-1.5 bg-gray-300 rounded-full" />
+              </View>
+
+              <Text className="text-2xl font-extrabold text-gray-900 font-sans mb-6">Edit Profile Details</Text>
+              
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
             <View className="flex-row gap-4 mb-6">
               <View className="flex-1">
                 <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">First Name</Text>
@@ -401,42 +470,20 @@ export function AccountScreen() {
             >
               {isSaving ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-lg font-sans">Save Changes</Text>}
             </TouchableOpacity>
-          </ScrollView>
+              </ScrollView>
+            </View>
+          </Animated.View>
         </View>
       </Modal>
 
-      {/* Date Picker Modal for iOS/Android */}
-      {activeDatePicker && (
-        Platform.OS === 'ios' ? (
-          <Modal transparent animationType="fade">
-            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: insets.bottom + 16 }}>
-                <DateTimePicker
-                  value={tempDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={onDateSelected}
-                  maximumDate={new Date()}
-                />
-                <TouchableOpacity
-                  onPress={() => setActiveDatePicker(null)}
-                  style={{ marginTop: 16, alignItems: 'center', padding: 14, backgroundColor: '#f97316', borderRadius: 12 }}
-                >
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={tempDate}
-            mode="date"
-            display="calendar"
-            onChange={onDateSelected}
-            maximumDate={new Date()}
-          />
-        )
-      )}
+      <CustomCalendarModal
+        visible={!!activeDatePicker}
+        onClose={() => setActiveDatePicker(null)}
+        title={activeDatePicker === 'dob' ? 'Select Birthday' : 'Select Anniversary'}
+        initialDate={tempDate}
+        maxDate={new Date()}
+        onDateSelected={(date) => onDateSelected({ type: 'set' }, date)}
+      />
     </View>
   );
 }

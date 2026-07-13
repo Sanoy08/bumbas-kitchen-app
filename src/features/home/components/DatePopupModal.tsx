@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Cake, ChevronRight, Gift, Heart, Sparkles } from 'lucide-react-native';
 import { ActivityIndicator, Modal, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CustomCalendarModal } from '@/shared/components/common';
 
 interface DatePopupModalProps {
   visible: boolean;
@@ -120,37 +121,14 @@ export const DatePopupModal = ({
         </View>
       </Modal>
 
-      {activeDatePicker && (
-        Platform.OS === 'ios' ? (
-          <Modal transparent={true} animationType="fade">
-            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: insets.bottom + 16 }}>
-                <DateTimePicker
-                  value={tempDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={onDateSelected}
-                  maximumDate={new Date()}
-                />
-                <TouchableOpacity
-                  onPress={onCloseDatePicker}
-                  style={{ marginTop: 16, alignItems: 'center', padding: 14, backgroundColor: '#f97316', borderRadius: 12 }}
-                >
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={tempDate}
-            mode="date"
-            display="calendar"
-            onChange={onDateSelected}
-            maximumDate={new Date()}
-          />
-        )
-      )}
+      <CustomCalendarModal
+        visible={!!activeDatePicker}
+        onClose={onCloseDatePicker}
+        title={activeDatePicker === 'dob' ? 'Select Birthday' : 'Select Anniversary'}
+        initialDate={tempDate}
+        maxDate={new Date()}
+        onDateSelected={(date) => onDateSelected({ type: 'set' }, date)}
+      />
     </>
   );
 };

@@ -85,7 +85,7 @@ export const usePushNotification = () => {
       syncedTokenRef.current = token;
       console.log('FCM Device Token synced successfully:', token);
     } catch (error) {
-      console.error('Push registration failed:', error);
+      console.log('Push registration failed:', error);
     }
   };
 

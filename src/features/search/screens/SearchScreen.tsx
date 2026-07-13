@@ -12,6 +12,7 @@ import {
   FlatList,
   Keyboard,
   Modal,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -23,6 +24,7 @@ import { toast } from 'sonner-native';
 
 // ★ expo-speech-recognition ইমপোর্ট
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import LottieView from 'lottie-react-native';
 
 import { ProductCard } from '@/shared/components/shop/ProductCard';
 
@@ -30,6 +32,46 @@ const { width: windowWidth } = Dimensions.get('window');
 const CONTAINER_PADDING = 16;
 const CARD_MARGIN = 4;
 const CARD_WIDTH = (windowWidth - CONTAINER_PADDING * 2 - CARD_MARGIN * 4) / 2;
+
+// Lightweight fuzzy matching using Levenshtein distance
+const fuzzyMatch = (query: string, target: string) => {
+  const q = query.toLowerCase().trim();
+  const t = (target || '').toLowerCase().trim();
+  if (t.includes(q)) return true;
+
+  const getDistance = (a: string, b: string) => {
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+          );
+        }
+      }
+    }
+    return matrix[b.length][a.length];
+  };
+
+  const qWords = q.split(/\s+/);
+  const tWords = t.split(/\s+/);
+
+  return qWords.every(qWord => {
+    return tWords.some(tWord => {
+      if (tWord.includes(qWord)) return true;
+      const dist = getDistance(qWord, tWord);
+      const allowedTypos = qWord.length <= 4 ? 1 : 2;
+      return dist <= allowedTypos;
+    });
+  });
+};
 
 export function SearchScreen() {
   const router = useRouter();
@@ -47,6 +89,36 @@ export function SearchScreen() {
   const [noSpeechError, setNoSpeechError] = useState(false);
   const [partialText, setPartialText] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const keyboardOffsetAnim = useRef(new Animated.Value(0)).current;
+
+  // --- Keyboard Animation ---
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      Animated.timing(keyboardOffsetAnim, {
+        toValue: -120, // Slide up by 120px when keyboard is visible
+        duration: e.duration || 250,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      Animated.timing(keyboardOffsetAnim, {
+        toValue: 0,
+        duration: e.duration || 250,
+        easing: Easing.in(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // ১. প্রোডাক্ট এবং রিসেন্ট সার্চ লোড করা
   useEffect(() => {
@@ -67,17 +139,35 @@ export function SearchScreen() {
     loadInitialData();
   }, []);
 
-  // ২. লাইভ সার্চ ফিল্টারিং
+  // ২. লাইভ সার্চ ফিল্টারিং (Fuzzy Search)
   useEffect(() => {
     if (searchQuery.trim().length > 0) {
       setIsSearching(true);
-      const query = searchQuery.toLowerCase().trim();
-      const results = allProducts.filter(
-        (product) =>
-          product.name.toLowerCase().includes(query) ||
-          product.category?.name?.toLowerCase().includes(query)
-      );
-      setSearchResults(results);
+      const query = searchQuery.trim().toLowerCase();
+
+      const scoredResults = allProducts.map(product => {
+        const name = (product.name || '').toLowerCase();
+        const catName = (product.category?.name || '').toLowerCase();
+
+        let score = 0;
+
+        // Exact matches
+        if (name === query) score = 100;
+        else if (name.startsWith(query)) score = 80;
+        else if (name.includes(query)) score = 50;
+        else if (catName === query) score = 40;
+        else if (catName.includes(query)) score = 30;
+        // Fuzzy matches
+        else if (fuzzyMatch(query, name)) score = 20;
+        else if (fuzzyMatch(query, catName)) score = 10;
+
+        return { product, score };
+      }).filter(item => item.score > 0);
+
+      // Sort by score descending
+      scoredResults.sort((a, b) => b.score - a.score);
+
+      setSearchResults(scoredResults.map(item => item.product));
     } else {
       setSearchResults([]);
       setIsSearching(false);
@@ -133,9 +223,9 @@ export function SearchScreen() {
   const startListening = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+
       // ★ FIX: মাইকে ক্লিক করার সাথে সাথে কীবোর্ড হাইড করে দেওয়া হবে
-      Keyboard.dismiss(); 
+      Keyboard.dismiss();
 
       // Clear any previous no-speech error state
       setNoSpeechError(false);
@@ -197,11 +287,15 @@ export function SearchScreen() {
     setPartialText(transcript);
 
     if (event.isFinal) {
-      setSearchQuery(transcript);
-      setIsListening(false);
-      setNoSpeechError(false);
-      handleSearchSubmit(transcript);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Delay closing and searching so the user can read the full text
+      setTimeout(() => {
+        setSearchQuery(transcript);
+        setIsListening(false);
+        setNoSpeechError(false);
+        handleSearchSubmit(transcript);
+      }, 1500); // 1.5 second delay
     }
   });
 
@@ -214,19 +308,19 @@ export function SearchScreen() {
         </TouchableOpacity>
 
         <View className="flex-1 flex-row items-center bg-gray-100 rounded-2xl px-3 h-12 border border-gray-200 focus:border-primary/50">
-  <SearchIcon size={20} color="#9ca3af" />
-  
-  <TextInput
-    ref={inputRef}
-    className="flex-1 ml-2.5 text-base text-gray-900 font-sans"
-    style={{
-      paddingVertical: 0,      // ডিফল্ট প্যাডিং ফোর্স করে জিরো করা
-      marginVertical: 0,       // ডিফল্ট মার্জিন জিরো করা
-      includeFontPadding: false, // ★ Android-এর ফন্টের উপরের/নিচের এক্সট্রা স্পেস রিমুভ করবে
-      textAlignVertical: 'center', // Android-এ vertically center করবে
-      lineHeight: 20,          // আইকনের সাইজ (20) এর সাথে মিলিয়ে দিলে পারফেক্ট এলাইনমেন্ট হবে
-    }}
-    placeholder="Search for biryani, fish, veg..."
+          <SearchIcon size={20} color="#9ca3af" />
+
+          <TextInput
+            ref={inputRef}
+            className="flex-1 ml-2.5 text-base text-gray-900 font-sans"
+            style={{
+              paddingVertical: 0,      // ডিফল্ট প্যাডিং ফোর্স করে জিরো করা
+              marginVertical: 0,       // ডিফল্ট মার্জিন জিরো করা
+              includeFontPadding: false, // ★ Android-এর ফন্টের উপরের/নিচের এক্সট্রা স্পেস রিমুভ করবে
+              textAlignVertical: 'center', // Android-এ vertically center করবে
+              lineHeight: 20,          // আইকনের সাইজ (20) এর সাথে মিলিয়ে দিলে পারফেক্ট এলাইনমেন্ট হবে
+            }}
+            placeholder="Search for biryani, fish, veg..."
             placeholderTextColor="#9ca3af"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -313,17 +407,23 @@ export function SearchScreen() {
         /* Search Results */
         <View className="flex-1 bg-gray-50/50">
           {searchResults.length === 0 ? (
-            <View className="flex-1 items-center pt-20 px-4">
-              <View className="h-20 w-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-                <SearchIcon size={32} color="#9ca3af" />
-              </View>
-              <Text className="text-xl font-bold text-gray-900 mb-2 font-sans">
+            <Animated.View
+              className="flex-1 items-center justify-center px-4"
+              style={{
+                marginTop: -80, // Base offset
+                transform: [{ translateY: keyboardOffsetAnim }]
+              }}
+            >
+              <LottieView
+                source={require('../../../../assets/animations/Empty-woman.json')}
+                autoPlay
+                loop
+                style={{ width: 350, height: 350, marginBottom: 10 }}
+              />
+              <Text className="text-2xl font-bold text-gray-900 mb-2 font-sans text-center">
                 No results found
               </Text>
-              <Text className="text-center text-gray-500 font-sans">
-                We couldn't find anything matching "{searchQuery}". Try searching for something else.
-              </Text>
-            </View>
+            </Animated.View>
           ) : (
             <FlatList
               data={searchResults}
