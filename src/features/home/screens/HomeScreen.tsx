@@ -30,6 +30,7 @@ import {
   HeroCarousel,
   HomeHeader,
   MiddleSlider,
+  OffersSection,
 } from '../components';
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -494,6 +495,7 @@ export function HomeScreen() {
         {activeCategory === 'All' && (
           <>
             <BestsellerSection bestsellers={homeData.bestsellers} />
+            <OffersSection offers={homeData.offers} />
             <MiddleSlider slides={homeData.sliderImages} />
             <FeaturesSection />
             <DailySpecialSection product={dailySpecial} />

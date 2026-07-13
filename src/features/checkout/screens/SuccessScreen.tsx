@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
   Image,
+  BackHandler,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -82,6 +83,16 @@ export function SuccessScreen() {
 
   useEffect(() => {
     clearCart();
+    
+    const onBackPress = () => {
+      router.replace('/(shop)');
+      return true;
+    };
+    
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => {
+      backHandler.remove();
+    };
   }, []);
 
   const checkScale = useSharedValue(0);

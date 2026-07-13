@@ -3,6 +3,7 @@
 // src/components/ui/CustomAlert.tsx
 import React, { createContext, useContext, useState, useRef } from 'react';
 import { Modal, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 type AlertOptions = {
   title: string;
@@ -36,6 +37,7 @@ export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
   const onCancelRef = useRef<(() => void) | undefined>(undefined);
 
   const showAlert = (opts: AlertOptions) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     setOptions({
       confirmText: 'OK',
       cancelText: 'Cancel',

@@ -14,6 +14,7 @@ import { Camera, type CameraRef, Map, type MapRef } from '@maplibre/maplibre-rea
 import { useAlert } from '@/shared/components/ui';
 import { formatPrice } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';
+import { useTabBarStore } from '@/shared/store/tabBarStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 const PRESET_LABELS = ["Home", "Work", "Office", "Mom's Place", "Other"];
@@ -44,6 +45,7 @@ export function AddressScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, isInitialized, updateUser } = useAuthStore();
+  const setTabBarVisible = useTabBarStore((state) => state.setVisibility);
   const { showAlert } = useAlert();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -53,11 +55,13 @@ export function AddressScreen() {
 
   useEffect(() => {
     if (isDialogOpen) {
+      setTabBarVisible(false);
       slideAnim.setValue(Dimensions.get('window').width);
-      Animated.timing(slideAnim, {
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
+        damping: 22,
+        stiffness: 220,
+        mass: 0.8,
         useNativeDriver: true,
       }).start();
     }
@@ -67,10 +71,11 @@ export function AddressScreen() {
     Animated.timing(slideAnim, {
       toValue: Dimensions.get('window').width,
       duration: 250,
-      easing: Easing.in(Easing.cubic),
+      easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start(() => {
       setIsDialogOpen(false);
+      setTabBarVisible(true);
     });
   };
 
@@ -221,9 +226,8 @@ export function AddressScreen() {
         const distKm = data.distanceValue / 1000;
         let fee = 0;
         
-        if(distKm > 50) {
+        if(distKm > 10) {
           setOutOfRange(true);
-          toast.error(`Outside 50km delivery range! (${data.distanceText})`);
           setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: 0 }));
           return;
         }
@@ -234,12 +238,9 @@ export function AddressScreen() {
         }
         
         setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: fee }));
-        toast.success(`Distance calculated: ${data.distanceText}`);
-      } else {
-        toast.error("Failed to calculate distance.");
       }
     } catch(e) {
-      toast.error("Error calculating distance.");
+      console.log("Error calculating distance:", e);
     }
   };
 
@@ -522,7 +523,7 @@ export function AddressScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
 
           {/* ── Header ── */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', elevation: 4, zIndex: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', zIndex: 10 }}>
                 <TouchableOpacity onPress={closeDialog} style={{ padding: 8, marginRight: 12, backgroundColor: '#f3f4f6', borderRadius: 50 }}>
                   <ChevronLeft size={20} color="#374151" />
                 </TouchableOpacity>
@@ -555,9 +556,11 @@ export function AddressScreen() {
                     logo={false}
                     attribution={false}
                   >
+                    {/* Restrict camera panning to a 10km box around the restaurant */}
                     <Camera
                       ref={cameraRef}
                       initialViewState={{ center: [defaultLng, defaultLat], zoom: 17 }}
+                      maxBounds={[88.162807, 22.628158, 88.357607, 22.807758]}
                     />
                   </Map>
                 )}
@@ -759,7 +762,7 @@ export function AddressScreen() {
                         Delivery Fee: {outOfRange ? 'Out of range' : formData.deliveryFee === 0 ? 'FREE 🎉' : formatPrice(formData.deliveryFee)}
                       </Text>
                       <Text style={{ fontSize: 11, color: outOfRange ? '#ef4444' : '#16a34a', marginTop: 2 }}>
-                        {outOfRange ? `${formData.distanceText} — outside 50km range` : `Distance: ${formData.distanceText}`}
+                        {outOfRange ? `${formData.distanceText} — outside 10km range` : `Distance: ${formData.distanceText}`}
                       </Text>
                     </View>
                   </View>

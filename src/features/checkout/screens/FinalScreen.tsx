@@ -281,6 +281,19 @@ export function FinalScreen() {
   const [instructions, setInstructions] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
 
+  const specialOfferItem = items.find((item) => item.isSpecialOffer);
+
+  useEffect(() => {
+    if (specialOfferItem) {
+      if (specialOfferItem.deliveryDate) {
+        setPreferredDate(new Date(specialOfferItem.deliveryDate));
+      }
+      if (specialOfferItem.mealType === 'lunch' || specialOfferItem.mealType === 'dinner') {
+        setMealTime(specialOfferItem.mealType);
+      }
+    }
+  }, [specialOfferItem]);
+
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
 
@@ -378,6 +391,28 @@ export function FinalScreen() {
   };
 
   const handlePlaceOrder = async () => {
+    // Validate special offers cutoff times and meal types
+    for (const item of items) {
+      if (item.isSpecialOffer) {
+        if (item.orderCutoffTime && new Date() > new Date(item.orderCutoffTime)) {
+          showAlert({
+            title: "Time Limit Exceeded",
+            message: `The order deadline for ${item.name} has passed. Please remove it from your cart.`,
+            cancelText: ""
+          });
+          return;
+        }
+        if (item.mealType && item.mealType !== 'both' && item.mealType !== mealTime) {
+          showAlert({
+            title: "Invalid Meal Time",
+            message: `${item.name} is only available for ${item.mealType}. Please change your meal time selection or remove the item.`,
+            cancelText: ""
+          });
+          return;
+        }
+      }
+    }
+
     if (!selectedAddress) {
       toast.error('Please select a delivery address.');
       return;
@@ -661,8 +696,22 @@ export function FinalScreen() {
             <View className="flex-1">
               <Text className="text-xs text-gray-500 ml-1 mb-1">Date</Text>
               <TouchableOpacity
-                onPress={() => setIsCalendarOpen(true)}
-                className="h-12 bg-white border border-gray-300 rounded-xl px-3 flex-row items-center justify-between"
+                onPress={() => {
+                  if (specialOfferItem && specialOfferItem.deliveryDate) {
+                    showAlert({
+                      title: "Action Disabled",
+                      message: `Date is fixed to ${format(new Date(specialOfferItem.deliveryDate), 'MMM do')} for ${specialOfferItem.name}`,
+                      cancelText: ""
+                    });
+                  } else {
+                    setIsCalendarOpen(true);
+                  }
+                }}
+                className={`h-12 border rounded-xl px-3 flex-row items-center justify-between ${
+                  specialOfferItem && specialOfferItem.deliveryDate 
+                    ? 'bg-gray-100 border-gray-200' 
+                    : 'bg-white border-gray-300'
+                }`}
               >
                 <Text className={preferredDate ? 'text-gray-900' : 'text-gray-400'}>
                   {preferredDate ? format(preferredDate, 'MMM do, yyyy') : 'Pick a date'}
@@ -674,20 +723,42 @@ export function FinalScreen() {
               <Text className="text-xs text-gray-500 ml-1 mb-1">Time</Text>
               <View className="flex-row h-12 bg-white border border-gray-300 rounded-xl overflow-hidden">
                 <TouchableOpacity
-                  onPress={() => setMealTime('lunch')}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (specialOfferItem && specialOfferItem.mealType === 'dinner') {
+                      showAlert({
+                        title: "Action Disabled",
+                        message: `${specialOfferItem.name} is a dinner special.`,
+                        cancelText: ""
+                      });
+                    } else {
+                      setMealTime('lunch');
+                    }
+                  }}
                   className={`flex-1 items-center justify-center ${
                     mealTime === 'lunch' ? 'bg-primary' : ''
-                  }`}
+                  } ${specialOfferItem && specialOfferItem.mealType === 'dinner' ? 'bg-gray-100 opacity-50' : ''}`}
                 >
                   <Text className={mealTime === 'lunch' ? 'text-white font-bold' : 'text-gray-700'}>
                     Lunch
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setMealTime('dinner')}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (specialOfferItem && specialOfferItem.mealType === 'lunch') {
+                      showAlert({
+                        title: "Action Disabled",
+                        message: `${specialOfferItem.name} is a lunch special.`,
+                        cancelText: ""
+                      });
+                    } else {
+                      setMealTime('dinner');
+                    }
+                  }}
                   className={`flex-1 items-center justify-center ${
                     mealTime === 'dinner' ? 'bg-primary' : ''
-                  }`}
+                  } ${specialOfferItem && specialOfferItem.mealType === 'lunch' ? 'bg-gray-100 opacity-50' : ''}`}
                 >
                   <Text className={mealTime === 'dinner' ? 'text-white font-bold' : 'text-gray-700'}>
                     Dinner

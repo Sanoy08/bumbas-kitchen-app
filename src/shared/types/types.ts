@@ -43,4 +43,8 @@ export type CartItem = {
   price: number;
   image: Image;
   quantity: number;
+  isSpecialOffer?: boolean;
+  deliveryDate?: string;
+  orderCutoffTime?: string;
+  mealType?: string;
 };

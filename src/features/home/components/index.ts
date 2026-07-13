@@ -6,3 +6,4 @@ export * from './FeaturesSection';
 export * from './DailySpecialSection';
 export * from './DatePopupModal';
 export * from './MiddleSlider';
+export * from './OffersSection';

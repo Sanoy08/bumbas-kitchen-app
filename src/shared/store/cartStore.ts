@@ -104,7 +104,14 @@ export const useCartStore = create<CartState>()(
         let newItems;
         if (existingItem) {
           newItems = items.map((item) =>
-            item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
+            item.id === product.id ? { 
+                ...item, 
+                quantity: item.quantity + quantity,
+                isSpecialOffer: product.isSpecialOffer !== undefined ? product.isSpecialOffer : item.isSpecialOffer,
+                deliveryDate: product.deliveryDate !== undefined ? product.deliveryDate : item.deliveryDate,
+                orderCutoffTime: product.orderCutoffTime !== undefined ? product.orderCutoffTime : item.orderCutoffTime,
+                mealType: product.mealType !== undefined ? product.mealType : item.mealType
+            } : item
           );
         } else {
           const newItem: CartItem = {
@@ -115,6 +122,10 @@ export const useCartStore = create<CartState>()(
             // ★ FIX: Next.js er moto Array er poriborte Index 0 theke neoya hocche
             image: product.images && product.images.length > 0 ? product.images[0] : { id: 'def', url: '', alt: product.name },
             quantity: quantity,
+            isSpecialOffer: product.isSpecialOffer,
+            deliveryDate: product.deliveryDate,
+            orderCutoffTime: product.orderCutoffTime,
+            mealType: product.mealType
           };
           newItems = [...items, newItem];
         }
