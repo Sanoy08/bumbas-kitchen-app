@@ -1,7 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl, DeviceEventEmitter } from 'react-native';
+import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl, DeviceEventEmitter, LayoutAnimation, UIManager } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { FlashList } from '@shopify/flash-list';
 import Animated, {
   Extrapolation,
@@ -38,9 +42,9 @@ import {
 const { width: windowWidth } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 const PRODUCTS_PER_PAGE = 10;
-const CARD_MARGIN = 4;
-const CONTAINER_PADDING = 16;
-const CARD_WIDTH = (windowWidth - CONTAINER_PADDING * 2 - CARD_MARGIN * 4) / 2;
+const CARD_WIDTH = 160;
+const CARD_MARGIN = 6; // 6px margin on each side = 12px gap between items
+const GRID_WIDTH = (CARD_WIDTH + CARD_MARGIN * 2) * 2; // Total width of 2 columns
 const HERO_CAROUSEL_HEIGHT = windowWidth + 8;
 
 export function HomeScreen() {
@@ -66,6 +70,8 @@ export function HomeScreen() {
   const [isSavingDates, setIsSavingDates] = useState(false);
   const [isVeg, setIsVeg] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [visualCategory, setVisualCategory] = useState('All');
+  const [isSwitchingCategory, setIsSwitchingCategory] = useState(false);
   const [hasSkippedSession, setHasSkippedSession] = useState(false);
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
@@ -114,15 +120,48 @@ export function HomeScreen() {
     isCategoryActive.value = activeCategory !== 'All';
   }, [activeCategory]);
 
+  const handleCategorySelect = useCallback((category: string) => {
+    if (category === visualCategory) return;
+    setVisualCategory(category);
+    setIsSwitchingCategory(true);
+    
+    if (category !== 'All' && activeCategory === 'All') {
+      const targetY = categoryYRef.current - CATEGORY_LOCK_Y;
+      
+      // Scroll to the sticky point smoothly
+      scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+      
+      // Delay layout switch until scroll completes (approx 350-400ms)
+      setTimeout(() => {
+        isCategoryActive.value = true;
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setActiveCategory(category);
+        setTimeout(() => setIsSwitchingCategory(false), 500);
+      }, 400); 
+    } else {
+      isCategoryActive.value = category !== 'All';
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setActiveCategory(category);
+      if (category === 'All') {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }
+      setTimeout(() => setIsSwitchingCategory(false), 500);
+    }
+  }, [activeCategory, visualCategory, CATEGORY_LOCK_Y]);
+
   useEffect(() => {
     if (activeCategory !== 'All') {
       backButtonWidth.value = withTiming(40, { duration: 300 });
       backButtonOpacity.value = withTiming(1, { duration: 300 });
+      setTabBarVisible(false);
+      isTabBarVisibleShared.value = false;
     } else {
       backButtonWidth.value = withTiming(0, { duration: 300 });
       backButtonOpacity.value = withTiming(0, { duration: 300 });
+      setTabBarVisible(true);
+      isTabBarVisibleShared.value = true;
     }
-  }, [activeCategory]);
+  }, [activeCategory, setTabBarVisible, isTabBarVisibleShared]);
 
   const fetchHomeData = useCallback(async (isRefresh = false) => {
     if (isRefresh) console.log('🔄 [Refresh] Fetching Home Data from:', `${API_URL}/home-data`);
@@ -277,6 +316,17 @@ export function HomeScreen() {
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
       const currentY = event.contentOffset.y;
+      
+      // If we are in a specific category, ALWAYS keep the tab bar hidden
+      if (isCategoryActive.value) {
+        if (isTabBarVisibleShared.value) {
+          isTabBarVisibleShared.value = false;
+          runOnJS(setTabBarVisible)(false);
+        }
+        lastScrollY.value = currentY;
+        return;
+      }
+      
       if (currentY > lastScrollY.value + 15 && currentY > 50) {
         if (isTabBarVisibleShared.value) {
           isTabBarVisibleShared.value = false;
@@ -366,7 +416,7 @@ export function HomeScreen() {
       right: 0,
       zIndex: 45,
       pointerEvents: isSticking ? 'auto' : 'none',
-      transform: [{ translateY: isSticking ? 0 : -10 }],
+      transform: [{ translateY: 0 }],
     };
   });
 
@@ -469,13 +519,13 @@ export function HomeScreen() {
         activeCategory={activeCategory}
         isVeg={isVeg}
         onSetVeg={setIsVeg}
-        onClearCategory={() => setActiveCategory('All')}
+        onClearCategory={() => handleCategorySelect('All')}
         paddingTop={insets.top + 10}
       />
 
       {/* ── Sticky Category Bar (appears on scroll) ── */}
-      <Animated.View style={stickyCategoryStyle} className="bg-white pt-1 pb-0">
-        <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+      <Animated.View style={stickyCategoryStyle} className="bg-white py-2">
+        <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
       </Animated.View>
 
       {/* ── Main Scrollable Content ── */}
@@ -488,6 +538,7 @@ export function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
+            enabled={activeCategory === 'All'}
             tintColor="#e11d48"
             colors={['#e11d48']}
             progressBackgroundColor="#ffffff"
@@ -501,7 +552,7 @@ export function HomeScreen() {
         // collapsedHeader = insets.top+60, categoryBar ≈ 100px -> total 160px
         contentContainerStyle={{
           paddingBottom: 56,
-          paddingTop: activeCategory !== 'All' ? insets.top + 160 : 0,
+          paddingTop: activeCategory !== 'All' ? insets.top + 130 : 0,
         }}
         bounces={activeCategory === 'All'}
         overScrollMode={activeCategory === 'All' ? 'auto' : 'never'}
@@ -519,7 +570,7 @@ export function HomeScreen() {
               if (y > 0) categoryY.value = y;
             }}
           >
-            <CategoryList activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+            <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
           </View>
         )}
 
@@ -535,10 +586,33 @@ export function HomeScreen() {
         )}
 
         {/* Products Grid */}
-        <View className="bg-white px-4 py-8">
-          <SectionHeading title={activeCategory === 'All' ? 'Explore More' : `Fresh from ${activeCategory}`} />
+        <View className="bg-white py-8">
+          <View className="px-4">
+            <SectionHeading title={activeCategory === 'All' ? 'Explore More' : `Fresh from ${activeCategory}`} />
+          </View>
 
-          {filteredProducts.length === 0 ? (
+          <View style={{ width: GRID_WIDTH, alignSelf: 'center' }}>
+            {isSwitchingCategory ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <View key={i} style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+                  <View className="flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col">
+                    <View className="aspect-square w-full bg-gray-200 opacity-50" />
+                    <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
+                      <View>
+                        <View className="h-4 w-3/4 bg-gray-200 rounded mb-1.5 opacity-60" />
+                        <View className="h-4 w-1/2 bg-gray-200 rounded opacity-60" />
+                      </View>
+                      <View className="flex-row items-center justify-between mt-2">
+                        <View className="h-5 w-1/3 bg-gray-200 rounded opacity-60" />
+                        <View className="h-8 w-16 bg-gray-200 rounded-full opacity-60" />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : filteredProducts.length === 0 ? (
             <View className="py-12 items-center">
               <Text className="text-gray-500 font-sans">No items available</Text>
             </View>
@@ -564,6 +638,7 @@ export function HomeScreen() {
               }
             />
           )}
+          </View>
         </View>
       </Animated.ScrollView>
 
