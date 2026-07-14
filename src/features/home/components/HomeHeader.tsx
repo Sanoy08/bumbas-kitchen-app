@@ -1,18 +1,20 @@
 // src/features/home/components/HomeHeader.tsx
 import { useRouter } from 'expo-router';
-import { ChevronDown, ChevronLeft, Mic, Search, User } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, Mic, Search, User, SlidersHorizontal } from 'lucide-react-native';
 import { Text, TouchableOpacity, View } from 'react-native';
 import Animated, { AnimatedStyle } from 'react-native-reanimated';
 import { useAuthStore } from '@/shared/store/authStore';
 import { AnimatedSearchText } from './AnimatedSearchText';
+
+import { FilterOption } from './FilterModal';
 
 interface HomeHeaderProps {
   headerAnimatedStyle: AnimatedStyle<any>;
   locationRowStyle: AnimatedStyle<any>;
   backButtonStyle: AnimatedStyle<any>;
   activeCategory: string;
-  isVeg: boolean;
-  onSetVeg: (v: boolean) => void;
+  activeFilter: FilterOption;
+  onOpenFilter: () => void;
   onClearCategory: () => void;
   paddingTop: number;
 }
@@ -40,8 +42,8 @@ export const HomeHeader = ({
   locationRowStyle,
   backButtonStyle,
   activeCategory,
-  isVeg,
-  onSetVeg,
+  activeFilter,
+  onOpenFilter,
   onClearCategory,
   paddingTop,
 }: HomeHeaderProps) => {
@@ -111,17 +113,15 @@ export const HomeHeader = ({
           </View>
         </TouchableOpacity>
 
-        {activeCategory === "All" && (
-          <TouchableOpacity
-            onPress={() => onSetVeg(!isVeg)}
-            className={`items-center justify-center px-3 py-1.5 rounded-xl border ${
-              isVeg ? 'bg-green-500 border-green-600' : 'bg-white border-gray-300'
-            }`}
-            activeOpacity={0.7}
-          >
-            <Text className={`text-xs font-bold font-sans ${isVeg ? 'text-white' : 'text-gray-700'}`}>VEG</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          onPress={onOpenFilter}
+          className={`h-[42px] w-[42px] items-center justify-center rounded-2xl border ${
+            activeFilter !== 'all' ? 'bg-primary border-primary' : 'bg-white border-gray-200'
+          }`}
+          activeOpacity={0.7}
+        >
+          <SlidersHorizontal size={20} color={activeFilter !== 'all' ? '#ffffff' : '#e11d48'} />
+        </TouchableOpacity>
       </View>
     </Animated.View>
   );

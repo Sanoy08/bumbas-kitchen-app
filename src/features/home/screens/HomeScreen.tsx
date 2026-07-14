@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl, DeviceEventEmitter, LayoutAnimation, UIManager } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -37,6 +37,8 @@ import {
   MiddleSlider,
   OffersSection,
   SectionHeading,
+  FilterModal,
+  FilterOption
 } from '../components';
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -68,7 +70,8 @@ export function HomeScreen() {
   const [dob, setDob] = useState('');
   const [anniversary, setAnniversary] = useState('');
   const [isSavingDates, setIsSavingDates] = useState(false);
-  const [isVeg, setIsVeg] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [visualCategory, setVisualCategory] = useState('All');
   const [isSwitchingCategory, setIsSwitchingCategory] = useState(false);
@@ -81,6 +84,7 @@ export function HomeScreen() {
   // --- Scroll/Animation Refs & Values ---
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const categoryYRef = useRef(0);
+  const exploreGridYRef = useRef(0);
   const isLoadingMore = useRef(false);
   const lastLoadTime = useRef(0);
 
@@ -115,42 +119,55 @@ export function HomeScreen() {
     isTabBarVisibleShared.value = isTabBarVisibleStore;
   }, [isTabBarVisibleStore]);
 
-  // Sync activeCategory to shared value so animated styles can react on UI thread
-  useEffect(() => {
-    isCategoryActive.value = activeCategory !== 'All';
-  }, [activeCategory]);
+  const isGridViewMode = activeCategory !== 'All' || activeFilter !== 'all';
 
-  const handleCategorySelect = useCallback((category: string) => {
-    if (category === visualCategory) return;
-    setVisualCategory(category);
+  // Sync isGridViewMode to shared value so animated styles can react on UI thread
+  useEffect(() => {
+    isCategoryActive.value = isGridViewMode;
+  }, [isGridViewMode]);
+
+  const handleModeSwitch = (newCategory: string, newFilter: FilterOption) => {
+    const isNewGridViewMode = newCategory !== 'All' || newFilter !== 'all';
     setIsSwitchingCategory(true);
     
-    if (category !== 'All' && activeCategory === 'All') {
+    if (isNewGridViewMode && !isGridViewMode) {
+      // Transitioning from normal mode to grid mode
       const targetY = categoryYRef.current - CATEGORY_LOCK_Y;
       
       // Scroll to the sticky point smoothly
-      scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
       
       // Delay layout switch until scroll completes (approx 350-400ms)
       setTimeout(() => {
         isCategoryActive.value = true;
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setActiveCategory(category);
+        setActiveCategory(newCategory);
+        setActiveFilter(newFilter);
         setTimeout(() => setIsSwitchingCategory(false), 500);
       }, 400); 
     } else {
-      isCategoryActive.value = category !== 'All';
+      // Already in grid mode, or reverting to normal mode
+      isCategoryActive.value = isNewGridViewMode;
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setActiveCategory(category);
-      if (category === 'All') {
+      setActiveCategory(newCategory);
+      setActiveFilter(newFilter);
+      if (!isNewGridViewMode) {
         scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      } else {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false }); // Snap to top of grid
       }
       setTimeout(() => setIsSwitchingCategory(false), 500);
     }
-  }, [activeCategory, visualCategory, CATEGORY_LOCK_Y]);
+  };
+
+  const handleCategorySelect = useCallback((category: string) => {
+    if (category === visualCategory) return;
+    setVisualCategory(category);
+    handleModeSwitch(category, activeFilter);
+  }, [activeCategory, activeFilter, visualCategory, isGridViewMode, CATEGORY_LOCK_Y]);
 
   useEffect(() => {
-    if (activeCategory !== 'All') {
+    if (isGridViewMode) {
       backButtonWidth.value = withTiming(40, { duration: 300 });
       backButtonOpacity.value = withTiming(1, { duration: 300 });
       setTabBarVisible(false);
@@ -161,7 +178,7 @@ export function HomeScreen() {
       setTabBarVisible(true);
       isTabBarVisibleShared.value = true;
     }
-  }, [activeCategory, setTabBarVisible, isTabBarVisibleShared]);
+  }, [isGridViewMode, setTabBarVisible, isTabBarVisibleShared]);
 
   const fetchHomeData = useCallback(async (isRefresh = false) => {
     if (isRefresh) console.log('🔄 [Refresh] Fetching Home Data from:', `${API_URL}/home-data`);
@@ -434,8 +451,34 @@ export function HomeScreen() {
     activeCategory !== 'All'
       ? allProducts.filter((p: any) => p.category?.name?.toLowerCase() === activeCategory.toLowerCase())
       : allProducts;
-  const vegFiltered = isVeg ? categoryFiltered.filter((p: any) => p.isVeg === true) : categoryFiltered;
-  const filteredProducts = vegFiltered;
+
+  const filteredProducts = useMemo(() => {
+    let result = [...categoryFiltered];
+    switch (activeFilter) {
+      case 'veg':
+        result = result.filter(p => {
+          const cat = p.category?.name?.toLowerCase() || '';
+          return cat === 'veg' || cat === 'paneer' || cat === 'chapati';
+        });
+        break;
+      case 'non-veg':
+        result = result.filter(p => {
+          const cat = p.category?.name?.toLowerCase() || '';
+          return cat !== 'veg' && cat !== 'paneer' && cat !== 'chapati';
+        });
+        break;
+      case 'price-low':
+        result.sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      case 'price-high':
+        result.sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case 'all':
+      default:
+        break;
+    }
+    return result;
+  }, [categoryFiltered, activeFilter, homeData.bestsellers]);
   const displayedProducts = filteredProducts.slice(0, productDisplayCount);
   const hasMore = productDisplayCount < filteredProducts.length;
   const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
@@ -517,9 +560,9 @@ export function HomeScreen() {
         locationRowStyle={locationRowStyle}
         backButtonStyle={backButtonStyle}
         activeCategory={activeCategory}
-        isVeg={isVeg}
-        onSetVeg={setIsVeg}
-        onClearCategory={() => handleCategorySelect('All')}
+        activeFilter={activeFilter}
+        onOpenFilter={() => setIsFilterModalVisible(true)}
+        onClearCategory={() => handleModeSwitch('All', 'all')}
         paddingTop={insets.top + 10}
       />
 
@@ -538,7 +581,7 @@ export function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            enabled={activeCategory === 'All'}
+            enabled={!isGridViewMode}
             tintColor="#e11d48"
             colors={['#e11d48']}
             progressBackgroundColor="#ffffff"
@@ -552,16 +595,16 @@ export function HomeScreen() {
         // collapsedHeader = insets.top+60, categoryBar ≈ 100px -> total 160px
         contentContainerStyle={{
           paddingBottom: 56,
-          paddingTop: activeCategory !== 'All' ? insets.top + 130 : 0,
+          paddingTop: isGridViewMode ? insets.top + 130 : 0,
         }}
-        bounces={activeCategory === 'All'}
-        overScrollMode={activeCategory === 'All' ? 'auto' : 'never'}
+        bounces={!isGridViewMode}
+        overScrollMode={!isGridViewMode ? 'auto' : 'never'}
       >
         {/* All mode: Hero carousel. Non-All: absolutely nothing. 
             No spacer means y=0 is the absolute top, user CANNOT scroll up. */}
-        {activeCategory === 'All' && <HeroCarousel slides={homeData.heroSlides} />}
+        {!isGridViewMode && <HeroCarousel slides={homeData.heroSlides} />}
 
-        {activeCategory === 'All' && (
+        {!isGridViewMode && (
           <View
             className="bg-white py-2"
             onLayout={(e) => { 
@@ -575,7 +618,7 @@ export function HomeScreen() {
         )}
 
         {/* All-only sections */}
-        {activeCategory === 'All' && (
+        {!isGridViewMode && (
           <>
             <BestsellerSection bestsellers={homeData.bestsellers} />
             <OffersSection offers={homeData.offers} />
@@ -586,9 +629,12 @@ export function HomeScreen() {
         )}
 
         {/* Products Grid */}
-        <View className="bg-white py-8">
+        <View 
+          className="bg-white py-8"
+          onLayout={(e) => { exploreGridYRef.current = e.nativeEvent.layout.y; }}
+        >
           <View className="px-4">
-            <SectionHeading title={activeCategory === 'All' ? 'Explore More' : `Fresh from ${activeCategory}`} />
+            <SectionHeading title={isGridViewMode ? (activeCategory !== 'All' ? `Fresh from ${activeCategory}` : 'Filtered Items') : 'Explore More'} />
           </View>
 
           <View style={{ width: GRID_WIDTH, alignSelf: 'center' }}>
@@ -641,6 +687,17 @@ export function HomeScreen() {
           </View>
         </View>
       </Animated.ScrollView>
+
+      <FilterModal
+        visible={isFilterModalVisible}
+        onClose={() => setIsFilterModalVisible(false)}
+        activeFilter={activeFilter}
+        onApplyFilter={(filter) => {
+          if (filter === activeFilter) return;
+          setProductDisplayCount(PRODUCTS_PER_PAGE);
+          handleModeSwitch(activeCategory, filter);
+        }}
+      />
 
       {/* ── Date Popup Modal ── */}
       <DatePopupModal
