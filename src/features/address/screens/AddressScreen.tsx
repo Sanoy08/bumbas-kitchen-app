@@ -418,8 +418,12 @@ export function AddressScreen() {
     }
   };
 
+  useEffect(() => {
+    // When map is loaded, we can fetch locations if we needed, etc.
+  }, [isMapReady]);
+
   if (isLoading || !isInitialized) {
-    return <View className="flex-1 justify-center items-center bg-gray-50"><Loader2 size={32} color="#e11d48" /></View>;
+    return <View className="flex-1 justify-center items-center bg-gray-50"><ActivityIndicator size="large" color="#e11d48" /></View>;
   }
 
   return (

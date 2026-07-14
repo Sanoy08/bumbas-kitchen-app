@@ -89,6 +89,9 @@ export function ProductDetailsScreen() {
   const bottomBarTranslateY = useRef(new Animated.Value(200)).current;
   const bottomBarOpacity = useRef(new Animated.Value(0)).current;
 
+  // Header visibility tracker
+  const isHeaderVisible = useRef(false);
+
   // --- Fetch Product (ONLY FROM CACHE) ---
   useEffect(() => {
     const fetchProductFromCache = async () => {
@@ -225,9 +228,26 @@ export function ProductDetailsScreen() {
   const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
 
-    // Header fade: show after 100px scroll
-    const headerFadeValue = Math.min(offsetY / 100, 1);
-    headerOpacity.setValue(headerFadeValue);
+    // Header fade: show abruptly with a smooth animation after scrolling 10px
+    if (offsetY > 10) {
+      if (!isHeaderVisible.current) {
+        isHeaderVisible.current = true;
+        Animated.timing(headerOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else {
+      if (isHeaderVisible.current) {
+        isHeaderVisible.current = false;
+        Animated.timing(headerOpacity, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
 
     // Bottom bar: show when inline cart is out of view
     if (offsetY > 200) {

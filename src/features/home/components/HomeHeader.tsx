@@ -69,12 +69,15 @@ export const HomeHeader = ({
       {/* Location Row */}
       <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
         <View className="flex-row items-center flex-1 pr-4">
-          <View className="flex-row items-center bg-white/90 pl-2 pr-3 py-1.5 rounded-full max-w-full">
+          <TouchableOpacity 
+            className="flex-row items-center max-w-full"
+            onPress={() => user ? router.push('/addressModal') : router.push('/(auth)/login')}
+          >
             <Text className="text-lg font-bold text-gray-900 font-sans flex-shrink" numberOfLines={1} ellipsizeMode="tail">
               {getDisplayAddress(user)}
             </Text>
             <ChevronDown size={18} color="#374151" className="ml-1 flex-shrink-0" />
-          </View>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity
           onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')}
