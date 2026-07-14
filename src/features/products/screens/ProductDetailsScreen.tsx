@@ -221,7 +221,6 @@ export function ProductDetailsScreen() {
     addItem(product, quantity, false);
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    toast.success(`Added ${quantity}x ${product.name} to cart! 🛒`);
   };
 
   // --- Scroll handling for header and bottom bar ---

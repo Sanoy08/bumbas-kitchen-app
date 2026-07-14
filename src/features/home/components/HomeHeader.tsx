@@ -12,6 +12,7 @@ interface HomeHeaderProps {
   headerAnimatedStyle: AnimatedStyle<any>;
   locationRowStyle: AnimatedStyle<any>;
   backButtonStyle: AnimatedStyle<any>;
+  filterButtonStyle: AnimatedStyle<any>;
   activeCategory: string;
   activeFilter: FilterOption;
   onOpenFilter: () => void;
@@ -41,6 +42,7 @@ export const HomeHeader = ({
   headerAnimatedStyle,
   locationRowStyle,
   backButtonStyle,
+  filterButtonStyle,
   activeCategory,
   activeFilter,
   onOpenFilter,
@@ -113,15 +115,17 @@ export const HomeHeader = ({
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={onOpenFilter}
-          className={`h-[42px] w-[42px] items-center justify-center rounded-2xl border ${
-            activeFilter !== 'all' ? 'bg-primary border-primary' : 'bg-white border-gray-200'
-          }`}
-          activeOpacity={0.7}
-        >
-          <SlidersHorizontal size={20} color={activeFilter !== 'all' ? '#ffffff' : '#e11d48'} />
-        </TouchableOpacity>
+        <Animated.View style={filterButtonStyle}>
+          <TouchableOpacity
+            onPress={onOpenFilter}
+            className={`h-[42px] items-center justify-center rounded-2xl border ${
+              activeFilter !== 'all' ? 'bg-primary border-primary' : 'bg-white border-gray-200'
+            }`}
+            activeOpacity={0.7}
+          >
+            <SlidersHorizontal size={20} color={activeFilter !== 'all' ? '#ffffff' : '#e11d48'} />
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </Animated.View>
   );

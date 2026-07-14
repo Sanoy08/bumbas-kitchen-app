@@ -103,6 +103,9 @@ export function HomeScreen() {
   const isTabBarVisibleShared = useSharedValue(true);
   const backButtonWidth = useSharedValue(0);
   const backButtonOpacity = useSharedValue(0);
+  const filterButtonWidth = useSharedValue(42);
+  const filterButtonOpacity = useSharedValue(1);
+  const filterButtonMargin = useSharedValue(12);
   // Mirrors activeCategory !== 'All' on the UI thread
   // Used inside useAnimatedStyle to switch between hero-mode and compact-mode
   const isCategoryActive = useSharedValue(false);
@@ -170,11 +173,17 @@ export function HomeScreen() {
     if (isGridViewMode) {
       backButtonWidth.value = withTiming(40, { duration: 300 });
       backButtonOpacity.value = withTiming(1, { duration: 300 });
+      filterButtonWidth.value = withTiming(0, { duration: 300 });
+      filterButtonOpacity.value = withTiming(0, { duration: 300 });
+      filterButtonMargin.value = withTiming(0, { duration: 300 });
       setTabBarVisible(false);
       isTabBarVisibleShared.value = false;
     } else {
       backButtonWidth.value = withTiming(0, { duration: 300 });
       backButtonOpacity.value = withTiming(0, { duration: 300 });
+      filterButtonWidth.value = withTiming(42, { duration: 300 });
+      filterButtonOpacity.value = withTiming(1, { duration: 300 });
+      filterButtonMargin.value = withTiming(12, { duration: 300 });
       setTabBarVisible(true);
       isTabBarVisibleShared.value = true;
     }
@@ -443,6 +452,13 @@ export function HomeScreen() {
     overflow: 'hidden',
   }));
 
+  const filterButtonStyle = useAnimatedStyle(() => ({
+    width: filterButtonWidth.value,
+    opacity: filterButtonOpacity.value,
+    marginLeft: filterButtonMargin.value,
+    overflow: 'hidden',
+  }));
+
   // =========================================================================
   // Data Derivations
   // =========================================================================
@@ -559,6 +575,7 @@ export function HomeScreen() {
         headerAnimatedStyle={headerAnimatedStyle}
         locationRowStyle={locationRowStyle}
         backButtonStyle={backButtonStyle}
+        filterButtonStyle={filterButtonStyle}
         activeCategory={activeCategory}
         activeFilter={activeFilter}
         onOpenFilter={() => setIsFilterModalVisible(true)}

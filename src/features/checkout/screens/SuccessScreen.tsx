@@ -2,7 +2,6 @@
 
 import { formatPrice } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
-import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowRight, Home, ShoppingBag, Sparkles } from 'lucide-react-native';
@@ -34,6 +33,7 @@ import Animated, {
   ZoomIn,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Audio } from 'expo-av';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -108,8 +108,29 @@ export function SuccessScreen() {
   const detailsOpacity3 = useSharedValue(0);
   const detailsOpacity4 = useSharedValue(0);
 
-  const soundAsset = require('../../../../assets/sounds/success.mp3');
-  const soundUri = Image.resolveAssetSource(soundAsset).uri;
+  useEffect(() => {
+    let sound: Audio.Sound;
+
+    async function playSound() {
+      try {
+        const { sound: playbackObject } = await Audio.Sound.createAsync(
+          require('../../../../assets/sounds/success.mp3')
+        );
+        sound = playbackObject;
+        await sound.playAsync();
+      } catch (error) {
+        console.error('Error playing sound:', error);
+      }
+    }
+
+    playSound();
+
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // 1. Initial checkmark pop-in
@@ -271,31 +292,6 @@ export function SuccessScreen() {
       </View>
     </SafeAreaView>
       
-    <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-      <WebView
-        source={{
-          html: `
-            <!DOCTYPE html>
-            <html>
-              <body>
-                <audio id="audio" src="${soundUri}" autoplay></audio>
-                <script>
-                  document.getElementById("audio").play().catch(e => console.log(e));
-                </script>
-              </body>
-            </html>
-          `,
-          baseUrl: ''
-        }}
-        originWhitelist={['*']}
-        mediaPlaybackRequiresUserAction={false}
-        allowFileAccess={true}
-        allowFileAccessFromFileURLs={true}
-        allowUniversalAccessFromFileURLs={true}
-        style={{ width: 0, height: 0, display: 'none' }}
-        containerStyle={{ width: 0, height: 0, display: 'none' }}
-      />
-    </View>
     </View>
   );
 }
