@@ -20,6 +20,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useAlert } from '@/shared/components/ui/CustomAlert';
 import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
 import { toast } from 'sonner-native';
 import * as z from 'zod';
@@ -36,6 +37,7 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function RegisterScreen() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
+  const { showAlert } = useAlert();
 
   const { control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(registerSchema),
@@ -51,7 +53,6 @@ export default function RegisterScreen() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [limitData, setLimitData] = useState({ ipLeft: 5, phoneLeft: 3, isBlocked: false, resetTime: '', reason: '' });
-  const [showBlockPopup, setShowBlockPopup] = useState(false);
 
   const getDefaultBottom = (currentStep: 'details' | 'otp') => {
     return currentStep === 'details' ? 20 : 52;
@@ -109,7 +110,6 @@ export default function RegisterScreen() {
       const data = await res.json();
       if (data.success) {
         setLimitData(data);
-        if (data.isBlocked) setShowBlockPopup(true);
       }
     } catch (e) {
       console.log('Limit check failed', e);
@@ -209,7 +209,11 @@ export default function RegisterScreen() {
 
   const onRegisterSubmit = async (data: { name: string; phone: string }) => {
     if (limitData.isBlocked) {
-      setShowBlockPopup(true);
+      showAlert({
+        title: 'Security Lock Active',
+        message: `${limitData.reason} To protect your account from spam, we've temporarily paused OTPs.\n\nTry again at ${formatResetTime(limitData.resetTime)}`,
+        confirmText: 'I Understand',
+      });
       return;
     }
     setIsLoading(true);
@@ -231,7 +235,11 @@ export default function RegisterScreen() {
         toast.error(responseData.error || 'Failed to send OTP');
         if (responseData.isBlocked || res.status === 429) {
           setLimitData(prev => ({ ...prev, isBlocked: true, reason: responseData.error, resetTime: responseData.resetTime }));
-          setShowBlockPopup(true);
+          showAlert({
+            title: 'Security Lock Active',
+            message: `${responseData.error} To protect your account from spam, we've temporarily paused OTPs.\n\nTry again at ${formatResetTime(responseData.resetTime)}`,
+            confirmText: 'I Understand',
+          });
         }
       }
     } catch (error) {
@@ -429,28 +437,6 @@ export default function RegisterScreen() {
           )}
         </ScrollView>
       </Animated.View>
-
-      <Modal visible={showBlockPopup} transparent animationType="fade">
-        <View className="flex-1 justify-center items-center bg-black/50 px-4">
-          <View className="bg-white rounded-3xl p-6 w-full max-w-sm items-center">
-            <View className="h-16 w-16 bg-red-100 rounded-full items-center justify-center mb-4">
-              <AlertOctagon size={32} color="#dc2626" />
-            </View>
-            <Text className="text-xl font-bold text-gray-900 mb-2">Security Lock Active</Text>
-            <Text className="text-center text-gray-600 mb-4 leading-relaxed">
-              {limitData.reason} To protect your account from spam, we've temporarily paused OTPs.
-            </Text>
-            <View className="bg-gray-50 border border-gray-200 w-full rounded-xl p-4 items-center mb-6">
-              <Clock size={20} color="#9ca3af" />
-              <Text className="text-xs text-gray-500 uppercase font-bold tracking-wider mt-1">Try again at</Text>
-              <Text className="text-lg font-bold text-gray-800 mt-1">{formatResetTime(limitData.resetTime)}</Text>
-            </View>
-            <TouchableOpacity onPress={() => setShowBlockPopup(false)} className="w-full h-14 bg-gray-900 rounded-xl items-center justify-center">
-              <Text className="text-white font-bold text-lg">I Understand</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

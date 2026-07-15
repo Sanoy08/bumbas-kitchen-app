@@ -24,7 +24,7 @@ export const DailySpecialSection = ({ product }: DailySpecialSectionProps) => {
         <View className="aspect-square w-full rounded-2xl overflow-hidden bg-gray-100">
           {product.images?.length > 0 ? (
             <Image
-              source={{ uri: optimizeImageUrl(product.images[0].url) }}
+              source={{ uri: optimizeImageUrl(product.images[0].url, 200, 200) }}
               className="w-full h-full"
               contentFit="cover"
             />

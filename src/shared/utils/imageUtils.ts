@@ -2,7 +2,7 @@
 
 const PROXY_DOMAIN = 'https://images.bumbaskitchen.app';
 
-export function optimizeImageUrl(url: string | undefined | null): string {
+export function optimizeImageUrl(url: string | undefined | null, width?: number, height?: number): string {
   if (!url) return '';
 
   if (url.includes('res.cloudinary.com')) {
@@ -27,7 +27,12 @@ export function optimizeImageUrl(url: string | undefined | null): string {
 
         const cleanPath = pathParts.slice(startIndex).join('/'); 
         
-        return `${PROXY_DOMAIN}/${cloudName}/${cleanPath}`;
+        let transformations = 'q_auto,f_avif';
+        if (width && height) {
+          transformations = `w_${width},h_${height},c_fill,q_auto,f_avif`;
+        }
+        
+        return `${PROXY_DOMAIN}/${cloudName}/${transformations}/${cleanPath}`;
       }
     } catch (e) {
       return url;

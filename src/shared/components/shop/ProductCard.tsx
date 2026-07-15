@@ -61,7 +61,10 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
 
   const hasValidImage = product.images && product.images.length > 0 && product.images[0].url && product.images[0].url.trim() !== '';
   const rawImageUrl = hasValidImage ? product.images[0].url : PLACEHOLDER_IMAGE_URL;
-  const imageSrc = optimizeImageUrl(rawImageUrl);
+  const imageSrc = optimizeImageUrl(rawImageUrl, 200, 200);
+  
+  // LOG THE URL SO YOU CAN VERIFY IT:
+  console.log("Optimized Image URL:", imageSrc);
 
   if (product.isDailySpecial && !hasValidImage) {
     return (

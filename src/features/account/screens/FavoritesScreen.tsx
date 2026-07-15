@@ -63,7 +63,7 @@ export function FavoritesScreen() {
       >
         <View className="h-24 w-24 rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
           <Image
-            source={{ uri: optimizeImageUrl(item.image) }}
+            source={{ uri: optimizeImageUrl(item.image, 200, 200) }}
             style={{ width: '100%', height: '100%' }}
             contentFit="cover"
             transition={200}

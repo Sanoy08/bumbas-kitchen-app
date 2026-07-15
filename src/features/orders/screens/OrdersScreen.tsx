@@ -259,7 +259,7 @@ export function OrdersScreen() {
                           <View key={idx} className={`flex-row justify-between items-center ${!isLast ? 'pb-3 mb-3 border-b border-dashed border-gray-200' : ''}`}>
                             <View className="flex-row items-center flex-1">
                               <View className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden mr-3">
-                                <Image source={{ uri: optimizeImageUrl(rawUrl) }} className="w-full h-full" contentFit="cover" />
+                                <Image source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }} className="w-full h-full" contentFit="cover" />
                               </View>
                               <View className="flex-1 pr-2">
                                 <Text className="text-sm font-bold text-gray-800 font-sans" numberOfLines={2}>{item.name}</Text>

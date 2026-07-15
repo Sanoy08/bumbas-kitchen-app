@@ -175,7 +175,7 @@ const CartItem = React.memo(
             <View className="flex-row">
               <View className="h-20 w-20 rounded-xl bg-gray-100 overflow-hidden border border-gray-100 mr-4">
                 <Image
-                  source={{ uri: optimizeImageUrl(rawUrl) }}
+                  source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }}
                   style={{ width: '100%', height: '100%' }}
                   contentFit="cover"
                   transition={200}

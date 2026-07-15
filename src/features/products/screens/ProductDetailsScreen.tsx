@@ -80,7 +80,7 @@ export function ProductDetailsScreen() {
   const inlineCartRef = useRef<View>(null);
   const cartIconRef = useRef<View>(null);
   const scrollViewRef = useRef<ScrollView>(null);
-  const carouselRef = useRef<ICarouselInstance>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   // Header fade animation
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -487,38 +487,23 @@ export function ProductDetailsScreen() {
       >
         {/* Image Slider (Swipeable) */}
         <View style={{ width: screenWidth, height: screenWidth, backgroundColor: '#f9fafb' }}>
-          <Carousel
-            ref={carouselRef}
-            loop={displayImages.length > 1}
-            width={screenWidth}
-            height={screenWidth}
-            autoPlay={displayImages.length > 1}
-            autoPlayInterval={4000}
+          <FlatList
+            ref={flatListRef}
             data={displayImages}
-            scrollAnimationDuration={400}
-            onSnapToItem={(index) => setActiveSlide(index)}
-            customAnimation={(value: number) => {
-              "worklet";
-              const translateX = interpolate(
-                value,
-                [-1, 0, 1],
-                [-screenWidth * 0.25, 0, screenWidth],
-                Extrapolation.CLAMP
-              );
-              const zIndex = Math.round(interpolate(
-                value, 
-                [-1, 0, 1], 
-                [0, 1, 2],
-                Extrapolation.CLAMP
-              ));
-              const opacity = interpolate(
-                value,
-                [-2, -1, 0, 1, 2],
-                [0, 1, 1, 1, 0],
-                Extrapolation.CLAMP
-              );
-              return { transform: [{ translateX }], zIndex, opacity };
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            onMomentumScrollEnd={(e) => {
+              const newIndex = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+              setActiveSlide(newIndex);
             }}
+            keyExtractor={(_, index) => index.toString()}
+            getItemLayout={(_, index) => ({
+              length: screenWidth,
+              offset: screenWidth * index,
+              index,
+            })}
             renderItem={({ item }) => {
               const imageUrl = item.url ? optimizeImageUrl(item.url) : PLACEHOLDER_IMAGE_URL;
               return (
@@ -580,7 +565,7 @@ export function ProductDetailsScreen() {
                   key={idx}
                   onPress={() => {
                     if (activeSlide !== idx) {
-                      carouselRef.current?.scrollTo({ count: idx - activeSlide, animated: true });
+                      flatListRef.current?.scrollToIndex({ index: idx, animated: true });
                       setActiveSlide(idx);
                     }
                   }}
