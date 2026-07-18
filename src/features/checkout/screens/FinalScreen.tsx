@@ -1,6 +1,6 @@
 // src/app/(shop)/checkout/final.tsx
 
-import { useAlert } from '@/shared/components/ui';
+import { useAlert, SavingsBanner } from '@/shared/components/ui';
 import { formatPrice } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
@@ -22,6 +22,7 @@ import {
   Plus,
   X,
 } from 'lucide-react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
@@ -369,8 +370,13 @@ export function FinalScreen() {
   // Auth & cart checks
   useEffect(() => {
     if (isInitialized && !user) {
-      toast.error('Please login to checkout.');
-      router.replace('/(auth)/login');
+      showAlert({
+        title: 'Login Required',
+        message: 'Please login to checkout.',
+        confirmText: 'Login Now',
+        cancelText: '',
+        onConfirm: () => router.replace('/(auth)/login')
+      });
     }
     if (isInitialized && itemCount === 0 && !isSuccess) {
       router.replace('/(shop)');
@@ -414,17 +420,32 @@ export function FinalScreen() {
     }
 
     if (!selectedAddress) {
-      toast.error('Please select a delivery address.');
+      showAlert({
+        title: 'Address Missing',
+        message: 'Please select a delivery address.',
+        confirmText: 'OK',
+        cancelText: ''
+      });
       return;
     }
 
     if (!preferredDate) {
-      toast.error('Please select a preferred date.');
+      showAlert({
+        title: 'Date Missing',
+        message: 'Please select a preferred date.',
+        confirmText: 'OK',
+        cancelText: ''
+      });
       return;
     }
 
     if (!termsAccepted) {
-      toast.error('Please agree to the Terms and Conditions.');
+      showAlert({
+        title: 'Terms & Conditions',
+        message: 'Please agree to the Terms and Conditions.',
+        confirmText: 'OK',
+        cancelText: ''
+      });
       return;
     }
 
@@ -505,7 +526,12 @@ export function FinalScreen() {
         },
       });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to place order.');
+      showAlert({
+        title: 'Order Failed',
+        message: error.message || 'Failed to place order.',
+        confirmText: 'OK',
+        cancelText: ''
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -532,14 +558,17 @@ export function FinalScreen() {
 
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
+      <StatusBar style="dark" backgroundColor="#ffffff" />
       <View className="flex-1 bg-gray-50">
         {/* Header */}
-      <View className="bg-white px-4 py-3 flex-row items-center border-b border-gray-100">
+      <View className="bg-white px-4 py-3 flex-row items-center border-b border-gray-100" style={{ zIndex: 50 }}>
         <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
           <ArrowLeft size={24} color="#374151" />
         </TouchableOpacity>
         <Text className="text-xl font-bold text-gray-900 font-sans ml-2">Final Checkout</Text>
       </View>
+
+      <SavingsBanner amount={couponDiscount + savedCoinDiscount} staticDisplay={true} />
 
       <ScrollView
         ref={scrollViewRef}

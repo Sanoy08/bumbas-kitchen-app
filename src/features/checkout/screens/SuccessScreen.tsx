@@ -2,12 +2,15 @@
 
 import { formatPrice } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
+import { useSessionStore } from '@/shared/store/sessionStore';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ScratchCard } from '@/shared/components/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowRight, Home, ShoppingBag, Sparkles } from 'lucide-react-native';
+import { ArrowRight, Home, ShoppingBag, Sparkles, Gift, X } from 'lucide-react-native';
+import LottieView from 'lottie-react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dimensions,
   SafeAreaView,
@@ -17,6 +20,7 @@ import {
   View,
   Image,
   BackHandler,
+  Modal,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -80,9 +84,17 @@ export function SuccessScreen() {
   const coins = parseInt(params.coins || '0', 10);
 
   const clearCart = useCartStore((state) => state.clearCart);
+  const setHasOrdered = useSessionStore((state) => state.setHasOrdered);
 
   useEffect(() => {
     clearCart();
+    setHasOrdered(); // Mark that user has placed an order this session
+    
+    // Log the total API calls made up to this point
+    console.log(`\n=================================================`);
+    console.log(`🎉 SUCCESS PAGE REACHED!`);
+    console.log(`Total API Calls made from App Start: ${(global as any).apiCallCount || 0}`);
+    console.log(`=================================================\n`);
     
     const onBackPress = () => {
       router.replace('/(shop)');
@@ -107,6 +119,24 @@ export function SuccessScreen() {
   const detailsOpacity2 = useSharedValue(0);
   const detailsOpacity3 = useSharedValue(0);
   const detailsOpacity4 = useSharedValue(0);
+
+  const [isScratchModalOpen, setIsScratchModalOpen] = useState(false);
+  const [isScratched, setIsScratched] = useState(false);
+  
+  const giftBounce = useSharedValue(0);
+  useEffect(() => {
+    giftBounce.value = withRepeat(
+      withSequence(
+        withTiming(-10, { duration: 500, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 500, easing: Easing.bounce })
+      ),
+      -1,
+      true
+    );
+  }, []);
+  const giftStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: giftBounce.value }]
+  }));
 
   const soundAsset = require('../../../../assets/sounds/success.mp3');
   const soundUri = Image.resolveAssetSource(soundAsset).uri;
@@ -226,20 +256,22 @@ export function SuccessScreen() {
           </View>
         </Animated.View>
 
-        {/* Coins Earned */}
+        {/* Coins Earned - Gift Pill */}
         {coins > 0 && (
-          <Animated.View style={[styles.cardContainer, detailStyle3]}>
-            <View style={[styles.card, styles.coinsCard]}>
-              <View style={styles.cardRow}>
-                <View style={styles.coinsLeft}>
-                  <View style={styles.coinsIconWrap}>
-                    <Sparkles size={20} color="#e11d48" />
-                  </View>
-                  <Text style={styles.coinsTitle}>Coins Earned</Text>
-                </View>
-                <Text style={styles.coinsAmount}>+{coins}</Text>
-              </View>
-            </View>
+          <Animated.View style={[styles.cardContainer, detailStyle3, { alignItems: 'center', marginTop: 10 }]}>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setIsScratchModalOpen(true)}>
+              <Animated.View style={giftStyle}>
+                <LinearGradient
+                  colors={['#f43f5e', '#e11d48']}
+                  style={styles.giftPillGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Gift size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.giftPillText}>You won a Scratch Card!</Text>
+                </LinearGradient>
+              </Animated.View>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -248,7 +280,7 @@ export function SuccessScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             style={[styles.button, styles.primaryButton]}
-            onPress={() => router.push('/(shop)/account/orders')}
+            onPress={() => router.replace('/(shop)/account/orders')}
           >
             <ShoppingBag size={20} color="#fff" />
             <Text style={styles.buttonText}>View Order</Text>
@@ -258,7 +290,7 @@ export function SuccessScreen() {
           <TouchableOpacity
             activeOpacity={0.7}
             style={[styles.button, styles.secondaryButton]}
-            onPress={() => router.push('/(shop)')}
+            onPress={() => router.replace('/(shop)')}
           >
             <Home size={20} color="#4b5563" />
             <Text style={styles.secondaryButtonText}>Back to Home</Text>
@@ -271,6 +303,70 @@ export function SuccessScreen() {
       </View>
     </SafeAreaView>
       
+      {/* Scratch Modal */}
+      <Modal visible={isScratchModalOpen} transparent animationType="fade">
+        <View style={StyleSheet.absoluteFill} className="bg-black/90 items-center justify-center p-6">
+          <View style={{ position: 'absolute', top: 60, right: 24, zIndex: 10 }}>
+             <TouchableOpacity 
+               onPress={() => setIsScratchModalOpen(false)} 
+               style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}
+             >
+               <X size={24} color="white" />
+             </TouchableOpacity>
+          </View>
+          
+          {/* Titles inside Popup */}
+          <View className="items-center mb-10 w-full px-4">
+            <Text className="text-3xl font-black text-white text-center mb-2">
+              {isScratched ? "Congratulations! 🎉" : "You got a surprise! 🎁"}
+            </Text>
+            <Text className="text-base font-bold text-gray-300 text-center">
+              {isScratched ? "Your coins have been added to your wallet." : "Scratch the card below to reveal your reward"}
+            </Text>
+          </View>
+
+          <View style={{ position: 'relative' }}>
+            <ScratchCard
+              width={300}
+              height={300}
+              coverColor="#e11d48"
+              strokeWidth={40}
+              scratchThreshold={60}
+              onScratchComplete={() => setIsScratched(true)}
+            >
+              <View className="flex-1 bg-white items-center justify-center rounded-3xl overflow-hidden p-6 border-4 border-yellow-400">
+                 {/* Lottie background for celebration */}
+                 {isScratched && (
+                    <LottieView
+                       source={require('../../../../assets/animations/success.json')}
+                       autoPlay
+                       loop={false}
+                       style={{ position: 'absolute', width: 400, height: 400, opacity: 0.5 }}
+                    />
+                 )}
+                 <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100">
+                    <Sparkles size={48} color="#e11d48" />
+                 </View>
+                 <Text className="text-2xl font-bold text-gray-500 mb-2">You Won!</Text>
+                 <Text className="text-6xl font-black text-primary">+{coins}</Text>
+                 <Text className="text-lg font-bold text-gray-400 mt-2">Bumba Coins</Text>
+              </View>
+            </ScratchCard>
+          </View>
+
+          {isScratched && (
+             <Animated.View entering={FadeInUp.delay(300)} className="mt-12 w-full max-w-[300px]">
+                <TouchableOpacity
+                  onPress={() => setIsScratchModalOpen(false)}
+                  className="bg-primary h-14 rounded-full items-center justify-center shadow-lg"
+                >
+                  <Text className="text-white font-bold text-lg">Claim Coins!</Text>
+                </TouchableOpacity>
+             </Animated.View>
+          )}
+        </View>
+      </Modal>
+
     <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
       <WebView
         source={{
@@ -479,5 +575,23 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  giftPillGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 30,
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  giftPillText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

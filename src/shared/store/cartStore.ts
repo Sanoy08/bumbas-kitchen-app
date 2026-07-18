@@ -71,7 +71,7 @@ export const useCartStore = create<CartState>()(
             method: 'GET',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}` 
+              'Authorization': `Bearer ${token}`,
             }
           });
           const data = await res.json();
@@ -163,7 +163,6 @@ export const useCartStore = create<CartState>()(
       clearCart: () => {
         set({ items: [], checkoutState: { couponCode: '', couponDiscount: 0, useCoins: false }, isDirty: true });
         if (useAuthStore.getState().token) {
-          // Empty pathanor jonno database e sathei sathei sync korbe
           get().syncToDatabase();
         }
       },
@@ -205,23 +204,28 @@ export const useCartStore = create<CartState>()(
         return removedItemNames;
       },
 
-      // ★ Database e POST Request (Direct call kora jabe na, 30s interval e hobe)
+      // ★ Database e POST Request
       syncToDatabase: async () => {
         const { items } = get();
         const token = useAuthStore.getState().token; 
         
-        if (!token) return;
+        if (!token) {
+          console.log('[Cart Sync] ❌ Skipped sync — no token');
+          return;
+        }
         
         set({ isSyncing: true });
         try {
+          console.log(`[Cart Sync] 📤 Sending ${items.length} items to DB...`);
           await fetch(`${API_URL}/cart`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}` 
+              'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({ items }),
           });
+          console.log('[Cart Sync] ✅ Sync successful!');
           set({ isDirty: false, isSyncing: false });
         } catch (error) {
           console.error("Cart Sync failed", error);
@@ -229,15 +233,16 @@ export const useCartStore = create<CartState>()(
         }
       },
 
-      // ★ 30-Second Auto Sync Interval (Exact Next.js Logic)
+      // ★ 30-Second Auto Sync Interval
       startAutoSync: () => {
-         // Clear any existing intervals
          get().stopAutoSync();
          
          const interval = setInterval(() => {
             const { isDirty, isSyncing } = get();
             const token = useAuthStore.getState().token;
+            console.log(`[Cart Sync] Tick — isDirty: ${isDirty}, hasToken: ${!!token}`);
             if (token && isDirty && !isSyncing) {
+               console.log('[Cart Sync] ✅ Syncing to database...');
                get().syncToDatabase();
             }
          }, 30000);

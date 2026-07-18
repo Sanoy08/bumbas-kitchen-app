@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Modal, Text, TouchableOpacity, View, TouchableWithoutFeedback, Animated, Dimensions, StyleSheet, Pressable } from 'react-native';
+import { Modal, Text, TouchableOpacity, View, TouchableWithoutFeedback, Animated, Dimensions, StyleSheet, Pressable, Easing } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 
 const { height } = Dimensions.get('window');
@@ -35,11 +35,10 @@ export const FilterModal = ({ visible, onClose, activeFilter, onApplyFilter }: F
   useEffect(() => {
     if (visible) {
       slideAnim.setValue(height);
-      Animated.spring(slideAnim, {
+      Animated.timing(slideAnim, {
         toValue: 0,
-        damping: 20,
-        mass: 0.8,
-        stiffness: 150,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
     }

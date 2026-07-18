@@ -152,7 +152,6 @@ export default function LoginScreen() {
     }
   };
 
-  useEffect(() => { fetchLimit(); }, []);
   useEffect(() => { if (phoneValue?.length === 10) fetchLimit(phoneValue); }, [phoneValue]);
 
   useEffect(() => {
@@ -267,6 +266,15 @@ export default function LoginScreen() {
         setOtp(['', '', '', '', '', '']);
         fetchLimit(data.phone);
         toast.success('OTP sent successfully!');
+      } else if (res.status === 404) {
+        // Account not found — show custom alert with Register option
+        showAlert({
+          title: 'Account Not Found',
+          message: 'We couldn\'t find an account with this number. Would you like to create a new account?',
+          confirmText: 'Register Now',
+          cancelText: 'Cancel',
+          onConfirm: () => router.push({ pathname: '/(auth)/register', params: { phone: data.phone } }),
+        });
       } else {
         toast.error(responseData.error || 'Failed to send OTP');
         if (responseData.isBlocked || res.status === 429) {

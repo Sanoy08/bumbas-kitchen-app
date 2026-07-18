@@ -1,7 +1,7 @@
 // src/app/(auth)/register.tsx
 import { useAuthStore } from '@/shared/store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { AlertOctagon, ArrowLeft, ArrowRight, Clock, RefreshCw, ShieldAlert, User } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -38,11 +38,17 @@ export default function RegisterScreen() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
   const { showAlert } = useAlert();
+  const { phone: prefillPhone } = useLocalSearchParams<{ phone?: string }>();
 
-  const { control, handleSubmit, watch, formState: { errors } } = useForm({
+  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', phone: '' },
+    defaultValues: { name: '', phone: prefillPhone || '' },
   });
+
+  // Auto-fill phone from Login page if passed
+  useEffect(() => {
+    if (prefillPhone) setValue('phone', prefillPhone);
+  }, [prefillPhone]);
 
   const nameValue = watch('name');
   const phoneValue = watch('phone');
@@ -116,8 +122,8 @@ export default function RegisterScreen() {
     }
   };
 
-  useEffect(() => { fetchLimit(); }, []);
   useEffect(() => { if (phoneValue?.length === 10) fetchLimit(phoneValue); }, [phoneValue]);
+
 
   useEffect(() => {
     if (step === 'otp' && timeLeft > 0) {

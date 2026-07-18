@@ -20,6 +20,20 @@ import { AppUpdater, Onboarding, NoInternetScreen } from '@/shared/components/co
 import { usePushNotification } from '@/shared/hooks/usePushNotification';
 import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
 
+const originalFetch = fetch;
+if (!(global as any).isFetchIntercepted) {
+  (global as any).isFetchIntercepted = true;
+  (global as any).apiCallCount = 0;
+  global.fetch = async (...args) => {
+    const url = args[0];
+    if (typeof url === 'string' && url.includes('api')) {
+      (global as any).apiCallCount++;
+      console.log(`[API CALL #${(global as any).apiCallCount}]`, url);
+    }
+    return originalFetch(...args);
+  };
+}
+
 SplashScreen.preventAutoHideAsync();
 const { width } = Dimensions.get('window');
 
@@ -42,15 +56,17 @@ export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // ★ App load howar sathe sathe 30s auto-sync chalu korar jonno
+  // ★ App load howar sathe sathe auto-sync chalu korar jonno
   useEffect(() => {
     const startSync = useCartStore.getState().startAutoSync;
     const stopSync = useCartStore.getState().stopAutoSync;
 
+    console.log("[App Layout] Starting Cart Auto Sync Interval");
     startSync(); // Interval start holo
 
     return () => {
-      stopSync(); // App background/unmount e stop korbe
+      console.log("[App Layout] Stopping Cart Auto Sync Interval");
+      stopSync(); // Unmount e interval clear holo
     };
   }, []);
 

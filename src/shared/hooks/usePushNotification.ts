@@ -1,5 +1,6 @@
 // src/hooks/usePushNotification.ts
 
+import { useNotificationStore } from '@/shared/store/notificationStore';
 import { useAuthStore } from '@/shared/store/authStore';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -9,6 +10,10 @@ import { Platform } from 'react-native';
 import { toast } from 'sonner-native';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
+
+let globalSyncedToken: string | null = null;
+let isSubscribing = false;
+let globalListenersAttached = false;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -68,8 +73,10 @@ export const usePushNotification = () => {
       const token = tokenData.data;
       setIsSubscribed(true);
 
-      if (syncedTokenRef.current === token) return;
-
+      if (globalSyncedToken === token) return;
+      if (isSubscribing) return;
+      
+      isSubscribing = true;
       const currentAppId = 'com.bumbaskitchen.app';
 
       // টোকেন ডাটাবেসে সিঙ্ক করা
@@ -82,10 +89,12 @@ export const usePushNotification = () => {
         }),
       });
 
-      syncedTokenRef.current = token;
+      globalSyncedToken = token;
       console.log('FCM Device Token synced successfully:', token);
     } catch (error) {
       console.log('Push registration failed:', error);
+    } finally {
+      isSubscribing = false;
     }
   };
 
@@ -100,30 +109,31 @@ export const usePushNotification = () => {
       });
     }
 
-    if (user) {
+    if (user?.id) {
       subscribeToPush(false); // Only sync token if already granted, do not ask for permission
     }
 
-    notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log('Notification Received in foreground:', notification);
-      }
-    );
-
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data;
-        if (data?.url && typeof handleNavigation === 'function') {
-          handleNavigation(data.url as string);
+    if (!globalListenersAttached) {
+      globalListenersAttached = true;
+      notificationListener.current = Notifications.addNotificationReceivedListener(
+        (notification) => {
+          console.log('Notification Received in foreground:', notification);
+          useNotificationStore.getState().setHasUnread(true);
         }
-      }
-    );
+      );
 
-    return () => {
-      notificationListener.current?.remove();
-      responseListener.current?.remove();
-    };
-  }, [user]);
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
+          const data = response.notification.request.content.data;
+          if (data?.url && typeof handleNavigation === 'function') {
+            handleNavigation(data.url as string);
+          }
+        }
+      );
+    }
+    
+    // We intentionally do not remove these listeners on unmount since they are meant to be global app listeners.
+  }, [user?.id]);
 
   return {
     isSubscribed,

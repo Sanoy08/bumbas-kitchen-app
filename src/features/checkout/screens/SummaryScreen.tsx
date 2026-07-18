@@ -6,8 +6,11 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import LottieView from 'lottie-react-native';
+import Reanimated, { FadeIn, FadeOut, ZoomIn, ZoomOut, Keyframe, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   CheckCircle2,
@@ -20,11 +23,14 @@ import {
   Wallet,
   X,
 } from 'lucide-react-native';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { SavingsBanner } from '@/shared/components/ui';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
   Animated,
   Image,
+  Modal,
   ScrollView,
   Switch,
   Text,
@@ -49,6 +55,87 @@ export function SummaryScreen() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [useCoins, setUseCoins] = useState(false);
 
+  // Popup state
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successAmount, setSuccessAmount] = useState(0);
+
+  // Use explicit shared values for the complex custom animation
+  const animIsVisible = useSharedValue(false);
+  
+  // Custom Ticket Entering Animation (Gravity Drop + Bounce + Squash/Stretch)
+  const ticketEnter = new Keyframe({
+    0: {
+      transform: [{ translateY: -600 }, { scaleY: 1.2 }, { scaleX: 0.8 }, { rotateZ: '0deg' }],
+      opacity: 0,
+    },
+    40: { // Fast drop
+      transform: [{ translateY: 20 }, { scaleY: 0.8 }, { scaleX: 1.15 }, { rotateZ: '0deg' }],
+      opacity: 1,
+      easing: Easing.out(Easing.quad),
+    },
+    60: { // Bounce up
+      transform: [{ translateY: -25 }, { scaleY: 1.05 }, { scaleX: 0.95 }, { rotateZ: '0deg' }],
+      easing: Easing.inOut(Easing.quad),
+    },
+    75: { // Second soft landing
+      transform: [{ translateY: 5 }, { scaleY: 0.95 }, { scaleX: 1.02 }, { rotateZ: '2deg' }],
+      easing: Easing.out(Easing.quad),
+    },
+    85: { // Pendulum swing start
+      transform: [{ translateY: 0 }, { scaleY: 1 }, { scaleX: 1 }, { rotateZ: '-2deg' }],
+      easing: Easing.inOut(Easing.sin),
+    },
+    95: {
+      transform: [{ translateY: 0 }, { scaleY: 1 }, { scaleX: 1 }, { rotateZ: '1deg' }],
+      easing: Easing.inOut(Easing.sin),
+    },
+    100: { // Settle
+      transform: [{ translateY: 0 }, { scaleY: 1 }, { scaleX: 1 }, { rotateZ: '0deg' }],
+      opacity: 1,
+    }
+  }).duration(1000);
+
+  const ticketExit = new Keyframe({
+    0: {
+      transform: [{ translateY: 0 }, { translateX: 0 }, { scale: 1 }, { rotateZ: '0deg' }],
+      opacity: 1,
+    },
+    30: {
+      transform: [{ translateY: 15 }, { translateX: 10 }, { scale: 1.05 }, { rotateZ: '5deg' }],
+      opacity: 1,
+      easing: Easing.out(Easing.quad),
+    },
+    100: {
+      // Swing away to the Top-Left corner!
+      transform: [{ translateY: -400 }, { translateX: -300 }, { scale: 0.1 }, { rotateZ: '-45deg' }],
+      opacity: 0,
+      easing: Easing.in(Easing.back(1.2)),
+    }
+  }).duration(600);
+
+  // Idle Floating Animation
+  const floatY = useSharedValue(0);
+  useEffect(() => {
+    if (showSuccessPopup) {
+      // Start floating after the drop animation completes (1000ms)
+      setTimeout(() => {
+        if (showSuccessPopup) {
+          floatY.value = withRepeat(
+            withTiming(-6, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+            -1,
+            true
+          );
+        }
+      }, 1000);
+    } else {
+      floatY.value = 0;
+    }
+  }, [showSuccessPopup]);
+
+  const floatStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatY.value }]
+  }));
+
   // ★ Calculate total directly to ensure 100% reactivity
   const totalPrice = useMemo(() => {
     return items.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0);
@@ -60,23 +147,26 @@ export function SummaryScreen() {
   const savingsOpacity = useRef(new Animated.Value(0)).current;
   const savingsTranslateY = useRef(new Animated.Value(-10)).current;
 
-  // 1. Fetch wallet
-  useEffect(() => {
-    const fetchWallet = async () => {
-      try {
-        const res = await fetch(`${API_URL}/wallet`);
-        const data = await res.json();
-        if (data.success && data.wallet) {
-          setWalletBalance(data.wallet.balance || 0);
-        } else if (data.success && data.balance) {
-          setWalletBalance(data.balance);
+  // ★ Calculate total directly to ensure 100% reactivity
+  useFocusEffect(
+    useCallback(() => {
+
+      const fetchWallet = async () => {
+        try {
+          const res = await fetch(`${API_URL}/wallet`);
+          const data = await res.json();
+          if (data.success && data.wallet) {
+            setWalletBalance(data.wallet.balance || 0);
+          } else if (data.success && data.balance) {
+            setWalletBalance(data.balance);
+          }
+        } catch (e) {
+          console.log('Wallet fetch failed', e);
         }
-      } catch (e) {
-        console.log('Wallet fetch failed', e);
-      }
-    };
-    if (user) fetchWallet();
-  }, [user]);
+      };
+      if (user) fetchWallet();
+    }, [user])
+  );
 
   // 2. Auth & Cart Check (Next.js er moto)
   useEffect(() => {
@@ -106,12 +196,19 @@ export function SummaryScreen() {
       const data = await res.json();
       if (data.success) {
         setCouponDiscount(data.coupon.discountAmount);
+        
+        // Show awesome popup
+        setSuccessAmount(data.coupon.discountAmount);
+        setShowSuccessPopup(true);
+        
+        // Auto-hide popup after 3 seconds
+        setTimeout(() => setShowSuccessPopup(false), 3000);
+
         if (useCoins) {
           setUseCoins(false);
           toast.info('Coins removed. You can use either Coupon OR Coins.');
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        toast.success(`YAY! You saved ${formatPrice(data.coupon.discountAmount)}`);
       } else {
         setCouponDiscount(0);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -190,29 +287,22 @@ export function SummaryScreen() {
   // ... (বাকি UI কোড সম্পূর্ণ একই থাকবে) ...
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-      {/* Progress Steps */}
-      <View className="bg-white border-b border-gray-200 py-4">
-        <View className="flex-row items-center justify-center gap-2">
-          <View className="flex-row items-center gap-1">
-            <Check size={14} color="#16a34a" />
-            <Text className="text-xs font-medium text-green-600">Cart</Text>
-          </View>
-          <View className="w-8 h-px bg-gray-300" />
-          <Text className="text-xs font-bold text-primary">2. Summary</Text>
-          <View className="w-8 h-px bg-gray-300" />
-          <Text className="text-xs font-medium text-gray-400">3. Payment</Text>
-        </View>
+      <StatusBar style="dark" backgroundColor="#ffffff" />
+      {/* Header */}
+      <View className="bg-white px-4 py-3 flex-row items-center border-b border-gray-100" style={{ zIndex: 50 }}>
+        <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
+          <ArrowLeft size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text className="text-xl font-bold text-gray-900 font-sans ml-2">Order Summary</Text>
       </View>
+
+      <SavingsBanner amount={couponDiscount + (useCoins ? coinDiscountAmount : 0)} />
 
       <ScrollView
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}  // ★ অ্যাকাউন্ট পেইজের মতো 80
       >
-        <Text className="text-2xl font-extrabold text-gray-900 mt-6 mb-6">
-          Order Summary
-        </Text>
-
         {/* ─── COIN CARD ─── */}
         <View className="mb-5 rounded-2xl overflow-hidden shadow-xl">
           <LinearGradient
@@ -489,6 +579,83 @@ export function SummaryScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Zomato-style Coupon Success Popup (Absolute Overlay to allow exit animations) */}
+        {showSuccessPopup && (
+          <View className="absolute inset-0 z-[100] items-center justify-center p-4">
+            <Reanimated.View 
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(400)}
+              className="absolute inset-0 bg-[#0f172a]/80"
+            />
+            
+            <View className="items-center justify-center w-full relative">
+              <Reanimated.View 
+                entering={ticketEnter} 
+                exiting={ticketExit}
+                style={[floatStyle]}
+                className="w-[280px] relative items-center"
+              >
+                {/* Fake String at the top */}
+                <View className="absolute -top-12 z-0 items-center">
+                  <View className="w-1 h-14 bg-[#94a3b8]" />
+                  <View className="w-4 h-4 rounded-full bg-[#cbd5e1] -mt-2 border-2 border-[#64748b]" />
+                </View>
+
+                {/* Sparkles (delayed so they appear during/after landing) */}
+                <Reanimated.View 
+                   entering={FadeIn.delay(600).duration(400)} 
+                   className="absolute z-0 pointer-events-none opacity-80" 
+                   style={{ top: -40, right: 10 }}
+                >
+                   <LottieView source={require('@/../assets/animations/party-emoji.json')} autoPlay loop style={{ width: 180, height: 180 }} />
+                </Reanimated.View>
+
+                {/* Outer Yellow Stroke Wrapper */}
+                <View className="w-full bg-[#facc15] rounded-[36px] p-[3px] shadow-2xl drop-shadow-2xl">
+                  {/* Inner Thick Navy Border + Blue Ticket */}
+                  <View className="w-full bg-[#0ea5e9] border-[5px] border-[#0f172a] rounded-[33px] overflow-hidden">
+                    
+                    {/* Top Header of Ticket */}
+                    <View className="w-full pt-8 pb-4 items-center">
+                        <Image 
+                          source={require('@/../assets/images/main-logo.png')} 
+                          style={{ width: 130, height: 130, resizeMode: 'contain' }}
+                        />
+                    </View>
+
+                    {/* Divider section */}
+                    <View className="w-full flex-row items-center relative h-10 overflow-hidden">
+                        {/* Inner dashed line */}
+                        <View className="flex-1 h-0 mx-4 border-t-[4px] border-dashed border-[#0f172a]/30" />
+                    </View>
+
+                    {/* Bottom White Inner Panel */}
+                    <View className="bg-white mx-[6px] mb-[6px] rounded-b-[24px] rounded-t-[12px] pt-5 pb-6 px-5 border-2 border-[#0ea5e9]/20 shadow-sm items-start">
+                       <View className="absolute inset-0 bg-gradient-to-b from-sky-50 to-white rounded-b-[24px] rounded-t-[12px]" />
+                       
+                       <View className="flex-row items-center mb-3 relative z-10">
+                         <View className="w-6 h-6 rounded-full bg-[#0ea5e9] items-center justify-center mr-3">
+                           <Check size={16} color="#fff" strokeWidth={4} />
+                         </View>
+                         <Text className="text-[#0f172a] font-black text-[22px] tracking-tight">₹{successAmount} saved</Text>
+                       </View>
+                       
+                       <View className="flex-row items-center relative z-10">
+                         <View className="w-6 h-6 rounded-full bg-[#0ea5e9] items-center justify-center mr-3">
+                           <Check size={16} color="#fff" strokeWidth={4} />
+                         </View>
+                         <Text className="text-[#0f172a] font-black text-[22px] tracking-tight">Free Delivery</Text>
+                       </View>
+                    </View>
+
+                  </View>
+                </View>
+              </Reanimated.View>
+            </View>
+          </View>
+        )}
+
     </View>
   );
 }

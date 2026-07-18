@@ -3,7 +3,7 @@
 // src/app/(shop)/account/orders/index.tsx
 import { format } from 'date-fns';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
     Calendar,
     CheckCircle2,
@@ -15,8 +15,8 @@ import {
     Utensils,
     X
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
+import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View, Animated, Easing, PanResponder, Dimensions, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PLACEHOLDER_IMAGE_URL } from '@/shared/constants/constants';
@@ -54,45 +54,134 @@ export function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [completedOrders, setCompletedOrders] = useState(0);
 
   // Modal State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false); // ★ লোডিং স্টেট
 
-  useEffect(() => {
-    if (isInitialized && !user) {
-      router.replace('/(auth)/login');
-      return;
-    }
+  const { height } = Dimensions.get('window');
+  const slideAnim = useRef(new Animated.Value(height)).current;
 
-    const fetchOrders = async () => {
-      try {
-        const res = await fetch(`${API_URL}/user/orders`);
-        const data = await res.json();
-        
-        if (data.success) {
-          setOrders(data.orders);
-        } else {
-          console.log("Failed:", data.error);
-        }
-      } catch (e) {
-        console.log(e);
-        Alert.alert("Error", "Could not load order history.");
-      } finally {
-        setIsLoading(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (isInitialized && !user) {
+        router.replace('/(auth)/login');
+        return;
       }
-    };
 
-    if (isInitialized && user) {
-      fetchOrders();
+      let isActive = true;
+
+      const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+          const res = await fetch(`${API_URL}/user/orders?page=1&limit=10`);
+          const data = await res.json();
+          
+          if (data.success && isActive) {
+            setOrders(data.orders);
+            setTotalOrders(data.totalOrders ?? data.orders.length);
+            setCompletedOrders(data.completedOrders ?? data.orders.filter((o: any) => o.Status === 'Delivered').length);
+            setPage(1);
+            setHasMore(data.orders.length === 10);
+          } else if (!data.success && isActive) {
+            console.log("Failed:", data.error);
+          }
+        } catch (e) {
+          console.log(e);
+          if (isActive) Alert.alert("Error", "Could not load order history.");
+        } finally {
+          if (isActive) setIsLoading(false);
+        }
+      };
+
+      if (isInitialized && user) {
+        fetchOrders();
+      }
+
+      return () => {
+        isActive = false;
+      };
+    }, [isInitialized, user])
+  );
+
+  const loadMoreOrders = async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await fetch(`${API_URL}/user/orders?page=${nextPage}&limit=10`);
+      const data = await res.json();
+      
+      if (data.success) {
+        setOrders(prev => [...prev, ...data.orders]);
+        setPage(nextPage);
+        setHasMore(data.orders.length === 10);
+      }
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setIsLoadingMore(false);
     }
-  }, [isInitialized, user]);
+  };
 
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      damping: 26,
+      stiffness: 220,
+      mass: 1,
+      useNativeDriver: true,
+    }).start();
   };
+
+  const closeModal = () => {
+    Animated.timing(slideAnim, {
+      toValue: height,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setIsModalOpen(false);
+      setSelectedOrder(null);
+      slideAnim.setValue(height);
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 120 || gestureState.vy > 0.5) {
+          closeModal();
+        } else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            damping: 26,
+            stiffness: 220,
+            mass: 1,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const getStatusStyle = (status: string) => {
     const s = status?.toLowerCase() || '';
@@ -123,8 +212,6 @@ export function OrdersScreen() {
     );
   }
 
-  const totalOrders = orders.length;
-  const completedOrders = orders.filter(o => o.Status === 'Delivered').length;
 
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
@@ -215,52 +302,80 @@ export function OrdersScreen() {
                   </TouchableOpacity>
                 );
               })}
+              {hasMore && orders.length > 0 && (
+                <TouchableOpacity 
+                  onPress={loadMoreOrders} 
+                  disabled={isLoadingMore}
+                  className="mt-4 bg-gray-100 py-3 rounded-full items-center justify-center border border-gray-200"
+                >
+                  {isLoadingMore ? (
+                    <ActivityIndicator size="small" color="#6b7280" />
+                  ) : (
+                    <Text className="text-gray-600 font-bold">Load More</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
       </ScrollView>
 
       {/* --- 3. Order Details Modal --- */}
-      <Modal visible={isModalOpen} animationType="fade" transparent={true} onRequestClose={() => setIsModalOpen(false)}>
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl h-[85%] overflow-hidden">
-            
-            <View className="flex-row items-center justify-between p-5 border-b border-gray-100 bg-white z-10 shadow-sm">
-              <View>
-                <View className="flex-row items-center gap-3 mb-1">
-                  <Text className="text-xl font-bold text-gray-900 font-sans">Order Details</Text>
-                  {selectedOrder && (
-                    <View className={`${getStatusStyle(selectedOrder.Status).bg} px-2 py-0.5 rounded`}>
-                      <Text className={`${getStatusStyle(selectedOrder.Status).text} text-[10px] font-bold uppercase font-sans`}>
-                        {selectedOrder.Status}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text className="text-xs text-gray-500 font-medium font-sans">#{selectedOrder?.OrderNumber}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full">
-                <X size={20} color="#4b5563" />
+      <Modal visible={isModalOpen} animationType="fade" transparent={true} onRequestClose={closeModal}>
+        <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-end">
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeModal} />
+          
+          <Animated.View 
+            className="w-full flex-1 justify-end"
+            style={{ transform: [{ translateY: slideAnim }], maxHeight: height * 0.88 }}
+          >
+            {/* Floating Close Button exactly outside the top */}
+            <View className="items-center mb-4">
+              <TouchableOpacity 
+                onPress={closeModal} 
+                activeOpacity={0.7}
+                style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
+                className="shadow-2xl border-2 border-white/20"
+              >
+                <X size={28} color="white" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-              {selectedOrder && (
+            <View className="bg-white rounded-t-[32px] px-6 pb-8 shadow-2xl flex-shrink">
+              {/* Drag Handle for Swipe Down */}
+              <View {...panResponder.panHandlers} className="w-full pt-4 pb-4 items-center">
+                <View className="w-12 h-1.5 bg-gray-300 rounded-full" />
+              </View>
+
+              <View className="flex-row items-center justify-between mb-4">
+                <View>
+                  <View className="flex-row items-center gap-3 mb-1">
+                    <Text className="text-xl font-bold text-gray-900 font-sans">Order Details</Text>
+                    {selectedOrder && (
+                      <View className={`${getStatusStyle(selectedOrder.Status).bg} px-2 py-0.5 rounded`}>
+                        <Text className={`${getStatusStyle(selectedOrder.Status).text} text-[10px] font-bold uppercase font-sans`}>
+                          {selectedOrder.Status}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text className="text-xs text-gray-500 font-medium font-sans">#{selectedOrder?.OrderNumber}</Text>
+                </View>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+                {selectedOrder && (
                 <View className="space-y-6">
                   
                   <View>
                     <Text className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3 font-sans">Items Ordered</Text>
                     <View className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                       {Array.isArray(selectedOrder.Items) && selectedOrder.Items.map((item: any, idx: number) => {
-                        const rawUrl = item.image?.url || PLACEHOLDER_IMAGE_URL;
                         const isLast = idx === selectedOrder.Items.length - 1;
                         
                         return (
                           <View key={idx} className={`flex-row justify-between items-center ${!isLast ? 'pb-3 mb-3 border-b border-dashed border-gray-200' : ''}`}>
                             <View className="flex-row items-center flex-1">
-                              <View className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden mr-3">
-                                <Image source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }} className="w-full h-full" contentFit="cover" />
-                              </View>
                               <View className="flex-1 pr-2">
                                 <Text className="text-sm font-bold text-gray-800 font-sans" numberOfLines={2}>{item.name}</Text>
                                 <Text className="text-xs text-gray-500 font-medium font-sans mt-0.5">
@@ -337,6 +452,7 @@ export function OrdersScreen() {
               )}
             </ScrollView>
           </View>
+          </Animated.View>
         </View>
       </Modal>
       </View>

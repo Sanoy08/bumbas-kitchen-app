@@ -794,38 +794,40 @@ export function ProductDetailsScreen() {
           )}
 
           {/* About This Dish */}
-          <View className="mt-2 pt-8 border-t border-gray-100">
-            <View className="border-b-2 border-gray-900 pb-1 mb-5 self-start">
-              <Text className="text-xl font-bold text-gray-900 font-sans">
-                About This Dish :
-              </Text>
-            </View>
+          <View className="mt-4 pt-6 border-t border-gray-100">
+            <Text className="text-lg font-extrabold text-gray-900 font-sans mb-4">
+              About This Dish
+            </Text>
 
             {highlights.length > 0 && (
-              <View className="bg-orange-50 border border-orange-100 rounded-2xl p-4 mb-5 shadow-sm">
+              <View className="bg-rose-50/50 border border-rose-100/50 rounded-2xl p-4 mb-5">
                 <View className="flex-row items-center gap-2 mb-3">
-                  <Star size={16} color="#f97316" fill="#f97316" />
-                  <Text className="font-bold text-orange-800 font-sans">
-                    Delicious Details :
+                  <Star size={16} color="#e11d48" fill="#e11d48" />
+                  <Text className="font-bold text-rose-700 font-sans tracking-wide">
+                    Top Highlights
                   </Text>
                 </View>
-                <View className="space-y-2.5">
+                <View className="space-y-3">
                   {highlights.map((hl, idx) => {
+                    const hasColon = hl.includes(':');
                     const parts = hl.split(':');
-                    const key = parts[0]?.trim() || '';
-                    const val = parts.slice(1).join(':').trim();
+                    const key = hasColon ? parts[0]?.trim() || '' : hl.trim();
+                    const val = hasColon ? parts.slice(1).join(':').trim() : '';
+                    
                     return (
                       <View key={idx} className="flex-row items-start pr-2">
-                        <CheckCircle2
-                          size={16}
-                          color="#f97316"
-                          className="mt-0.5 mr-2 shrink-0"
-                        />
-                        <Text className="text-sm text-gray-700 font-sans leading-5">
-                          <Text className="font-bold text-gray-900">
-                            {key}:{' '}
-                          </Text>
-                          {val}
+                        <View className="mt-1.5 mr-2.5 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                        <Text className="text-sm text-gray-700 font-sans leading-5 flex-1 flex-wrap">
+                          {hasColon ? (
+                            <>
+                              <Text className="font-bold text-gray-900">
+                                {key}:{' '}
+                              </Text>
+                              {val}
+                            </>
+                          ) : (
+                            <Text className="text-gray-800 font-medium">{key}</Text>
+                          )}
                         </Text>
                       </View>
                     );

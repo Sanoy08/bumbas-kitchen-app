@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
 import { Modal, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import LottieView from 'lottie-react-native';
 
 type AlertOptions = {
   title: string;
@@ -14,6 +15,7 @@ type AlertOptions = {
   onCancel?: () => void;
   confirmButtonStyle?: 'default' | 'destructive';
   loading?: boolean;
+  lottieSource?: any;
 };
 
 type AlertContextType = {
@@ -77,8 +79,20 @@ export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
       <Modal transparent visible={visible} animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/50 px-6">
           <View className="bg-white w-full rounded-2xl overflow-hidden shadow-xl">
+            {/* Optional Lottie Animation */}
+            {options.lottieSource && (
+              <View className="items-center pt-6 pb-2">
+                <LottieView
+                  source={options.lottieSource}
+                  autoPlay
+                  loop
+                  style={{ width: 120, height: 120 }}
+                />
+              </View>
+            )}
+            
             {/* Title */}
-            <View className="px-5 pt-5 pb-2">
+            <View className={`px-5 ${options.lottieSource ? 'pt-2' : 'pt-5'} pb-2`}>
               <Text className="text-lg font-bold text-gray-900 text-center font-sans">
                 {options.title}
               </Text>

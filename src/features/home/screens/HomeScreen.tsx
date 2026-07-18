@@ -1,12 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { ActivityIndicator, Dimensions, Platform, Text, View, RefreshControl, DeviceEventEmitter, LayoutAnimation, UIManager } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { FlashList } from '@shopify/flash-list';
+import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, Text, UIManager, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -19,12 +17,17 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 import NotificationPrompt from '@/shared/components/shop/NotificationPrompt';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
+import { useAlert } from '@/shared/components/ui';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
+import { useSessionStore } from '@/shared/store/sessionStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
-import { useAlert } from '@/shared/components/ui';
 
 import {
   BestsellerSection,
@@ -32,13 +35,13 @@ import {
   DailySpecialSection,
   DatePopupModal,
   FeaturesSection,
+  FilterModal,
+  FilterOption,
   HeroCarousel,
   HomeHeader,
   MiddleSlider,
   OffersSection,
-  SectionHeading,
-  FilterModal,
-  FilterOption
+  SectionHeading
 } from '../components';
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -55,6 +58,38 @@ export function HomeScreen() {
   const isTabBarVisibleStore = useTabBarStore((state) => state.isVisible);
   const setTabBarVisible = useTabBarStore((state) => state.setVisibility);
   const { showAlert } = useAlert();
+  const hasOrderedThisSession = useSessionStore((state) => state.hasOrderedThisSession);
+
+  // Exit confirmation — only active when HomeScreen tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (hasOrderedThisSession) {
+          showAlert({
+            title: 'Thanks for ordering!',
+            message: 'Your food is being prepared with love. See you next time!',
+            confirmText: 'Exit App',
+            cancelText: 'Stay',
+            lottieSource: require('@/../assets/animations/order.json'),
+            onConfirm: () => BackHandler.exitApp(),
+          });
+        } else {
+          showAlert({
+            title: 'You haven\'t ordered yet!',
+            message: 'Bumba\'s Kitchen has some amazing dishes waiting for you. Sure you want to leave?',
+            confirmText: 'Leave Anyway',
+            cancelText: 'Let me check!',
+            lottieSource: require('@/../assets/animations/notorder.json'),
+            onConfirm: () => BackHandler.exitApp(),
+          });
+        }
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [hasOrderedThisSession, showAlert])
+  );
 
   // --- Data State ---
   const [homeData, setHomeData] = useState({
@@ -132,14 +167,14 @@ export function HomeScreen() {
   const handleModeSwitch = (newCategory: string, newFilter: FilterOption) => {
     const isNewGridViewMode = newCategory !== 'All' || newFilter !== 'all';
     setIsSwitchingCategory(true);
-    
+
     if (isNewGridViewMode && !isGridViewMode) {
       // Transitioning from normal mode to grid mode
       const targetY = categoryYRef.current - CATEGORY_LOCK_Y;
-      
+
       // Scroll to the sticky point smoothly
       scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
-      
+
       // Delay layout switch until scroll completes (approx 350-400ms)
       setTimeout(() => {
         isCategoryActive.value = true;
@@ -147,7 +182,7 @@ export function HomeScreen() {
         setActiveCategory(newCategory);
         setActiveFilter(newFilter);
         setTimeout(() => setIsSwitchingCategory(false), 500);
-      }, 400); 
+      }, 400);
     } else {
       // Already in grid mode, or reverting to normal mode
       isCategoryActive.value = isNewGridViewMode;
@@ -194,7 +229,7 @@ export function HomeScreen() {
     try {
       const cachedData = await AsyncStorage.getItem('bumbas_home_data');
       if (cachedData && !isRefresh) setHomeData(JSON.parse(cachedData));
-      
+
       const res = await fetch(`${API_URL}/home-data`);
       const data = await res.json();
       if (data?.data) {
@@ -206,7 +241,7 @@ export function HomeScreen() {
         }
         setHomeData(data.data);
         await AsyncStorage.setItem('bumbas_home_data', JSON.stringify(data.data));
-        
+
         // Validate special offers in the cart against current active offers
         if (data.data.offers) {
           const removedItems = useCartStore.getState().validateSpecialOffers(data.data.offers);
@@ -251,12 +286,12 @@ export function HomeScreen() {
     console.log('🔽 PULL TO REFRESH TRIGGERED');
     console.log('=============================================');
     setRefreshing(true);
-    
+
     const promises: Promise<any>[] = [fetchHomeData(true)];
 
     if (user) {
       console.log(`👤 User Logged In: ${user.name || user.phone}`);
-      
+
       // 1. Sync Cart
       console.log('🔄 [Refresh] Fetching Cart Data...');
       promises.push(
@@ -267,7 +302,7 @@ export function HomeScreen() {
           })
           .catch(e => console.log('❌ [Refresh] Cart sync failed:', e))
       );
-      
+
       // 2. Sync Wallet & update User context
       console.log('🔄 [Refresh] Fetching Wallet Data from:', `${API_URL}/wallet`);
       promises.push(
@@ -279,7 +314,7 @@ export function HomeScreen() {
               console.log(`   - Balance: ₹${data.wallet.balance || 0}`);
               console.log(`   - Tier: ${data.wallet.tier || 'N/A'}`);
               console.log(`   - Total Spent: ₹${data.wallet.totalSpent || 0}`);
-              
+
               useAuthStore.setState((state) => ({
                 user: state.user ? {
                   ...state.user,
@@ -342,7 +377,7 @@ export function HomeScreen() {
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
       const currentY = event.contentOffset.y;
-      
+
       // If we are in a specific category, ALWAYS keep the tab bar hidden
       if (isCategoryActive.value) {
         if (isTabBarVisibleShared.value) {
@@ -352,7 +387,7 @@ export function HomeScreen() {
         lastScrollY.value = currentY;
         return;
       }
-      
+
       if (currentY > lastScrollY.value + 15 && currentY > 50) {
         if (isTabBarVisibleShared.value) {
           isTabBarVisibleShared.value = false;
@@ -624,9 +659,9 @@ export function HomeScreen() {
         {!isGridViewMode && (
           <View
             className="bg-white py-2"
-            onLayout={(e) => { 
+            onLayout={(e) => {
               const y = e.nativeEvent.layout.y;
-              categoryYRef.current = y; 
+              categoryYRef.current = y;
               if (y > 0) categoryY.value = y;
             }}
           >
@@ -646,7 +681,7 @@ export function HomeScreen() {
         )}
 
         {/* Products Grid */}
-        <View 
+        <View
           className="bg-white py-8"
           onLayout={(e) => { exploreGridYRef.current = e.nativeEvent.layout.y; }}
         >
@@ -656,51 +691,51 @@ export function HomeScreen() {
 
           <View style={{ width: GRID_WIDTH, alignSelf: 'center' }}>
             {isSwitchingCategory ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <View key={i} style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
-                  <View className="flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col">
-                    <View className="aspect-square w-full bg-gray-200 opacity-50" />
-                    <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
-                      <View>
-                        <View className="h-4 w-3/4 bg-gray-200 rounded mb-1.5 opacity-60" />
-                        <View className="h-4 w-1/2 bg-gray-200 rounded opacity-60" />
-                      </View>
-                      <View className="flex-row items-center justify-between mt-2">
-                        <View className="h-5 w-1/3 bg-gray-200 rounded opacity-60" />
-                        <View className="h-8 w-16 bg-gray-200 rounded-full opacity-60" />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <View key={i} style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+                    <View className="flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col">
+                      <View className="aspect-square w-full bg-gray-200 opacity-50" />
+                      <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
+                        <View>
+                          <View className="h-4 w-3/4 bg-gray-200 rounded mb-1.5 opacity-60" />
+                          <View className="h-4 w-1/2 bg-gray-200 rounded opacity-60" />
+                        </View>
+                        <View className="flex-row items-center justify-between mt-2">
+                          <View className="h-5 w-1/3 bg-gray-200 rounded opacity-60" />
+                          <View className="h-8 w-16 bg-gray-200 rounded-full opacity-60" />
+                        </View>
                       </View>
                     </View>
                   </View>
-                </View>
-              ))}
-            </View>
-          ) : filteredProducts.length === 0 ? (
-            <View className="py-12 items-center">
-              <Text className="text-gray-500 font-sans">No items available</Text>
-            </View>
-          ) : (
-            <FlashList
-              data={displayedProducts}
-              renderItem={({ item }) => (
-                <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
-                  <ProductCard product={item} />
-                </View>
-              )}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              estimatedItemSize={258}
-              scrollEnabled={false}
-              ListFooterComponent={
-                hasMore ? (
-                  <View className="py-6 items-center justify-center mt-2">
-                    <ActivityIndicator size="small" color="#e11d48" />
-                    <Text className="text-xs text-gray-400 mt-1 font-sans">Loading more items...</Text>
+                ))}
+              </View>
+            ) : filteredProducts.length === 0 ? (
+              <View className="py-12 items-center">
+                <Text className="text-gray-500 font-sans">No items available</Text>
+              </View>
+            ) : (
+              <FlashList
+                data={displayedProducts}
+                renderItem={({ item }) => (
+                  <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+                    <ProductCard product={item} />
                   </View>
-                ) : null
-              }
-            />
-          )}
+                )}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                estimatedItemSize={258}
+                scrollEnabled={false}
+                ListFooterComponent={
+                  hasMore ? (
+                    <View className="py-6 items-center justify-center mt-2">
+                      <ActivityIndicator size="small" color="#e11d48" />
+                      <Text className="text-xs text-gray-400 mt-1 font-sans">Loading more items...</Text>
+                    </View>
+                  ) : null
+                }
+              />
+            )}
           </View>
         </View>
       </Animated.ScrollView>

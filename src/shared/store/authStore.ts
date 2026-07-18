@@ -46,7 +46,10 @@ export const useAuthStore = create<AuthState>()(
         if (token) {
           await SecureStore.setItemAsync(TOKEN_KEY, token);
         }
-        set({ user: userData, token });
+        set((state) => ({ 
+          user: userData, 
+          token: token !== undefined ? token : state.token 
+        }));
 
         // ★ লগইন হওয়ার পর Cart ডাটা ব্যাকএন্ড থেকে ফেচ করা হবে
         useCartStore.getState().fetchCartFromDB();
@@ -63,14 +66,37 @@ export const useAuthStore = create<AuthState>()(
 
       // অ্যাপ ওপেন হওয়ার সাথে সাথে টোকেন চেক করার ফাংশন
       initAuth: async () => {
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
         try {
           const token = await SecureStore.getItemAsync(TOKEN_KEY);
-          set({ token, isInitialized: true });
-
-          // ★ অ্যাপ ওপেন হলে টোকেন থাকলে Cart ডাটা ফেচ হবে
-          if (token) {
-            useCartStore.getState().fetchCartFromDB();
+          console.log('[Auth] initAuth — token found:', !!token);
+          if (!token) {
+            set({ token: null, isInitialized: true });
+            return;
           }
+
+          // Token ache — /api/auth/me theke fresh user data fetch koro
+          try {
+            console.log('[Auth] Fetching user from /auth/me...');
+            const res = await fetch(`${API_URL}/auth/me`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (data.success && data.user) {
+              console.log('[Auth] ✅ User loaded:', data.user.name);
+              set({ token, user: data.user, isInitialized: true });
+            } else {
+              console.log('[Auth] ❌ Token invalid/expired — logging out');
+              await SecureStore.deleteItemAsync(TOKEN_KEY);
+              set({ token: null, user: null, isInitialized: true });
+              return;
+            }
+          } catch (e) {
+            console.log('[Auth] ⚠️ Network error — using cached user');
+            set({ token, isInitialized: true });
+          }
+
+          useCartStore.getState().fetchCartFromDB();
         } catch (error) {
           set({ token: null, isInitialized: true });
         }

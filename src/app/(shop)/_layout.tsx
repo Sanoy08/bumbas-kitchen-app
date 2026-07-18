@@ -135,6 +135,7 @@ export default function ShopLayout() {
       <Tabs.Screen name="account/favorites/index" options={{ href: null }} />
       <Tabs.Screen name="menus/[slug]" options={{ href: null }} />
       <Tabs.Screen name="search" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

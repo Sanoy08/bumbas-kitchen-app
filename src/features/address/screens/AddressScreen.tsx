@@ -125,10 +125,10 @@ export function AddressScreen() {
       router.replace('/(auth)/login');
       return;
     }
-    if (isInitialized && user) {
+    if (isInitialized && user?.id) {
       fetchAddresses();
     }
-  }, [isInitialized, user]);
+  }, [isInitialized, user?.id]);
 
   useEffect(() => {
     if (isDialogOpen) {

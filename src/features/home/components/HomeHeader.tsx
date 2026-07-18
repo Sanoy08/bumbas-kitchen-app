@@ -1,9 +1,10 @@
 // src/features/home/components/HomeHeader.tsx
 import { useRouter } from 'expo-router';
-import { ChevronDown, ChevronLeft, Mic, Search, User, SlidersHorizontal } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronLeft, Mic, Search, User, SlidersHorizontal } from 'lucide-react-native';
 import { Text, TouchableOpacity, View } from 'react-native';
 import Animated, { AnimatedStyle } from 'react-native-reanimated';
 import { useAuthStore } from '@/shared/store/authStore';
+import { useNotificationStore } from '@/shared/store/notificationStore';
 import { AnimatedSearchText } from './AnimatedSearchText';
 
 import { FilterOption } from './FilterModal';
@@ -50,6 +51,7 @@ export const HomeHeader = ({
   paddingTop,
 }: HomeHeaderProps) => {
   const { user } = useAuthStore();
+  const { hasUnread } = useNotificationStore();
   const router = useRouter();
 
   const userInitial = getUserInitial(user);
@@ -83,16 +85,27 @@ export const HomeHeader = ({
             <ChevronDown size={18} color="#374151" className="ml-1 flex-shrink-0" />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')}
-          className="h-10 w-10 bg-white/90 rounded-full items-center justify-center border border-gray-100 shadow-sm"
-        >
-          {userInitial ? (
-            <Text className="text-primary font-black text-lg">{userInitial}</Text>
-          ) : (
-            <User size={20} color="#e11d48" />
-          )}
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity
+            onPress={() => router.push('/(shop)/notifications')}
+            className="h-10 w-10 bg-white/90 rounded-full items-center justify-center border border-gray-100 shadow-sm relative"
+          >
+            <Bell size={20} color="#e11d48" />
+            {hasUnread && (
+              <View className="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full border-2 border-white" />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')}
+            className="h-10 w-10 bg-white/90 rounded-full items-center justify-center border border-gray-100 shadow-sm"
+          >
+            {userInitial ? (
+              <Text className="text-primary font-black text-lg">{userInitial}</Text>
+            ) : (
+              <User size={20} color="#e11d48" />
+            )}
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Search Row */}
