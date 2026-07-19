@@ -7,7 +7,8 @@ import { Ban, Minus, Plus, ShoppingCart } from 'lucide-react-native';
 import { memo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
-import { PLACEHOLDER_IMAGE_URL } from '@/shared/constants/constants';
+import { PLACEHOLDER_IMAGE_URL, LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
+import LottieView from 'lottie-react-native';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import type { CartItem, Product } from '@/shared/types/types';
 import { formatPrice } from '@/shared/utils/utils';
@@ -60,8 +61,7 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
   const isNew = product.createdAt && differenceInDays(new Date(), new Date(product.createdAt)) < 7;
 
   const hasValidImage = product.images && product.images.length > 0 && product.images[0].url && product.images[0].url.trim() !== '';
-  const rawImageUrl = hasValidImage ? product.images[0].url : PLACEHOLDER_IMAGE_URL;
-  const imageSrc = optimizeImageUrl(rawImageUrl, 200, 200);
+  const imageSrc = hasValidImage ? optimizeImageUrl(product.images[0].url, 200, 200) : null;
 
   if (product.isDailySpecial && !hasValidImage) {
     return (
@@ -106,13 +106,22 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
             </View>
           ) : null}
 
-          <Image
-            source={{ uri: imageSrc }}
-            style={{ width: '100%', height: '100%' }}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-          />
+          {imageSrc ? (
+            <Image
+              source={{ uri: imageSrc }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <LottieView
+              source={LOTTIE_PLACEHOLDER}
+              autoPlay
+              loop
+              style={{ width: '100%', height: '100%' }}
+            />
+          )}
 
           {isOutOfStock && <View className="absolute inset-0 bg-black/20 z-0" />}
         </View>

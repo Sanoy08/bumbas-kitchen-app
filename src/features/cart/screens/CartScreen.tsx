@@ -25,7 +25,8 @@ import {
   NativeScrollEvent
 } from 'react-native';
 import { FlatList, Swipeable } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import emptyCartAnimation from '../../../../assets/animations/empty-cart.json';
 
 import { useAlert } from '@/shared/components/ui';
@@ -37,11 +38,10 @@ if (
   Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental
 ) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const PLACEHOLDER_IMAGE_URL =
-  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=500&auto=format&fit=crop';
+const LOCAL_PLACEHOLDER = require('@/assets/images/loading.jpg');
+const LOTTIE_PLACEHOLDER = require('@/assets/animations/Image-Loading.json');
 
 // ---------------------- Cart Item Component ----------------------
 type CartItemProps = {
@@ -131,7 +131,7 @@ const CartItem = React.memo(
     const rawUrl =
       (item.image && Array.isArray(item.image)
         ? item.image[0]?.url
-        : item.image?.url) || PLACEHOLDER_IMAGE_URL;
+        : item.image?.url);
 
     return (
       <Swipeable
@@ -174,12 +174,22 @@ const CartItem = React.memo(
 
             <View className="flex-row">
               <View className="h-20 w-20 rounded-xl bg-gray-100 overflow-hidden border border-gray-100 mr-4">
-                <Image
-                  source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }}
-                  style={{ width: '100%', height: '100%' }}
-                  contentFit="cover"
-                  transition={200}
-                />
+                {!rawUrl ? (
+                  <LottieView
+                    source={LOTTIE_PLACEHOLDER}
+                    autoPlay
+                    loop
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                ) : (
+                  <Image
+                    source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    transition={200}
+                    placeholder={LOCAL_PLACEHOLDER}
+                  />
+                )}
               </View>
               <View className="flex-1 justify-between">
                 <View>

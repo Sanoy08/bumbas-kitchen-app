@@ -3,6 +3,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import LottieView from 'lottie-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowLeft,
@@ -34,7 +35,7 @@ import {
   View,
 } from 'react-native';
 import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel';
-import { default as Reanimated, Extrapolation, interpolate, useSharedValue } from 'react-native-reanimated';
+import { default as Reanimated, Extrapolation, interpolate, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as REasing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
@@ -44,9 +45,82 @@ import { formatPrice } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const PLACEHOLDER_IMAGE_URL =
-  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=500&auto=format&fit=crop';
+const LOCAL_PLACEHOLDER = require('@/assets/images/loading.jpg');
+const LOTTIE_PLACEHOLDER = require('@/assets/animations/Image-Loading.json');
 const DESC_LIMIT = 350; // ওয়েবের সাথে মেলানো
+
+const ProductSkeleton = () => {
+  const opacity = useSharedValue(0.4);
+  
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(0.8, { duration: 800, easing: REasing.inOut(REasing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  const THUMBNAIL_GAP = 12;
+  const THUMBNAIL_WIDTH = (screenWidth - 32 - (THUMBNAIL_GAP * 3)) / 4;
+
+  return (
+    <View className="flex-1 bg-white">
+      {/* Header Skeleton */}
+      <View className="absolute top-0 left-0 right-0 z-50 flex-row justify-between px-4 pt-12 pb-4">
+        <View className="w-10 h-10 rounded-full bg-gray-200" />
+        <View className="w-10 h-10 rounded-full bg-gray-200" />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }} scrollEnabled={false}>
+        {/* Main Image */}
+        <Reanimated.View style={[{ width: screenWidth, height: screenWidth, backgroundColor: '#e5e7eb' }, animatedStyle]} />
+        
+        {/* Thumbnails */}
+        <View className="px-4 mt-4 flex-row gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <Reanimated.View key={i} style={[{ width: THUMBNAIL_WIDTH, height: THUMBNAIL_WIDTH, backgroundColor: '#e5e7eb', borderRadius: 12 }, animatedStyle]} />
+          ))}
+        </View>
+
+        {/* Content */}
+        <View className="px-4 pt-6">
+          {/* Tags */}
+          <View className="flex-row items-center justify-between mb-3">
+            <Reanimated.View style={[{ width: 80, height: 24, backgroundColor: '#e5e7eb', borderRadius: 4 }, animatedStyle]} />
+            <Reanimated.View style={[{ width: 50, height: 24, backgroundColor: '#e5e7eb', borderRadius: 4 }, animatedStyle]} />
+          </View>
+
+          {/* Title */}
+          <Reanimated.View style={[{ width: '80%', height: 32, backgroundColor: '#e5e7eb', borderRadius: 6, marginBottom: 8 }, animatedStyle]} />
+          {/* Category */}
+          <Reanimated.View style={[{ width: '40%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 24 }, animatedStyle]} />
+
+          <View className="h-[1px] bg-gray-100 w-full mb-6" />
+
+          {/* Price */}
+          <View className="mb-8">
+            <Reanimated.View style={[{ width: 120, height: 40, backgroundColor: '#e5e7eb', borderRadius: 6, marginBottom: 8 }, animatedStyle]} />
+            <Reanimated.View style={[{ width: 150, height: 14, backgroundColor: '#e5e7eb', borderRadius: 4 }, animatedStyle]} />
+          </View>
+
+          {/* Inline Cart buttons skeleton */}
+          <View className="flex-row w-full gap-3 mb-8">
+            <Reanimated.View style={[{ flex: 1, height: 56, backgroundColor: '#e5e7eb', borderRadius: 12 }, animatedStyle]} />
+            <Reanimated.View style={[{ flex: 2, height: 56, backgroundColor: '#e5e7eb', borderRadius: 12 }, animatedStyle]} />
+          </View>
+
+          {/* Description Lines */}
+          <Reanimated.View style={[{ width: '100%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
+          <Reanimated.View style={[{ width: '90%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
+          <Reanimated.View style={[{ width: '95%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
+          <Reanimated.View style={[{ width: '70%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
 
 export function ProductDetailsScreen() {
   const searchParams = useLocalSearchParams();
@@ -194,7 +268,7 @@ export function ProductDetailsScreen() {
         id: product.id || product._id,
         slug: product.slug,
         name: product.name,
-        image: product.images?.[0]?.url || PLACEHOLDER_IMAGE_URL,
+        image: product.images?.[0]?.url || '',
         price: product.price,
       });
       toast.success('Added to favorites! ❤️');
@@ -324,11 +398,7 @@ export function ProductDetailsScreen() {
   // --- Loading & Error ---
   // Show loader if loading OR if cached product doesn't match current slug (stale state from component reuse)
   if (isLoading || (product && product.slug !== slug)) {
-    return (
-      <View className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#e11d48" />
-      </View>
-    );
+    return <ProductSkeleton />;
   }
 
   if (!product) {
@@ -354,7 +424,7 @@ export function ProductDetailsScreen() {
   const displayImages =
     validImages.length > 0
       ? validImages
-      : [{ id: 'fallback', url: PLACEHOLDER_IMAGE_URL }];
+      : [{ id: 'fallback', isPlaceholder: true }];
 
   const isOutOfStock = product.stock <= 0 || product.stock === 0;
   const isNonVeg = ['Chicken', 'Mutton', 'Egg', 'Fish'].includes(
@@ -394,20 +464,28 @@ export function ProductDetailsScreen() {
       (isLongDescription ? '...' : '');
 
   // --- Render Item for FlatList ---
+  // (Not used directly, FlatList uses inline renderItem, but kept for reference if needed elsewhere)
   const renderImageItem = ({ item }: { item: any }) => {
-    const imageUrl = item.url ? optimizeImageUrl(item.url) : PLACEHOLDER_IMAGE_URL;
     return (
       <View
         style={{ width: screenWidth, height: screenWidth }}
         className="bg-gray-100 relative"
       >
-        <Image
-          source={{ uri: imageUrl }}
-          style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
-          contentFit="cover"
-          transition={200}
-          placeholder={PLACEHOLDER_IMAGE_URL}
-        />
+        {item.isPlaceholder ? (
+          <LottieView
+            source={LOTTIE_PLACEHOLDER}
+            autoPlay
+            loop
+            style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
+          />
+        ) : (
+          <Image
+            source={{ uri: optimizeImageUrl(item.url) }}
+            style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
+            contentFit="cover"
+            transition={200}
+          />
+        )}
         {isOutOfStock && (
           <View className="absolute inset-0 flex items-center justify-center bg-black/10 z-10">
             <View
@@ -505,15 +583,23 @@ export function ProductDetailsScreen() {
               index,
             })}
             renderItem={({ item }) => {
-              const imageUrl = item.url ? optimizeImageUrl(item.url) : PLACEHOLDER_IMAGE_URL;
               return (
                 <View style={{ width: screenWidth, height: screenWidth, overflow: 'hidden' }}>
-                  <Image
-                    source={{ uri: imageUrl }}
-                    style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
-                    contentFit="cover"
-                    transition={150}
-                  />
+                  {item.isPlaceholder ? (
+                    <LottieView
+                      source={LOTTIE_PLACEHOLDER}
+                      autoPlay
+                      loop
+                      style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: optimizeImageUrl(item.url) }}
+                      style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
+                      contentFit="cover"
+                      transition={150}
+                    />
+                  )}
                   {isOutOfStock && (
                     <View className="absolute inset-0 flex items-center justify-center bg-black/10 z-10">
                       <View
@@ -574,11 +660,20 @@ export function ProductDetailsScreen() {
                     activeSlide === idx ? 'border-primary' : 'border-transparent'
                   }`}
                 >
-                <Image
-                  source={{ uri: optimizeImageUrl(img.url) }}
-                  style={{ width: '100%', height: '100%' }}
-                  contentFit="cover"
-                />
+                  {img.isPlaceholder ? (
+                    <LottieView
+                      source={LOTTIE_PLACEHOLDER}
+                      autoPlay
+                      loop
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: optimizeImageUrl(img.url) }}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="cover"
+                    />
+                  )}
               </TouchableOpacity>
               );
             })}

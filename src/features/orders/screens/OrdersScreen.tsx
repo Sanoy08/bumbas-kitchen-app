@@ -19,7 +19,7 @@ import { useState, useCallback, useRef } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View, Animated, Easing, PanResponder, Dimensions, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PLACEHOLDER_IMAGE_URL } from '@/shared/constants/constants';
+
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import { formatPrice } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';

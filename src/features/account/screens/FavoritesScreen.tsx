@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ArrowLeft, Heart, HeartCrack, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, HeartCrack, Trash2 } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import LottieView from 'lottie-react-native';
 import { formatPrice } from '@/shared/utils/utils';
+import { PLACEHOLDER_IMAGE_URL, LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import { toast } from 'sonner-native';
 
@@ -62,13 +64,22 @@ export function FavoritesScreen() {
         className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-4 shadow-sm"
       >
         <View className="h-24 w-24 rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
-          <Image
-            source={{ uri: optimizeImageUrl(item.image, 200, 200) }}
-            style={{ width: '100%', height: '100%' }}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-          />
+          {!item.image || item.image === PLACEHOLDER_IMAGE_URL ? (
+            <LottieView
+              source={LOTTIE_PLACEHOLDER}
+              autoPlay
+              loop
+              style={{ width: '100%', height: '100%' }}
+            />
+          ) : (
+            <Image
+              source={{ uri: optimizeImageUrl(item.image, 200, 200) }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+          )}
         </View>
 
         <View className="flex-1 ml-4 justify-center">

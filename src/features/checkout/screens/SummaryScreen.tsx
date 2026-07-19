@@ -1,6 +1,6 @@
 // src/app/(shop)/checkout/summary.tsx
 
-import { PLACEHOLDER_IMAGE_URL } from '@/shared/constants/constants';
+import { PLACEHOLDER_IMAGE_URL, LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import { formatPrice } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
@@ -599,20 +599,28 @@ export function SummaryScreen() {
           </View>
 
           {items.map((item, index) => {
-            const imageSrc =
-              (item.image && Array.isArray(item.image) ? item.image[0]?.url : item.image?.url) ||
-              PLACEHOLDER_IMAGE_URL;
+            const rawUrl =
+              (item.image && Array.isArray(item.image) ? item.image[0]?.url : item.image?.url);
             return (
               <View
                 key={item.id}
                 className={`flex-row items-center gap-4 ${index !== items.length - 1 ? 'mb-8' : ''}`}
               >
                 <View className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
-                  <Image
-                    source={{ uri: imageSrc }}
-                    className="h-full w-full"
-                    resizeMode="cover"
-                  />
+                  {rawUrl ? (
+                    <Image
+                      source={{ uri: rawUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <LottieView
+                      source={LOTTIE_PLACEHOLDER}
+                      autoPlay
+                      loop
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  )}
                 </View>
                 <View className="flex-1 min-w-0">
                   <Text className="font-semibold text-sm text-gray-800 truncate">{item.name}</Text>
