@@ -43,8 +43,8 @@ export const MiddleSlider = ({ slides }: MiddleSliderProps) => {
 
   if (!slides || slides.length === 0) return null;
 
-  const cardWidth = windowWidth * 0.9;
-  const cardHeight = cardWidth * 0.45;
+  const cardWidth = windowWidth - 32; // 16px margin on each side
+  const cardHeight = cardWidth / 3; // 3:1 aspect ratio
 
   return (
     <View className="bg-white pt-4 pb-6 relative">
@@ -56,22 +56,16 @@ export const MiddleSlider = ({ slides }: MiddleSliderProps) => {
         autoPlayInterval={4000}
         data={slides}
         scrollAnimationDuration={450}
-        mode="parallax"
-        modeConfig={{
-          parallaxScrollingScale: 0.92,
-          parallaxScrollingOffset: 55,
-          parallaxAdjacentItemScale: 0.85,
-        }}
         onProgressChange={(_, absoluteProgress) => {
           progressValue.value = absoluteProgress;
         }}
         renderItem={({ item }) => (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View 
-              style={{ width: cardWidth, height: cardHeight, backgroundColor: '#f9fafb', borderRadius: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+              style={{ width: cardWidth, height: cardHeight, backgroundColor: '#f9fafb', borderRadius: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
             >
               <Link href={item.clickUrl || '/menus'} asChild>
-                <TouchableOpacity activeOpacity={0.85} style={{ width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden' }}>
+                <TouchableOpacity activeOpacity={0.95} style={{ width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden' }}>
                   <Image
                     source={{ uri: optimizeImageUrl(item.imageUrl) }}
                     style={{ width: '100%', height: '100%' }}

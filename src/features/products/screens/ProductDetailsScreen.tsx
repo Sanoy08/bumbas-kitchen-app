@@ -183,6 +183,7 @@ export function ProductDetailsScreen() {
       // Reset scroll position and animated values for new screen load
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
       headerOpacity.setValue(0);
+      isHeaderVisible.current = false;
       bottomBarTranslateY.setValue(200);
       bottomBarOpacity.setValue(0);
       setShowBottomBar(false);
