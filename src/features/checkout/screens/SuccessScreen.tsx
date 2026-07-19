@@ -6,11 +6,11 @@ import { useSessionStore } from '@/shared/store/sessionStore';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScratchCard } from '@/shared/components/ui';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ArrowRight, Home, ShoppingBag, Sparkles, Gift, X } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Dimensions,
   SafeAreaView,
@@ -82,6 +82,15 @@ export function SuccessScreen() {
   const name = params.name || 'Guest';
   const amount = params.amount ? parseFloat(params.amount) : 0;
   const coins = parseInt(params.coins || '0', 10);
+
+  const [isScreenFocused, setIsScreenFocused] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsScreenFocused(true);
+      return () => setIsScreenFocused(false);
+    }, [])
+  );
 
   const clearCart = useCartStore((state) => state.clearCart);
   const setHasOrdered = useSessionStore((state) => state.setHasOrdered);
@@ -367,31 +376,33 @@ export function SuccessScreen() {
         </View>
       </Modal>
 
-    <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-      <WebView
-        source={{
-          html: `
-            <!DOCTYPE html>
-            <html>
-              <body>
-                <audio id="audio" src="${soundUri}" autoplay></audio>
-                <script>
-                  document.getElementById("audio").play().catch(e => console.log(e));
-                </script>
-              </body>
-            </html>
-          `,
-          baseUrl: ''
-        }}
-        originWhitelist={['*']}
-        mediaPlaybackRequiresUserAction={false}
-        allowFileAccess={true}
-        allowFileAccessFromFileURLs={true}
-        allowUniversalAccessFromFileURLs={true}
-        style={{ width: 0, height: 0, display: 'none' }}
-        containerStyle={{ width: 0, height: 0, display: 'none' }}
-      />
-    </View>
+    {isScreenFocused && (
+      <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+        <WebView
+          source={{
+            html: `
+              <!DOCTYPE html>
+              <html>
+                <body>
+                  <audio id="audio" src="${soundUri}" autoplay></audio>
+                  <script>
+                    document.getElementById("audio").play().catch(e => console.log(e));
+                  </script>
+                </body>
+              </html>
+            `,
+            baseUrl: ''
+          }}
+          originWhitelist={['*']}
+          mediaPlaybackRequiresUserAction={false}
+          allowFileAccess={true}
+          allowFileAccessFromFileURLs={true}
+          allowUniversalAccessFromFileURLs={true}
+          style={{ width: 0, height: 0, display: 'none' }}
+          containerStyle={{ width: 0, height: 0, display: 'none' }}
+        />
+      </View>
+    )}
     </View>
   );
 }

@@ -1,6 +1,6 @@
 // src/app/(shop)/checkout/summary.tsx
 
-import { PLACEHOLDER_IMAGE_URL, LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
+import { LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import { formatPrice } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';

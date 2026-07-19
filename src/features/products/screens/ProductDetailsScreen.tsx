@@ -45,7 +45,6 @@ import { formatPrice } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const LOCAL_PLACEHOLDER = require('@/assets/images/loading.jpg');
 const LOTTIE_PLACEHOLDER = require('@/assets/animations/Image-Loading.json');
 const DESC_LIMIT = 350; // ওয়েবের সাথে মেলানো
 
@@ -594,12 +593,20 @@ export function ProductDetailsScreen() {
                       style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
                     />
                   ) : (
-                    <Image
-                      source={{ uri: optimizeImageUrl(item.url) }}
-                      style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
-                      contentFit="cover"
-                      transition={150}
-                    />
+                    <View style={{ width: '100%', height: '100%' }}>
+                      <LottieView
+                        source={LOTTIE_PLACEHOLDER}
+                        autoPlay
+                        loop
+                        style={{ width: '100%', height: '100%', position: 'absolute' }}
+                      />
+                      <Image
+                        source={{ uri: optimizeImageUrl(item.url) }}
+                        style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
+                        contentFit="cover"
+                        transition={150}
+                      />
+                    </View>
                   )}
                   {isOutOfStock && (
                     <View className="absolute inset-0 flex items-center justify-center bg-black/10 z-10">
@@ -669,11 +676,19 @@ export function ProductDetailsScreen() {
                       style={{ width: '100%', height: '100%' }}
                     />
                   ) : (
-                    <Image
-                      source={{ uri: optimizeImageUrl(img.url) }}
-                      style={{ width: '100%', height: '100%' }}
-                      contentFit="cover"
-                    />
+                    <View style={{ width: '100%', height: '100%' }}>
+                      <LottieView
+                        source={LOTTIE_PLACEHOLDER}
+                        autoPlay
+                        loop
+                        style={{ width: '100%', height: '100%', position: 'absolute' }}
+                      />
+                      <Image
+                        source={{ uri: optimizeImageUrl(img.url) }}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="cover"
+                      />
+                    </View>
                   )}
               </TouchableOpacity>
               );

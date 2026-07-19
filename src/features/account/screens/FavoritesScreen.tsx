@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import LottieView from 'lottie-react-native';
 import { formatPrice } from '@/shared/utils/utils';
-import { PLACEHOLDER_IMAGE_URL, LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
+import { LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import { toast } from 'sonner-native';
 
@@ -64,7 +64,7 @@ export function FavoritesScreen() {
         className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-4 shadow-sm"
       >
         <View className="h-24 w-24 rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
-          {!item.image || item.image === PLACEHOLDER_IMAGE_URL ? (
+          {!item.image ? (
             <LottieView
               source={LOTTIE_PLACEHOLDER}
               autoPlay
@@ -72,13 +72,21 @@ export function FavoritesScreen() {
               style={{ width: '100%', height: '100%' }}
             />
           ) : (
-            <Image
-              source={{ uri: optimizeImageUrl(item.image, 200, 200) }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              transition={200}
-              cachePolicy="memory-disk"
-            />
+            <View style={{ width: '100%', height: '100%' }}>
+              <LottieView
+                source={LOTTIE_PLACEHOLDER}
+                autoPlay
+                loop
+                style={{ width: '100%', height: '100%', position: 'absolute' }}
+              />
+              <Image
+                source={{ uri: optimizeImageUrl(item.image, 200, 200) }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                transition={200}
+                cachePolicy="memory-disk"
+              />
+            </View>
           )}
         </View>
 

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, Text, UIManager, View } from 'react-native';
@@ -43,6 +43,7 @@ import {
   OffersSection,
   SectionHeading
 } from '../components';
+import { VoiceSearchModal } from '@/shared/components/search/VoiceSearchModal';
 
 const { width: windowWidth } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
@@ -53,6 +54,7 @@ const GRID_WIDTH = (CARD_WIDTH + CARD_MARGIN * 2) * 2; // Total width of 2 colum
 const HERO_CAROUSEL_HEIGHT = windowWidth + 8;
 
 export function HomeScreen() {
+  const router = useRouter();
   const { user, login } = useAuthStore();
   const insets = useSafeAreaInsets();
   const isTabBarVisibleStore = useTabBarStore((state) => state.isVisible);
@@ -115,6 +117,7 @@ export function HomeScreen() {
   const [tempDate, setTempDate] = useState(new Date());
   const [productDisplayCount, setProductDisplayCount] = useState(PRODUCTS_PER_PAGE);
   const [refreshing, setRefreshing] = useState(false);
+  const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
 
   // --- Scroll/Animation Refs & Values ---
   const scrollViewRef = useRef<Animated.ScrollView>(null);
@@ -615,6 +618,7 @@ export function HomeScreen() {
         activeFilter={activeFilter}
         onOpenFilter={() => setIsFilterModalVisible(true)}
         onClearCategory={() => handleModeSwitch('All', 'all')}
+        onMicPress={() => setIsVoiceModalVisible(true)}
         paddingTop={insets.top + 10}
       />
 
@@ -769,6 +773,15 @@ export function HomeScreen() {
       />
 
       <NotificationPrompt />
+
+      {/* ★ Voice Recording Modal ★ */}
+      <VoiceSearchModal
+        visible={isVoiceModalVisible}
+        onClose={() => setIsVoiceModalVisible(false)}
+        onResult={(transcript) => {
+          router.push({ pathname: '/(shop)/search', params: { voiceQuery: transcript } });
+        }}
+      />
     </View>
   );
 }

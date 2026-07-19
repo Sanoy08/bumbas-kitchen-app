@@ -7,7 +7,7 @@ import { Ban, Minus, Plus, ShoppingCart } from 'lucide-react-native';
 import { memo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
-import { PLACEHOLDER_IMAGE_URL, LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
+import { LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import LottieView from 'lottie-react-native';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import type { CartItem, Product } from '@/shared/types/types';
@@ -107,13 +107,21 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
           ) : null}
 
           {imageSrc ? (
-            <Image
-              source={{ uri: imageSrc }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              transition={200}
-              cachePolicy="memory-disk"
-            />
+            <View style={{ width: '100%', height: '100%' }}>
+              <LottieView
+                source={LOTTIE_PLACEHOLDER}
+                autoPlay
+                loop
+                style={{ width: '100%', height: '100%', position: 'absolute' }}
+              />
+              <Image
+                source={{ uri: imageSrc }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                transition={200}
+                cachePolicy="memory-disk"
+              />
+            </View>
           ) : (
             <LottieView
               source={LOTTIE_PLACEHOLDER}

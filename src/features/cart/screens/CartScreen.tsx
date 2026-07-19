@@ -40,7 +40,6 @@ if (
 ) {
 }
 
-const LOCAL_PLACEHOLDER = require('@/assets/images/loading.jpg');
 const LOTTIE_PLACEHOLDER = require('@/assets/animations/Image-Loading.json');
 
 // ---------------------- Cart Item Component ----------------------
@@ -182,13 +181,20 @@ const CartItem = React.memo(
                     style={{ width: '100%', height: '100%' }}
                   />
                 ) : (
-                  <Image
-                    source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }}
-                    style={{ width: '100%', height: '100%' }}
-                    contentFit="cover"
-                    transition={200}
-                    placeholder={LOCAL_PLACEHOLDER}
-                  />
+                  <View style={{ width: '100%', height: '100%' }}>
+                    <LottieView
+                      source={LOTTIE_PLACEHOLDER}
+                      autoPlay
+                      loop
+                      style={{ width: '100%', height: '100%', position: 'absolute' }}
+                    />
+                    <Image
+                      source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="cover"
+                      transition={200}
+                    />
+                  </View>
                 )}
               </View>
               <View className="flex-1 justify-between">

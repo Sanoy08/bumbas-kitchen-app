@@ -18,6 +18,7 @@ interface HomeHeaderProps {
   activeFilter: FilterOption;
   onOpenFilter: () => void;
   onClearCategory: () => void;
+  onMicPress?: () => void;
   paddingTop: number;
 }
 
@@ -48,6 +49,7 @@ export const HomeHeader = ({
   activeFilter,
   onOpenFilter,
   onClearCategory,
+  onMicPress,
   paddingTop,
 }: HomeHeaderProps) => {
   const { user } = useAuthStore();
@@ -119,13 +121,19 @@ export const HomeHeader = ({
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => router.push('/(shop)/search')}
-          className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl px-3 py-2.5"
+          className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl pl-3 pr-1 py-1"
         >
           <Search size={20} color="#e11d48" />
-          <AnimatedSearchText />
-          <View className="border-l border-gray-300 pl-3 py-0.5">
-            <Mic size={20} color="#e11d48" />
+          <View className="flex-1 py-1.5 ml-1">
+            <AnimatedSearchText />
           </View>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onMicPress}
+            className="border-l border-gray-300 pl-3 pr-2 py-1.5"
+          >
+            <Mic size={20} color="#e11d48" />
+          </TouchableOpacity>
         </TouchableOpacity>
 
         <Animated.View style={filterButtonStyle}>

@@ -2,7 +2,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Clock, Mic, Search as SearchIcon, Trash2, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -22,10 +22,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
-// ★ expo-speech-recognition ইমপোর্ট
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import LottieView from 'lottie-react-native';
 
+import { VoiceSearchModal } from '@/shared/components/search/VoiceSearchModal';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -75,6 +74,7 @@ const fuzzyMatch = (query: string, target: string) => {
 
 export function SearchScreen() {
   const router = useRouter();
+  const searchParams = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
@@ -85,10 +85,8 @@ export function SearchScreen() {
   const [isSearching, setIsSearching] = useState(false);
 
   // --- Voice Search States ---
-  const [isListening, setIsListening] = useState(false);
-  const [noSpeechError, setNoSpeechError] = useState(false);
-  const [partialText, setPartialText] = useState('');
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
+
   const keyboardOffsetAnim = useRef(new Animated.Value(0)).current;
 
   // --- Keyboard Animation ---
@@ -125,13 +123,23 @@ export function SearchScreen() {
     const loadInitialData = async () => {
       try {
         const cachedData = await AsyncStorage.getItem('bumbas_home_data');
-        if (cachedData) {
-          const parsedData = JSON.parse(cachedData);
-          setAllProducts(parsedData.allProducts || []);
-        }
+        const homeDataStr = cachedData;
+        if (!homeDataStr) return;
+        const homeData = JSON.parse(homeDataStr);
+        setAllProducts(homeData.allProducts || []);
 
         const recent = await AsyncStorage.getItem('recent_searches');
         if (recent) setRecentSearches(JSON.parse(recent));
+
+        // Auto-search if voiceQuery is passed
+        if (searchParams.voiceQuery) {
+          const q = searchParams.voiceQuery as string;
+          setSearchQuery(q);
+          handleSearchSubmit(q, homeData.allProducts || []);
+        } else {
+          // Focus input if no voice query
+          setTimeout(() => inputRef.current?.focus(), 400);
+        }
       } catch (error) {
         console.error('Error loading search data', error);
       }
@@ -175,7 +183,7 @@ export function SearchScreen() {
   }, [searchQuery, allProducts]);
 
   // ৩. সার্চ সাবমিট এবং হিস্ট্রি সেভ
-  const handleSearchSubmit = async (queryToSave: string = searchQuery) => {
+  const handleSearchSubmit = async (queryToSave: string = searchQuery, products = allProducts) => {
     const query = queryToSave.trim();
     if (!query) return;
 
@@ -193,112 +201,6 @@ export function SearchScreen() {
     toast.success('Search history cleared');
   };
 
-  // --- ★ VOICE SEARCH LOGIC ★ ---
-
-  // Pulse Animation for Mic (only when isListening true and no error)
-  useEffect(() => {
-    if (isListening && !noSpeechError) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.5,
-            duration: 800,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 800,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.setValue(1);
-      pulseAnim.stopAnimation();
-    }
-  }, [isListening, noSpeechError]);
-
-  const startListening = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // ★ FIX: মাইকে ক্লিক করার সাথে সাথে কীবোর্ড হাইড করে দেওয়া হবে
-      Keyboard.dismiss();
-
-      // Clear any previous no-speech error state
-      setNoSpeechError(false);
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!granted) {
-        toast.error("Microphone permission is required for voice search.");
-        return;
-      }
-
-      setPartialText('');
-      ExpoSpeechRecognitionModule.start({
-        lang: 'en-US',
-        interimResults: true,
-      });
-    } catch (e) {
-      toast.error("Speech recognition is not supported on this device.");
-    }
-  };
-
-  const stopListening = () => {
-    ExpoSpeechRecognitionModule.stop();
-    setIsListening(false);
-    setNoSpeechError(false);
-  };
-
-  // Speech Events
-  useSpeechRecognitionEvent('start', () => {
-    setIsListening(true);
-    setNoSpeechError(false);
-  });
-
-  useSpeechRecognitionEvent('end', () => {
-    // Only hide the modal if we are not showing a no-speech error
-    if (!noSpeechError) {
-      setIsListening(false);
-    }
-    // If noSpeechError is true, we let the modal stay open via noSpeechError flag
-  });
-
-  useSpeechRecognitionEvent('error', (event) => {
-    console.log('Speech error:', event.error);
-    if (event.error === 'no-speech') {
-      // Keep modal open and show "try again" message
-      setNoSpeechError(true);
-      setIsListening(false);
-      setPartialText('');
-    } else {
-      // Other errors: close modal and show toast
-      setIsListening(false);
-      setNoSpeechError(false);
-      if (event.error !== 'aborted') {
-        toast.error("Didn't catch that. Try again.");
-      }
-    }
-  });
-
-  useSpeechRecognitionEvent('result', (event) => {
-    const transcript = event.results[0]?.transcript || '';
-    setPartialText(transcript);
-
-    if (event.isFinal) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // Delay closing and searching so the user can read the full text
-      setTimeout(() => {
-        setSearchQuery(transcript);
-        setIsListening(false);
-        setNoSpeechError(false);
-        handleSearchSubmit(transcript);
-      }, 1500); // 1.5 second delay
-    }
-  });
-
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       {/* Search Header */}
@@ -314,11 +216,11 @@ export function SearchScreen() {
             ref={inputRef}
             className="flex-1 ml-2.5 text-base text-gray-900 font-sans"
             style={{
-              paddingVertical: 0,      // ডিফল্ট প্যাডিং ফোর্স করে জিরো করা
-              marginVertical: 0,       // ডিফল্ট মার্জিন জিরো করা
-              includeFontPadding: false, // ★ Android-এর ফন্টের উপরের/নিচের এক্সট্রা স্পেস রিমুভ করবে
-              textAlignVertical: 'center', // Android-এ vertically center করবে
-              lineHeight: 20,          // আইকনের সাইজ (20) এর সাথে মিলিয়ে দিলে পারফেক্ট এলাইনমেন্ট হবে
+              paddingVertical: 0,
+              marginVertical: 0,
+              includeFontPadding: false,
+              textAlignVertical: 'center',
+              lineHeight: 20,
             }}
             placeholder="Search for biryani, fish, veg..."
             placeholderTextColor="#9ca3af"
@@ -326,7 +228,7 @@ export function SearchScreen() {
             onChangeText={setSearchQuery}
             onSubmitEditing={() => handleSearchSubmit()}
             returnKeyType="search"
-            autoFocus={true}
+            autoFocus={false}
           />
 
           {searchQuery.length > 0 ? (
@@ -341,8 +243,9 @@ export function SearchScreen() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={startListening}
-              className="border-l border-gray-300 pl-3 ml-1 py-1"
+              activeOpacity={0.7}
+              onPress={() => setIsVoiceModalVisible(true)}
+              className="w-12 h-12 items-center justify-center"
             >
               <Mic size={20} color="#e11d48" />
             </TouchableOpacity>
@@ -410,7 +313,7 @@ export function SearchScreen() {
             <Animated.View
               className="flex-1 items-center justify-center px-4"
               style={{
-                marginTop: -80, // Base offset
+                marginTop: -80,
                 transform: [{ translateY: keyboardOffsetAnim }]
               }}
             >
@@ -447,90 +350,16 @@ export function SearchScreen() {
         </View>
       )}
 
+
       {/* ★ Voice Recording Modal ★ */}
-      <Modal visible={isListening || noSpeechError} transparent animationType="fade">
-        <View className="flex-1 justify-end bg-black/60">
-          <View className="bg-white rounded-t-[32px] p-8 items-center pb-12 shadow-lg">
-            {/* Show different content based on noSpeechError */}
-            {noSpeechError ? (
-              <>
-                <Text className="text-xl font-bold text-gray-900 mb-4 font-sans">
-                  Didn't catch that
-                </Text>
-                <Text className="text-base text-gray-500 mb-8 font-sans text-center px-4">
-                  We didn't hear anything. Please try again.
-                </Text>
-
-                {/* Try again button */}
-                <TouchableOpacity
-                  onPress={startListening}
-                  className="h-20 w-20 bg-primary rounded-full items-center justify-center shadow-lg mb-6"
-                  style={{
-                    elevation: 10,
-                    shadowColor: '#e11d48',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.4,
-                    shadowRadius: 8,
-                  }}
-                >
-                  <Mic size={36} color="#ffffff" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={stopListening}
-                  className="mt-2 px-8 py-3 bg-gray-100 rounded-full"
-                >
-                  <Text className="text-gray-600 font-bold font-sans">Cancel</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text className="text-xl font-bold text-gray-900 mb-8 font-sans">
-                  Listening...
-                </Text>
-
-                {/* Animated Pulsing Mic */}
-                <View className="items-center justify-center h-32 w-32 mb-6">
-                  <Animated.View
-                    style={{
-                      position: 'absolute',
-                      width: 80,
-                      height: 80,
-                      borderRadius: 40,
-                      backgroundColor: 'rgba(225, 29, 72, 0.2)',
-                      transform: [{ scale: pulseAnim }],
-                    }}
-                  />
-                  <TouchableOpacity
-                    onPress={stopListening}
-                    className="h-20 w-20 bg-primary rounded-full items-center justify-center shadow-lg"
-                    style={{
-                      elevation: 10,
-                      shadowColor: '#e11d48',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.4,
-                      shadowRadius: 8,
-                    }}
-                  >
-                    <Mic size={36} color="#ffffff" />
-                  </TouchableOpacity>
-                </View>
-
-                <Text className="text-base text-gray-600 font-sans text-center px-4 h-12">
-                  {partialText ? `"${partialText}"` : "Speak now to search for your favorite dishes"}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={stopListening}
-                  className="mt-6 px-8 py-3 bg-gray-100 rounded-full"
-                >
-                  <Text className="text-gray-600 font-bold font-sans">Cancel</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <VoiceSearchModal
+        visible={isVoiceModalVisible}
+        onClose={() => setIsVoiceModalVisible(false)}
+        onResult={(transcript) => {
+          setSearchQuery(transcript);
+          handleSearchSubmit(transcript, allProducts);
+        }}
+      />
     </View>
   );
 }
