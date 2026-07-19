@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Bell, BellRing, Clock, Gift, ShoppingBag, Wallet, CheckCheck, Trash2, X } from 'lucide-react-native';
+import { ArrowLeft, Bell, BellRing, Clock, Gift, ShoppingBag, Wallet, Trash2 } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useNotificationStore } from '@/shared/store/notificationStore';
+import { useAlert } from '@/shared/components/ui';
+import * as Notifications from 'expo-notifications';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 interface NotificationItem {
@@ -21,10 +23,41 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { setHasUnread } = useNotificationStore();
+  const { showAlert } = useAlert();
   
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [notifEnabled, setNotifEnabled] = useState(false);
+
+  // Check current notification permission status
+  useEffect(() => {
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      setNotifEnabled(status === 'granted');
+    });
+  }, []);
+
+  const handleNotifToggle = async (value: boolean) => {
+    if (value) {
+      const { status } = await Notifications.requestPermissionsAsync();
+      setNotifEnabled(status === 'granted');
+      if (status !== 'granted') {
+        showAlert({
+          title: 'Permission Denied',
+          message: 'Please enable notifications from your device settings to receive alerts.',
+          confirmText: 'OK',
+          confirmButtonStyle: 'default',
+        });
+      }
+    } else {
+      showAlert({
+        title: 'Turn Off Notifications',
+        message: 'To disable notifications, please go to your device Settings and turn off notifications for this app.',
+        confirmText: 'OK',
+        confirmButtonStyle: 'default',
+      });
+    }
+  };
 
   const fetchNotifications = async (showRefresh = false) => {
     if (!user) {
@@ -40,10 +73,13 @@ export default function NotificationsScreen() {
       const data = await res.json();
       
       if (data.success) {
-        setNotifications(data.notifications || []);
-        // Determine if there are still unread notifications
-        const unreadExists = data.notifications?.some((n: NotificationItem) => !n.isRead);
-        setHasUnread(!!unreadExists);
+        const fetchedNotifs = data.notifications || [];
+        setNotifications(fetchedNotifs.map((n: NotificationItem) => ({ ...n, isRead: true })));
+        // Auto mark all as read silently on page enter
+        if (fetchedNotifs.some((n: NotificationItem) => !n.isRead)) {
+          fetch(`${API_URL}/notifications/mark-read`, { method: 'PATCH' }).catch(() => {});
+        }
+        setHasUnread(false);
       }
     } catch (error) {
       console.log('Error fetching notifications:', error);
@@ -68,52 +104,34 @@ export default function NotificationsScreen() {
     });
   };
 
-  const markAllRead = async () => {
-    try {
-      const res = await fetch(`${API_URL}/notifications/mark-read`, { method: 'PATCH' });
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-        setHasUnread(false);
+  const confirmClearAll = () => {
+    showAlert({
+      title: 'Clear All Notifications?',
+      message: 'Are you sure you want to delete all notifications? This action cannot be undone.',
+      confirmText: 'Clear All',
+      cancelText: 'Cancel',
+      confirmButtonStyle: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API_URL}/notifications/delete`, { 
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clearAll: true })
+          });
+          if (res.ok) {
+            setNotifications([]);
+            setHasUnread(false);
+          }
+        } catch (e) {
+          console.log('Error clearing notifications', e);
+        }
       }
-    } catch (e) {
-      console.log('Error marking all read', e);
-    }
+    });
   };
 
-  const clearAllNotifications = async () => {
-    try {
-      const res = await fetch(`${API_URL}/notifications/delete`, { 
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clearAll: true })
-      });
-      if (res.ok) {
-        setNotifications([]);
-        setHasUnread(false);
-      }
-    } catch (e) {
-      console.log('Error clearing notifications', e);
-    }
-  };
-
-  const deleteNotification = async (id: string) => {
-    // Optimistic UI update
-    setNotifications(prev => prev.filter(n => n._id !== id));
-    try {
-      await fetch(`${API_URL}/notifications/delete`, { 
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notificationId: id })
-      });
-    } catch (e) {
-      console.log('Error deleting notification', e);
-      // Revert if needed, but keeping it simple for now
-    }
-  };
-
-  const getNotificationIcon = (title: string, isRead: boolean) => {
+  const getNotificationIcon = (title: string) => {
     const t = title.toLowerCase();
-    const color = isRead ? '#6b7280' : '#e11d48';
+    const color = '#e11d48';
     if (t.includes('order')) return <ShoppingBag size={20} color={color} />;
     if (t.includes('offer') || t.includes('discount') || t.includes('coupon')) return <Gift size={20} color={color} />;
     if (t.includes('wallet') || t.includes('coin')) return <Wallet size={20} color={color} />;
@@ -122,27 +140,17 @@ export default function NotificationsScreen() {
 
   const renderItem = ({ item, index }: { item: NotificationItem; index: number }) => (
     <Animated.View 
-      entering={FadeInDown.delay(index * 100).springify().damping(14)}
-      className={`p-4 mb-3 rounded-3xl border ${item.isRead ? 'bg-white border-gray-100' : 'bg-white border-red-100'} shadow-sm`}
+      entering={FadeInDown.delay(index * 80).springify().damping(14)}
+      className="p-4 mb-3 rounded-3xl border bg-white border-gray-100 shadow-sm"
     >
       <View className="flex-row items-start">
-        <View className={`h-12 w-12 rounded-full items-center justify-center mr-3 ${item.isRead ? 'bg-gray-50' : 'bg-red-50'}`}>
-          {getNotificationIcon(item.title, item.isRead)}
+        <View className="h-12 w-12 rounded-full items-center justify-center mr-3 bg-red-50">
+          {getNotificationIcon(item.title)}
         </View>
         <View className="flex-1">
-          <View className="flex-row items-start justify-between">
-            <Text className={`flex-1 font-extrabold font-sans text-[15px] mb-1 mr-2 ${item.isRead ? 'text-gray-800' : 'text-gray-900'}`}>
-              {item.title}
-            </Text>
-            <View className="flex-row items-center">
-              {!item.isRead && (
-                <View className="h-2 w-2 rounded-full bg-[#ef4444] mt-0.5 mr-3" />
-              )}
-              <TouchableOpacity onPress={() => deleteNotification(item._id)} className="p-1 -mt-1 -mr-1">
-                <X size={16} color="#9ca3af" />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <Text className="font-extrabold font-sans text-[15px] mb-1 text-gray-900">
+            {item.title}
+          </Text>
           <Text className="text-gray-500 font-sans text-sm leading-5 mb-2.5 pr-2">
             {item.body || (item as any).message}
           </Text>
@@ -172,16 +180,19 @@ export default function NotificationsScreen() {
           <Text className="text-lg font-bold text-gray-900 font-sans">Notifications</Text>
         </View>
         
-        {notifications.length > 0 && (
-          <View className="flex-row items-center gap-1">
-            <TouchableOpacity onPress={markAllRead} className="h-10 w-10 items-center justify-center rounded-full bg-blue-50">
-              <CheckCheck size={20} color="#3b82f6" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={clearAllNotifications} className="h-10 w-10 items-center justify-center rounded-full bg-red-50">
-              <Trash2 size={20} color="#ef4444" />
-            </TouchableOpacity>
+          <View className="flex-row items-center gap-2">
+            <Switch
+              value={notifEnabled}
+              onValueChange={handleNotifToggle}
+              trackColor={{ false: '#e5e7eb', true: '#fca5a5' }}
+              thumbColor={notifEnabled ? '#e11d48' : '#9ca3af'}
+            />
+            {notifications.length > 0 && (
+              <TouchableOpacity onPress={confirmClearAll} className="h-10 w-10 items-center justify-center rounded-full bg-red-50">
+                <Trash2 size={20} color="#ef4444" />
+              </TouchableOpacity>
+            )}
           </View>
-        )}
       </View>
 
       {/* Content */}
