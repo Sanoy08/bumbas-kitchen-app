@@ -23,8 +23,98 @@ import {
   Wallet,
   X,
 } from 'lucide-react-native';
-import { SavingsBanner } from '@/shared/components/ui';
+import { SavingsBanner, CouponTag, useAlert } from '@/shared/components/ui';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { interpolate } from 'react-native-reanimated';
+
+// Background Success Animation (Diamond Explosion + Blue Aura)
+import Svg, { Defs, RadialGradient, Stop, Circle, Path } from 'react-native-svg';
+
+const SuccessEffects = () => {
+  const explode = useSharedValue(0);
+  const auraScale = useSharedValue(0);
+  const spin = useSharedValue(0);
+  
+  useEffect(() => {
+    // Explosion and Aura much faster to match fast ticket entry
+    explode.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.back(1.2)) });
+    auraScale.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.back(1.5)) });
+    // Continuous infinite rotation
+    spin.value = withRepeat(withTiming(1, { duration: 4000, easing: Easing.linear }), -1, false);
+  }, []);
+
+  const stars = Array.from({ length: 8 }).map((_, i) => {
+    const baseAngle = (i * Math.PI * 2) / 8;
+    const distance = 160; 
+    const color = '#FFFFFF'; // All stars white as requested
+    const size = i % 2 === 0 ? 30 : 20;
+
+    const style = useAnimatedStyle(() => {
+      // Explode to fixed position, NO orbiting
+      const currentDistance = explode.value * distance;
+      const tx = Math.cos(baseAngle) * currentDistance;
+      const ty = Math.sin(baseAngle) * currentDistance;
+
+      return {
+        transform: [
+          { translateX: tx },
+          { translateY: ty },
+          // Spin continuously in place
+          { rotateZ: `${spin.value * 360}deg` },
+          // Pop out then settle
+          { scale: interpolate(explode.value, [0, 0.5, 1], [0, 1.2, 1]) }
+        ],
+        // Stay fully visible!
+        opacity: interpolate(explode.value, [0, 0.2], [0, 1])
+      };
+    });
+
+    return (
+      <Reanimated.View
+        key={i}
+        exiting={FadeOut.duration(200)}
+        style={[style, { position: 'absolute', width: size, height: size, alignItems: 'center', justifyContent: 'center', zIndex: 10 }]}
+      >
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M12 0C12 0 12 9.5 24 12C12 14.5 12 24 12 24C12 24 12 14.5 0 12C12 9.5 12 0 12 0Z" fill={color} />
+        </Svg>
+      </Reanimated.View>
+    );
+  });
+
+  const auraStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: auraScale.value }],
+    opacity: interpolate(auraScale.value, [0, 1], [0, 0.8])
+  }));
+
+  return (
+    <Reanimated.View 
+      entering={FadeIn.duration(300)}
+      exiting={FadeOut.duration(400).delay(200)}
+      className="absolute z-0 items-center justify-center pointer-events-none" 
+      style={{ top: '15%', left: '15%', right: '15%', bottom: '15%' }}
+    >
+      {/* Massive Soft Blue Aura */}
+      <Reanimated.View style={[auraStyle, { position: 'absolute' }]}>
+        <Svg width="400" height="400" viewBox="0 0 400 400">
+          <Defs>
+            <RadialGradient id="auraGlow" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor="#f43f5e" stopOpacity="1" />
+              <Stop offset="40%" stopColor="#e11d48" stopOpacity="0.7" />
+              <Stop offset="100%" stopColor="#be123c" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Circle cx="200" cy="200" r="200" fill="url(#auraGlow)" />
+        </Svg>
+      </Reanimated.View>
+      
+      {/* 4-Corner Star Particles */}
+      <View className="absolute items-center justify-center">
+        {stars}
+      </View>
+    </Reanimated.View>
+  );
+};
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
@@ -41,6 +131,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 export function SummaryScreen() {
@@ -48,6 +139,7 @@ export function SummaryScreen() {
   const insets = useSafeAreaInsets();
   const { items, setCheckoutData } = useCartStore();
   const { user, isInitialized } = useAuthStore();
+  const { showAlert } = useAlert();
 
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
@@ -62,38 +154,18 @@ export function SummaryScreen() {
   // Use explicit shared values for the complex custom animation
   const animIsVisible = useSharedValue(false);
   
-  // Custom Ticket Entering Animation (Gravity Drop + Bounce + Squash/Stretch)
+  // Custom Ticket Entering Animation (Extremely Fast Pop & Swing)
   const ticketEnter = new Keyframe({
     0: {
-      transform: [{ translateY: -600 }, { scaleY: 1.2 }, { scaleX: 0.8 }, { rotateZ: '0deg' }],
+      transform: [{ scale: 0.2 }, { rotateZ: '-25deg' }],
       opacity: 0,
+      easing: Easing.out(Easing.back(1.8)), // Springy overshoot for pop + swing
     },
-    40: { // Fast drop
-      transform: [{ translateY: 20 }, { scaleY: 0.8 }, { scaleX: 1.15 }, { rotateZ: '0deg' }],
-      opacity: 1,
-      easing: Easing.out(Easing.quad),
-    },
-    60: { // Bounce up
-      transform: [{ translateY: -25 }, { scaleY: 1.05 }, { scaleX: 0.95 }, { rotateZ: '0deg' }],
-      easing: Easing.inOut(Easing.quad),
-    },
-    75: { // Second soft landing
-      transform: [{ translateY: 5 }, { scaleY: 0.95 }, { scaleX: 1.02 }, { rotateZ: '2deg' }],
-      easing: Easing.out(Easing.quad),
-    },
-    85: { // Pendulum swing start
-      transform: [{ translateY: 0 }, { scaleY: 1 }, { scaleX: 1 }, { rotateZ: '-2deg' }],
-      easing: Easing.inOut(Easing.sin),
-    },
-    95: {
-      transform: [{ translateY: 0 }, { scaleY: 1 }, { scaleX: 1 }, { rotateZ: '1deg' }],
-      easing: Easing.inOut(Easing.sin),
-    },
-    100: { // Settle
-      transform: [{ translateY: 0 }, { scaleY: 1 }, { scaleX: 1 }, { rotateZ: '0deg' }],
+    100: {
+      transform: [{ scale: 1 }, { rotateZ: '0deg' }],
       opacity: 1,
     }
-  }).duration(1000);
+  }).duration(250); // Much faster!
 
   const ticketExit = new Keyframe({
     0: {
@@ -113,29 +185,88 @@ export function SummaryScreen() {
     }
   }).duration(600);
 
-  // Idle Floating Animation
+  // Physics-based Exit for Yellow Back Ticket (Heavy Drag & Trail)
+  const backTicketExit = new Keyframe({
+    0: {
+      transform: [{ translateY: 0 }, { translateX: 0 }, { scale: 1 }, { rotateZ: '0deg' }],
+      opacity: 1,
+    },
+    35: {
+      // Swings heavily in the opposite direction due to inertia
+      transform: [{ translateY: 25 }, { translateX: 15 }, { scale: 1.05 }, { rotateZ: '15deg' }],
+      opacity: 1,
+      easing: Easing.out(Easing.quad),
+    },
+    100: {
+      // Trails behind the blue ticket with massive rotation
+      transform: [{ translateY: -380 }, { translateX: -250 }, { scale: 0.1 }, { rotateZ: '-80deg' }],
+      opacity: 0,
+      easing: Easing.in(Easing.back(1.2)),
+    }
+  }).duration(600);
+
+
+  // Idle Floating Animation for Ticket
   const floatY = useSharedValue(0);
+  const floatRotate = useSharedValue(0);
+  
+  // Separate Idle Animation for Yellow Back Ticket (Slightly larger swing)
+  const backFloatY = useSharedValue(0);
+  const backFloatRotate = useSharedValue(0);
+
   useEffect(() => {
     if (showSuccessPopup) {
-      // Start floating after the drop animation completes (1000ms)
       setTimeout(() => {
         if (showSuccessPopup) {
+          // Front ticket swing
           floatY.value = withRepeat(
-            withTiming(-6, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+            withTiming(-8, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+            -1,
+            true
+          );
+          floatRotate.value = withRepeat(
+            withTiming(4, { duration: 1300, easing: Easing.inOut(Easing.sin) }),
+            -1,
+            true
+          );
+          
+          // Back ticket swing (slightly more extreme and out of sync for layered feel)
+          backFloatY.value = withRepeat(
+            withTiming(-12, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
+            -1,
+            true
+          );
+          backFloatRotate.value = withRepeat(
+            withTiming(6, { duration: 1250, easing: Easing.inOut(Easing.sin) }),
             -1,
             true
           );
         }
-      }, 1000);
+      }, 350); // Start floating sooner
     } else {
       floatY.value = 0;
+      floatRotate.value = 0;
+      backFloatY.value = 0;
+      backFloatRotate.value = 0;
     }
   }, [showSuccessPopup]);
 
   const floatStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: floatY.value }]
+    transform: [
+      { translateY: floatY.value },
+      { rotateZ: `${floatRotate.value}deg` }
+    ],
+    // The hole is exactly at ~15% from the top of the 310px height ticket
+    transformOrigin: ['50%', '15%', 0] 
   }));
 
+  const backFloatStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: backFloatY.value },
+      { rotateZ: `${backFloatRotate.value}deg` }
+    ],
+    transformOrigin: ['50%', '15%', 0] 
+  }));
   // ★ Calculate total directly to ensure 100% reactivity
   const totalPrice = useMemo(() => {
     return items.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0);
@@ -206,7 +337,14 @@ export function SummaryScreen() {
 
         if (useCoins) {
           setUseCoins(false);
-          toast.info('Coins removed. You can use either Coupon OR Coins.');
+          // Wait for the popup (3000ms) + exit animation (600ms) to finish before showing alert
+          setTimeout(() => {
+            showAlert({
+              title: "Coins Removed",
+              message: "You can use either a Coupon OR Bumba Coins for an order.",
+              cancelText: ""
+            });
+          }, 4200);
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
@@ -227,7 +365,11 @@ export function SummaryScreen() {
     if (checked) {
       if (couponDiscount > 0) {
         removeCoupon();
-        toast.info('Coupon removed. You can use either Coupon OR Coins.');
+        showAlert({
+          title: "Coupon Removed",
+          message: "You can use either Bumba Coins OR a Coupon for an order.",
+          cancelText: ""
+        });
       }
       setUseCoins(true);
     } else {
@@ -267,6 +409,8 @@ export function SummaryScreen() {
     router.push('/(checkout)/final');
   };
 
+
+
   if (!isInitialized || !user || itemCount === 0)
     return (
       <View className="flex-1 justify-center items-center bg-white">
@@ -296,12 +440,15 @@ export function SummaryScreen() {
         <Text className="text-xl font-bold text-gray-900 font-sans ml-2">Order Summary</Text>
       </View>
 
+
+
       <SavingsBanner amount={couponDiscount + (useCoins ? coinDiscountAmount : 0)} />
 
       <ScrollView
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}  // ★ অ্যাকাউন্ট পেইজের মতো 80
+        contentContainerStyle={{ paddingBottom: 20 }}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ─── COIN CARD ─── */}
         <View className="mb-5 rounded-2xl overflow-hidden shadow-xl">
@@ -585,72 +732,107 @@ export function SummaryScreen() {
           <View className="absolute inset-0 z-[100] items-center justify-center p-4">
             <Reanimated.View 
               entering={FadeIn.duration(300)}
-              exiting={FadeOut.duration(400)}
+              exiting={FadeOut.duration(400).delay(200)}
               className="absolute inset-0 bg-[#0f172a]/80"
             />
             
             <View className="items-center justify-center w-full relative">
+              
+              {/* Custom Success Aura & Diamond Explosion */}
+              {showSuccessPopup && <SuccessEffects />}
+
+              {/* YELLOW BACK TICKET (Independent Physics Layer) */}
+              <Reanimated.View 
+                entering={ticketEnter} 
+                exiting={backTicketExit}
+                style={{ position: 'absolute', top: 0, zIndex: 5, transformOrigin: ['50%', '15%', 0] }}
+                className="w-full relative items-center justify-center"
+              >
+                <Reanimated.View style={backFloatStyle} className="items-center">
+                  <CouponTag
+                    width={230}
+                    height={310}
+                    fillColor="#FFC400"
+                    borderColor="transparent"
+                    borderWidth={0}
+                    offsetLayer={true}
+                    showHangingRing={false}
+                  />
+                </Reanimated.View>
+              </Reanimated.View>
+
+              {/* BLUE FRONT TICKET */}
               <Reanimated.View 
                 entering={ticketEnter} 
                 exiting={ticketExit}
-                style={[floatStyle]}
-                className="w-[280px] relative items-center"
+                style={{ zIndex: 10, transformOrigin: ['50%', '15%', 0] }}
+                className="w-full relative items-center justify-center"
               >
-                {/* Fake String at the top */}
-                <View className="absolute -top-12 z-0 items-center">
-                  <View className="w-1 h-14 bg-[#94a3b8]" />
-                  <View className="w-4 h-4 rounded-full bg-[#cbd5e1] -mt-2 border-2 border-[#64748b]" />
-                </View>
+                <Reanimated.View style={floatStyle} className="items-center">
+                  <CouponTag
+                    width={230}
+                    height={310}
+                    fillColor="#FFFFFF"
+                    borderColor="#e11d48"
+                    borderWidth={7}
+                    offsetLayer={false}
+                    showHangingRing={true}
+                  >
+                    <View className="flex-1 w-full h-full justify-between items-center relative overflow-hidden pb-5">
+                      
+                      {/* Premium Watermark */}
+                      <View className="absolute inset-0 items-center justify-center opacity-20 pointer-events-none">
+                        <Text 
+                          className="text-[#ffe4e6] font-black" 
+                          style={{ fontSize: 240, transform: [{ translateY: 30 }, { rotate: '-12deg' }] }}
+                        >
+                          %
+                        </Text>
+                      </View>
 
-                {/* Sparkles (delayed so they appear during/after landing) */}
-                <Reanimated.View 
-                   entering={FadeIn.delay(600).duration(400)} 
-                   className="absolute z-0 pointer-events-none opacity-80" 
-                   style={{ top: -40, right: 10 }}
-                >
-                   <LottieView source={require('@/../assets/animations/party-emoji.json')} autoPlay loop style={{ width: 180, height: 180 }} />
+                      {/* TOP SECTION */}
+                      <View className="items-center w-full mt-3">
+                        <View className="bg-[#fff1f2] border border-[#fecdd3] px-3 py-1.5 rounded-full flex-row items-center mb-1.5 shadow-sm">
+                          <Sparkles size={10} color="#e11d48" className="mr-1.5" />
+                          <Text className="text-[#e11d48] font-black text-[9px] tracking-[2px] uppercase mt-0.5">
+                            Awesome!
+                          </Text>
+                          <Sparkles size={10} color="#e11d48" className="ml-1.5" />
+                        </View>
+                        <Text className="text-[#f43f5e] font-semibold text-[9px] text-center leading-[12px] px-2">
+                          You found the best deal today.
+                        </Text>
+                      </View>
+
+                      {/* MIDDLE SECTION (The Hero) */}
+                      <View className="items-center w-full flex-1 justify-center relative my-2">
+                        <Text className="text-[#fb7185] font-bold text-[10px] tracking-[4px] uppercase mb-1">
+                          Total Savings
+                        </Text>
+                        
+                        <View className="flex-row items-start justify-center relative mt-1">
+                          <Text className="text-[#e11d48] font-black text-3xl mt-3 mr-1">₹</Text>
+                          <Text className="text-[#e11d48] font-black text-[72px] leading-[80px] tracking-tighter">
+                            {successAmount}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* BOTTOM SECTION */}
+                      <View className="w-full px-1">
+                        <View className="bg-[#e11d48] px-3 py-2.5 rounded-2xl flex-row items-center justify-center shadow-sm w-full border-t border-[#fb7185]/30">
+                          <View className="w-4 h-4 bg-white rounded-full items-center justify-center mr-2 shadow-sm">
+                            <Check size={10} color="#e11d48" strokeWidth={4} />
+                          </View>
+                          <Text className="text-white font-extrabold text-[9px] tracking-widest uppercase mt-0.5">
+                            Offer Applied
+                          </Text>
+                        </View>
+                      </View>
+
+                    </View>
+                  </CouponTag>
                 </Reanimated.View>
-
-                {/* Outer Yellow Stroke Wrapper */}
-                <View className="w-full bg-[#facc15] rounded-[36px] p-[3px] shadow-2xl drop-shadow-2xl">
-                  {/* Inner Thick Navy Border + Blue Ticket */}
-                  <View className="w-full bg-[#0ea5e9] border-[5px] border-[#0f172a] rounded-[33px] overflow-hidden">
-                    
-                    {/* Top Header of Ticket */}
-                    <View className="w-full pt-8 pb-4 items-center">
-                        <Image 
-                          source={require('@/../assets/images/main-logo.png')} 
-                          style={{ width: 130, height: 130, resizeMode: 'contain' }}
-                        />
-                    </View>
-
-                    {/* Divider section */}
-                    <View className="w-full flex-row items-center relative h-10 overflow-hidden">
-                        {/* Inner dashed line */}
-                        <View className="flex-1 h-0 mx-4 border-t-[4px] border-dashed border-[#0f172a]/30" />
-                    </View>
-
-                    {/* Bottom White Inner Panel */}
-                    <View className="bg-white mx-[6px] mb-[6px] rounded-b-[24px] rounded-t-[12px] pt-5 pb-6 px-5 border-2 border-[#0ea5e9]/20 shadow-sm items-start">
-                       <View className="absolute inset-0 bg-gradient-to-b from-sky-50 to-white rounded-b-[24px] rounded-t-[12px]" />
-                       
-                       <View className="flex-row items-center mb-3 relative z-10">
-                         <View className="w-6 h-6 rounded-full bg-[#0ea5e9] items-center justify-center mr-3">
-                           <Check size={16} color="#fff" strokeWidth={4} />
-                         </View>
-                         <Text className="text-[#0f172a] font-black text-[22px] tracking-tight">₹{successAmount} saved</Text>
-                       </View>
-                       
-                       <View className="flex-row items-center relative z-10">
-                         <View className="w-6 h-6 rounded-full bg-[#0ea5e9] items-center justify-center mr-3">
-                           <Check size={16} color="#fff" strokeWidth={4} />
-                         </View>
-                         <Text className="text-[#0f172a] font-black text-[22px] tracking-tight">Free Delivery</Text>
-                       </View>
-                    </View>
-
-                  </View>
-                </View>
               </Reanimated.View>
             </View>
           </View>
