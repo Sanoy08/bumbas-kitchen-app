@@ -57,6 +57,7 @@ const CartItem = React.memo(
     const swipeableRef = useRef<Swipeable>(null);
     const scaleAnim = useRef(new Animated.Value(0.8)).current;
     const opacity = useRef(new Animated.Value(1)).current;
+    const [isImageLoaded, setIsImageLoaded] = useState(false);
 
     useEffect(() => {
       if (isRemoving) {
@@ -182,17 +183,20 @@ const CartItem = React.memo(
                   />
                 ) : (
                   <View style={{ width: '100%', height: '100%' }}>
-                    <LottieView
-                      source={LOTTIE_PLACEHOLDER}
-                      autoPlay
-                      loop
-                      style={{ width: '100%', height: '100%', position: 'absolute' }}
-                    />
+                    {!isImageLoaded && (
+                      <LottieView
+                        source={LOTTIE_PLACEHOLDER}
+                        autoPlay
+                        loop
+                        style={{ width: '100%', height: '100%', position: 'absolute' }}
+                      />
+                    )}
                     <Image
                       source={{ uri: optimizeImageUrl(rawUrl, 200, 200) }}
                       style={{ width: '100%', height: '100%' }}
                       contentFit="cover"
                       transition={200}
+                      onLoad={() => setIsImageLoaded(true)}
                     />
                   </View>
                 )}

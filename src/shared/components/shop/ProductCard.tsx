@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { Ban, Minus, Plus, ShoppingCart } from 'lucide-react-native';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import { LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
@@ -22,6 +22,8 @@ type ProductCardProps = {
 };
 
 export const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  
   // Only subscribe to this specific product's cart item — not the whole cart array.
   // This means only THIS card re-renders when its own quantity changes.
   const cartItem = useCartStore((state) => state.items.find((item: CartItem) => item.id === product.id));
@@ -108,18 +110,21 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
 
           {imageSrc ? (
             <View style={{ width: '100%', height: '100%' }}>
-              <LottieView
-                source={LOTTIE_PLACEHOLDER}
-                autoPlay
-                loop
-                style={{ width: '100%', height: '100%', position: 'absolute' }}
-              />
+              {!isImageLoaded && (
+                <LottieView
+                  source={LOTTIE_PLACEHOLDER}
+                  autoPlay
+                  loop
+                  style={{ width: '100%', height: '100%', position: 'absolute' }}
+                />
+              )}
               <Image
                 source={{ uri: imageSrc }}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="cover"
                 transition={200}
                 cachePolicy="memory-disk"
+                onLoad={() => setIsImageLoaded(true)}
               />
             </View>
           ) : (

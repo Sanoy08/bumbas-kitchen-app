@@ -48,6 +48,29 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const LOTTIE_PLACEHOLDER = require('@/assets/animations/Image-Loading.json');
 const DESC_LIMIT = 350; // ওয়েবের সাথে মেলানো
 
+const ImageWithLottie = ({ uri, style, contentFit = 'cover', transition = 150, opacity = 1 }: any) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  return (
+    <View style={[{ width: '100%', height: '100%' }, style]}>
+      {!isLoaded && (
+        <LottieView
+          source={LOTTIE_PLACEHOLDER}
+          autoPlay
+          loop
+          style={{ width: '100%', height: '100%', position: 'absolute' }}
+        />
+      )}
+      <Image
+        source={{ uri }}
+        style={{ width: '100%', height: '100%', opacity }}
+        contentFit={contentFit}
+        transition={transition}
+        onLoad={() => setIsLoaded(true)}
+      />
+    </View>
+  );
+};
+
 const ProductSkeleton = () => {
   const opacity = useSharedValue(0.4);
   
@@ -586,39 +609,18 @@ export function ProductDetailsScreen() {
               return (
                 <View style={{ width: screenWidth, height: screenWidth, overflow: 'hidden' }}>
                   {item.isPlaceholder ? (
-                    <LottieView
-                      source={LOTTIE_PLACEHOLDER}
-                      autoPlay
-                      loop
-                      style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
-                    />
-                  ) : (
-                    <View style={{ width: '100%', height: '100%' }}>
                       <LottieView
                         source={LOTTIE_PLACEHOLDER}
                         autoPlay
                         loop
-                        style={{ width: '100%', height: '100%', position: 'absolute' }}
+                        style={{ width: '100%', height: '100%' }}
                       />
-                      <Image
-                        source={{ uri: optimizeImageUrl(item.url) }}
-                        style={{ width: '100%', height: '100%', opacity: isOutOfStock ? 0.6 : 1 }}
-                        contentFit="cover"
-                        transition={150}
-                      />
-                    </View>
-                  )}
-                  {isOutOfStock && (
-                    <View className="absolute inset-0 flex items-center justify-center bg-black/10 z-10">
-                      <View
-                        className="bg-red-600 px-6 py-2 rounded-lg shadow-lg"
-                        style={{ transform: [{ rotate: '-10deg' }] }}
-                      >
-                        <Text className="text-white font-black text-xl font-sans tracking-widest uppercase">
-                          Sold Out
-                        </Text>
-                      </View>
-                    </View>
+                  ) : (
+                    <ImageWithLottie
+                      uri={optimizeImageUrl(item.url)}
+                      opacity={1}
+                      transition={150}
+                    />
                   )}
                 </View>
               );
@@ -676,19 +678,11 @@ export function ProductDetailsScreen() {
                       style={{ width: '100%', height: '100%' }}
                     />
                   ) : (
-                    <View style={{ width: '100%', height: '100%' }}>
-                      <LottieView
-                        source={LOTTIE_PLACEHOLDER}
-                        autoPlay
-                        loop
-                        style={{ width: '100%', height: '100%', position: 'absolute' }}
-                      />
-                      <Image
-                        source={{ uri: optimizeImageUrl(img.url) }}
-                        style={{ width: '100%', height: '100%' }}
-                        contentFit="cover"
-                      />
-                    </View>
+                    <ImageWithLottie
+                      uri={optimizeImageUrl(img.url)}
+                      contentFit="cover"
+                      transition={150}
+                    />
                   )}
               </TouchableOpacity>
               );

@@ -56,7 +56,8 @@ export function FavoritesScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const FavoriteItem = React.memo(({ item, removeFavorite }: { item: any, removeFavorite: (id: string, name: string) => void }) => {
+    const [isImageLoaded, setIsImageLoaded] = useState(false);
     return (
       <TouchableOpacity
         activeOpacity={0.7}
@@ -73,18 +74,21 @@ export function FavoritesScreen() {
             />
           ) : (
             <View style={{ width: '100%', height: '100%' }}>
-              <LottieView
-                source={LOTTIE_PLACEHOLDER}
-                autoPlay
-                loop
-                style={{ width: '100%', height: '100%', position: 'absolute' }}
-              />
+              {!isImageLoaded && (
+                <LottieView
+                  source={LOTTIE_PLACEHOLDER}
+                  autoPlay
+                  loop
+                  style={{ width: '100%', height: '100%', position: 'absolute' }}
+                />
+              )}
               <Image
                 source={{ uri: optimizeImageUrl(item.image, 200, 200) }}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="cover"
                 transition={200}
                 cachePolicy="memory-disk"
+                onLoad={() => setIsImageLoaded(true)}
               />
             </View>
           )}
@@ -107,7 +111,11 @@ export function FavoritesScreen() {
         </TouchableOpacity>
       </TouchableOpacity>
     );
-  };
+  });
+
+  const renderItem = ({ item }: { item: any }) => (
+    <FavoriteItem item={item} removeFavorite={removeFavorite} />
+  );
 
   return (
     <View className="flex-1 bg-[#f9fafb]">
