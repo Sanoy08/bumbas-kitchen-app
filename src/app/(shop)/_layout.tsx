@@ -4,6 +4,7 @@ import { Tabs, usePathname } from 'expo-router';
 import { Home, ShoppingCart, User } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import LottieView from 'lottie-react-native';
 
 import { useCartStore } from '@/shared/store/cartStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
@@ -13,6 +14,7 @@ export default function ShopLayout() {
   
   const items = useCartStore((state) => state.items);
   const itemCount = items.length; 
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const [displayItemCount, setDisplayItemCount] = useState(itemCount);
   const isCartNotEmpty = displayItemCount > 0;
 
@@ -20,8 +22,9 @@ export default function ShopLayout() {
   const setTabBarVisible = useTabBarStore((state) => state.setVisibility);
   const translateY = useRef(new Animated.Value(0)).current;
 
-  const prevItemCount = useRef(itemCount);
-  const cartScale = useRef(new Animated.Value(1)).current;
+  const prevQuantity = useRef(totalQuantity);
+  const [animationKey, setAnimationKey] = useState(0);
+  const cartLottieRef = useRef<LottieView>(null);
 
   const shouldHideTabBar = 
     pathname.includes('/checkout') || 
@@ -39,23 +42,18 @@ export default function ShopLayout() {
   }, [shouldHideTabBar, isTabBarVisible]);
 
   useEffect(() => {
-    if (itemCount > prevItemCount.current) {
+    if (totalQuantity > prevQuantity.current) {
       setTabBarVisible(true);
-
-      Animated.sequence([
-        Animated.delay(350),
-        Animated.timing(cartScale, { toValue: 1.25, duration: 150, useNativeDriver: true }),
-        Animated.spring(cartScale, { toValue: 1, friction: 4, tension: 50, useNativeDriver: true })
-      ]).start();
-
-      setTimeout(() => {
-        setDisplayItemCount(itemCount);
-      }, 500); // 350ms delay + 150ms pop duration
+      
+      // Force remount of Lottie view to play animation reliably
+      setAnimationKey(prev => prev + 1);
+      
+      setDisplayItemCount(itemCount);
     } else {
       setDisplayItemCount(itemCount);
     }
-    prevItemCount.current = itemCount;
-  }, [itemCount]);
+    prevQuantity.current = totalQuantity;
+  }, [totalQuantity, itemCount]);
 
   return (
     <Tabs
@@ -98,10 +96,20 @@ export default function ShopLayout() {
                 onPress={props.onPress}
                 activeOpacity={0.8}
               >
-                <Animated.View style={[styles.floatingButton, { transform: [{ scale: cartScale }] }]}>
-                  <ShoppingCart color="#fff" size={22} strokeWidth={2.5} style={{ marginTop: 10 }} />
+                <Animated.View style={[styles.floatingButton]}>
+                  <LottieView
+                    ref={cartLottieRef}
+                    key={`cart-anim-${animationKey}`}
+                    source={require('../../../assets/animations/cart.json')}
+                    loop={false}
+                    autoPlay={animationKey > 0}
+                    onAnimationFinish={() => {
+                      cartLottieRef.current?.reset();
+                    }}
+                    style={{ width: 55, height: 55, position: 'absolute' }}
+                  />
                   {displayItemCount > 0 && (
-                    <View style={styles.badgeContainer}>
+                    <View style={[styles.badgeContainer, { zIndex: 20, elevation: 10, top: -8 }]}>
                       <Text style={styles.badgeText}>
                         {displayItemCount > 9 ? '9+' : displayItemCount}
                       </Text>
@@ -167,13 +175,13 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50, 
     borderRadius: 25,
-    backgroundColor: '#e11d48',
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    shadowColor: '#e11d48',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     borderWidth: 3,
     borderColor: '#fff',
