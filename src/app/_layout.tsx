@@ -54,6 +54,7 @@ export default function RootLayout() {
 
   const [isFirstRun, setIsFirstRun] = useState<boolean | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const [isHomeLoaded, setIsHomeLoaded] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // ★ App load howar sathe sathe auto-sync chalu korar jonno
@@ -102,16 +103,31 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError, isFirstRun]);
 
   useEffect(() => {
-    if (!isFirstRun && isInitialized && fontsLoaded) {
+    let timeoutId: NodeJS.Timeout;
+    const listener = DeviceEventEmitter.addListener('home_data_loaded', () => {
+      setIsHomeLoaded(true);
+      clearTimeout(timeoutId);
+    });
+    // Fallback: if home doesn't load in 3 seconds, dismiss splash anyway
+    timeoutId = setTimeout(() => setIsHomeLoaded(true), 3000);
+
+    return () => {
+      listener.remove();
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFirstRun && isInitialized && fontsLoaded && isHomeLoaded) {
       setTimeout(() => {
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 400,
           useNativeDriver: true,
         }).start(() => setShowSplash(false));
-      }, 1500); 
+      }, 300); 
     }
-  }, [isFirstRun, isInitialized, fontsLoaded]);
+  }, [isFirstRun, isInitialized, fontsLoaded, isHomeLoaded]);
 
   const finishOnboarding = async () => {
     await AsyncStorage.setItem('isFirstRun', 'false');

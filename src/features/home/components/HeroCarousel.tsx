@@ -10,6 +10,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
+import LottieView from 'lottie-react-native';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -40,11 +41,55 @@ const AnimatedDot = ({ index, progressValue, count }: { index: number; progressV
   );
 };
 
+const HeroSlideItem = ({ item }: { item: any }) => {
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+  return (
+    <View style={{ width: windowWidth, height: windowWidth, backgroundColor: '#f9fafb' }}>
+      <Link href={item.clickUrl || '/menus'} asChild>
+        <TouchableOpacity activeOpacity={0.85} style={{ width: windowWidth, height: windowWidth, overflow: 'hidden' }}>
+          {!isImageLoaded && (
+            <LottieView
+              source={require('../../../../assets/animations/Image-Loading.json')}
+              autoPlay
+              loop
+              style={{ width: windowWidth, height: windowWidth, position: 'absolute' }}
+              resizeMode="contain"
+            />
+          )}
+          <Image
+            source={{ uri: optimizeImageUrl(item.imageUrl) }}
+            style={{ width: windowWidth, height: windowWidth }}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+            onLoad={() => setIsImageLoaded(true)}
+          />
+        </TouchableOpacity>
+      </Link>
+    </View>
+  );
+};
+
 export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
   const progressValue = useSharedValue<number>(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  if (slides.length === 0) return null;
+  if (slides.length === 0) {
+    return (
+      <View className="bg-white pb-2 relative">
+        <View style={{ width: windowWidth, height: windowWidth, backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' }}>
+          <LottieView
+            source={require('../../../../assets/animations/Image-Loading.json')}
+            autoPlay
+            loop
+            style={{ width: windowWidth, height: windowWidth, position: 'absolute' }}
+            resizeMode="contain"
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View className="bg-white pb-2 relative">
@@ -93,20 +138,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
             opacity,
           };
         }}
-        renderItem={({ item }) => (
-          <View style={{ width: windowWidth, height: windowWidth, backgroundColor: '#f9fafb' }}>
-            <Link href={item.clickUrl || '/menus'} asChild>
-              <TouchableOpacity activeOpacity={0.85} style={{ width: windowWidth, height: windowWidth, overflow: 'hidden' }}>
-                <Image
-                  source={{ uri: optimizeImageUrl(item.imageUrl) }}
-                  style={{ width: windowWidth, height: windowWidth }}
-                  contentFit="cover"
-                  transition={200}
-                />
-              </TouchableOpacity>
-            </Link>
-          </View>
-        )}
+        renderItem={({ item }) => <HeroSlideItem item={item} />}
       />
       
       {slides.length > 1 && (

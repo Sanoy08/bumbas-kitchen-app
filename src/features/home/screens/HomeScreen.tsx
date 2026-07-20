@@ -259,6 +259,8 @@ export function HomeScreen() {
       }
     } catch (e) {
       console.log('❌ [Refresh] Home sync failed:', e);
+    } finally {
+      DeviceEventEmitter.emit('home_data_loaded');
     }
   }, []);
 
@@ -439,7 +441,7 @@ export function HomeScreen() {
       // Always fully solid — no transparency
       return { backgroundColor: 'rgba(255, 255, 255, 1)', borderBottomWidth: 0 };
     }
-    const bgOpacity = interpolate(scrollY.value, [0, 80], [0, 1], Extrapolation.CLAMP);
+    const bgOpacity = interpolate(scrollY.value, [0, 40], [0, 1], Extrapolation.CLAMP);
     return { backgroundColor: `rgba(255, 255, 255, ${bgOpacity})`, borderBottomWidth: 0 };
   });
 
@@ -469,8 +471,8 @@ export function HomeScreen() {
         transform: [{ translateY: 0 }],
       };
     }
-    // Removed the negative buffer so it perfectly overlaps the original bar when sticking
-    const triggerY = categoryY.value - collapsedHeaderHeight + 2;
+    // Remove arbitrary offset so it triggers exactly when they meet
+    const triggerY = categoryY.value - collapsedHeaderHeight;
     const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
     return {
       opacity: isSticking ? 1 : 0,
