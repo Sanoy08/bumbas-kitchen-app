@@ -7,6 +7,8 @@ interface BestsellerSectionProps {
   bestsellers: any[];
 }
 
+import { ArrowRight } from 'lucide-react-native';
+
 export const BestsellerSection = memo(({ bestsellers }: BestsellerSectionProps) => {
   if (!bestsellers || bestsellers.length === 0) return null;
 
@@ -16,7 +18,15 @@ export const BestsellerSection = memo(({ bestsellers }: BestsellerSectionProps) 
 
   return (
     <View className="px-4 py-8">
-      <SectionHeading title="Our Bestsellers" />
+      <SectionHeading 
+        title="Our Bestsellers" 
+        rightElement={
+          <View className="flex-row items-center bg-gray-100 px-2.5 py-1 rounded-full">
+            <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mr-1 font-sans">Swipe</Text>
+            <ArrowRight size={12} color="#6b7280" />
+          </View>
+        }
+      />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View>
           <View style={{ flexDirection: 'row', marginBottom: 16 }}>

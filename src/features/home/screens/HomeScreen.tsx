@@ -30,6 +30,7 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
+import { useNotificationStore } from '@/shared/store/notificationStore';
 
 import {
   BestsellerSection,
@@ -273,9 +274,24 @@ export function HomeScreen() {
     }
   }, []);
 
+  const fetchUnreadNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(`${API_URL}/notifications/history`);
+      const data = await res.json();
+      if (data.success && data.notifications) {
+        const hasAnyUnread = data.notifications.some((n: any) => !n.isRead);
+        useNotificationStore.getState().setHasUnread(hasAnyUnread);
+      }
+    } catch (e) {
+      // silently fail
+    }
+  }, [user]);
+
   // --- Lifecycle ---
   useEffect(() => {
     fetchHomeData();
+    fetchUnreadNotifications();
 
     // Listen for network restoration to fetch data if the user opened the app offline
     const networkSubscription = DeviceEventEmitter.addListener('network_restored', () => {
@@ -310,7 +326,7 @@ export function HomeScreen() {
     // Clear home data cache
     AsyncStorage.removeItem('bumbas_home_data').catch(console.error);
 
-    const promises: Promise<any>[] = [fetchHomeData(true)];
+    const promises: Promise<any>[] = [fetchHomeData(true), fetchUnreadNotifications()];
 
     if (user) {
       console.log(`👤 User Logged In: ${user.name || user.phone}`);
