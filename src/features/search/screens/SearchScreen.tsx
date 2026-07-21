@@ -149,37 +149,41 @@ export function SearchScreen() {
 
   // ২. লাইভ সার্চ ফিল্টারিং (Fuzzy Search)
   useEffect(() => {
-    if (searchQuery.trim().length > 0) {
-      setIsSearching(true);
-      const query = searchQuery.trim().toLowerCase();
+    const handler = setTimeout(() => {
+      if (searchQuery.trim().length > 0) {
+        setIsSearching(true);
+        const query = searchQuery.trim().toLowerCase();
 
-      const scoredResults = allProducts.map(product => {
-        const name = (product.name || '').toLowerCase();
-        const catName = (product.category?.name || '').toLowerCase();
+        const scoredResults = allProducts.map(product => {
+          const name = (product.name || '').toLowerCase();
+          const catName = (product.category?.name || '').toLowerCase();
 
-        let score = 0;
+          let score = 0;
 
-        // Exact matches
-        if (name === query) score = 100;
-        else if (name.startsWith(query)) score = 80;
-        else if (name.includes(query)) score = 50;
-        else if (catName === query) score = 40;
-        else if (catName.includes(query)) score = 30;
-        // Fuzzy matches
-        else if (fuzzyMatch(query, name)) score = 20;
-        else if (fuzzyMatch(query, catName)) score = 10;
+          // Exact matches
+          if (name === query) score = 100;
+          else if (name.startsWith(query)) score = 80;
+          else if (name.includes(query)) score = 50;
+          else if (catName === query) score = 40;
+          else if (catName.includes(query)) score = 30;
+          // Fuzzy matches
+          else if (fuzzyMatch(query, name)) score = 20;
+          else if (fuzzyMatch(query, catName)) score = 10;
 
-        return { product, score };
-      }).filter(item => item.score > 0);
+          return { product, score };
+        }).filter(item => item.score > 0);
 
-      // Sort by score descending
-      scoredResults.sort((a, b) => b.score - a.score);
+        // Sort by score descending
+        scoredResults.sort((a, b) => b.score - a.score);
 
-      setSearchResults(scoredResults.map(item => item.product));
-    } else {
-      setSearchResults([]);
-      setIsSearching(false);
-    }
+        setSearchResults(scoredResults.map(item => item.product));
+      } else {
+        setSearchResults([]);
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
   }, [searchQuery, allProducts]);
 
   // ৩. সার্চ সাবমিট এবং হিস্ট্রি সেভ

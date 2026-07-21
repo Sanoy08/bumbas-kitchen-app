@@ -1,6 +1,7 @@
 // src/features/home/components/DailySpecialSection.tsx
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
+import { memo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import { formatPrice } from '@/shared/utils/utils';
@@ -11,7 +12,7 @@ interface DailySpecialSectionProps {
   product: any;
 }
 
-export const DailySpecialSection = ({ product }: DailySpecialSectionProps) => {
+export const DailySpecialSection = memo(({ product }: DailySpecialSectionProps) => {
   if (!product) return null;
 
   return (
@@ -27,6 +28,8 @@ export const DailySpecialSection = ({ product }: DailySpecialSectionProps) => {
               source={{ uri: optimizeImageUrl(product.images[0].url, 200, 200) }}
               className="w-full h-full"
               contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
             />
           ) : (
             <SpecialDishCard
@@ -46,4 +49,4 @@ export const DailySpecialSection = ({ product }: DailySpecialSectionProps) => {
       </View>
     </View>
   );
-};
+});

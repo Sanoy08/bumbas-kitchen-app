@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, ScrollView, Text, UIManager, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -16,6 +16,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
+
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -115,17 +117,13 @@ export function HomeScreen() {
   const [hasSkippedSession, setHasSkippedSession] = useState(false);
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
-  const [productDisplayCount, setProductDisplayCount] = useState(PRODUCTS_PER_PAGE);
   const [refreshing, setRefreshing] = useState(false);
   const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
-  const [isAtTop, setIsAtTop] = useState(true);
 
   // --- Scroll/Animation Refs & Values ---
-  const scrollViewRef = useRef<Animated.ScrollView>(null);
+  const scrollViewRef = useRef<any>(null); // AnimatedFlashList uses any ref
   const categoryYRef = useRef(0);
   const exploreGridYRef = useRef(0);
-  const isLoadingMore = useRef(false);
-  const lastLoadTime = useRef(0);
 
   // Header collapse threshold (scrollY must reach this for header to be fully solid)
   const CATEGORY_LOCK_Y = Math.max(insets.top + 60, 90);
@@ -376,10 +374,6 @@ export function HomeScreen() {
     }
   }, [user, hasSkippedSession]);
 
-  useEffect(() => {
-    isLoadingMore.current = false;
-  }, [productDisplayCount]);
-
   // =========================================================================
   // Category Change → Reset & Scroll
   // When non-All: header is already solid, sticky category already visible.
@@ -389,10 +383,9 @@ export function HomeScreen() {
   // Category Change → Reset & Scroll
   // =========================================================================
   useEffect(() => {
-    setProductDisplayCount(PRODUCTS_PER_PAGE);
     // Instant snap to top — NO animation, NO spacer.
     // This entirely prevents the ability to scroll up into blank space.
-    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [activeCategory]);
 
   // =========================================================================
@@ -402,14 +395,6 @@ export function HomeScreen() {
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
       const currentY = event.contentOffset.y;
-
-      if (currentY <= 0 && !isAtTopShared.value) {
-        isAtTopShared.value = true;
-        runOnJS(setIsAtTop)(true);
-      } else if (currentY > 0 && isAtTopShared.value) {
-        isAtTopShared.value = false;
-        runOnJS(setIsAtTop)(false);
-      }
 
       // If we are in a specific category, ALWAYS keep the tab bar hidden
       if (isCategoryActive.value) {
@@ -437,24 +422,12 @@ export function HomeScreen() {
     },
   });
 
-  const handleLoadMoreIfNeeded = (nativeEvent: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 250) {
-      const now = Date.now();
-      if (!isLoadingMore.current && now - lastLoadTime.current > 300 && hasMore) {
-        isLoadingMore.current = true;
-        lastLoadTime.current = now;
-        loadMoreProducts();
-      }
-    }
-  };
-
   const handleScrollEndDrag = (event: any) => {
     // No-op
   };
 
   const handleMomentumScrollEnd = (event: any) => {
-    handleLoadMoreIfNeeded(event.nativeEvent);
+    // No-op
   };
 
   // =========================================================================
@@ -563,13 +536,8 @@ export function HomeScreen() {
     }
     return result;
   }, [categoryFiltered, activeFilter, homeData.bestsellers]);
-  const displayedProducts = filteredProducts.slice(0, productDisplayCount);
-  const hasMore = productDisplayCount < filteredProducts.length;
-  const dailySpecial = homeData.allProducts?.find((p: any) => p.isDailySpecial);
-
-  const loadMoreProducts = useCallback(() => {
-    setProductDisplayCount((prev) => Math.min(prev + PRODUCTS_PER_PAGE, filteredProducts.length));
-  }, [filteredProducts.length]);
+  
+  const dailySpecial = useMemo(() => homeData.allProducts?.find((p: any) => p.isDailySpecial), [homeData.allProducts]);
 
   // =========================================================================
   // Date Popup Handlers
@@ -632,30 +600,96 @@ export function HomeScreen() {
   const isDobMissing = !user?.dob || user?.dob === '';
   const isAnnivMissing = !user?.anniversary || user?.anniversary === '';
 
+  // --- Callbacks for FlashList ---
+  const renderProductItem = useCallback(({ item }: { item: any }) => {
+    if (typeof item === 'number') {
+      return (
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+            <View className="flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col">
+              <View className="aspect-square w-full bg-gray-200 opacity-50" />
+              <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
+                <View>
+                  <View className="h-4 w-3/4 bg-gray-200 rounded mb-1.5 opacity-60" />
+                  <View className="h-4 w-1/2 bg-gray-200 rounded opacity-60" />
+                </View>
+                <View className="flex-row items-center justify-between mt-2">
+                  <View className="h-5 w-1/3 bg-gray-200 rounded opacity-60" />
+                  <View className="h-8 w-16 bg-gray-200 rounded-full opacity-60" />
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    }
+    return (
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+          <ProductCard product={item} />
+        </View>
+      </View>
+    );
+  }, [CARD_WIDTH, CARD_MARGIN]);
+
+  const keyExtractorProduct = useCallback((item: any, index: number) => {
+    return typeof item === 'number' ? `skeleton-${item}` : item.id;
+  }, []);
+
+  const renderListHeader = useCallback(() => (
+    <View className="bg-white">
+      {!isGridViewMode && <HeroCarousel slides={homeData.heroSlides} />}
+      {!isGridViewMode && (
+        <View
+          className="pt-2 pb-0"
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            categoryYRef.current = y;
+            if (y > 0) categoryY.value = y;
+          }}
+        >
+          <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
+        </View>
+      )}
+      {!isGridViewMode && (
+        <>
+          <BestsellerSection bestsellers={homeData.bestsellers} />
+          <OffersSection offers={homeData.offers} />
+          <FeaturesSection />
+          <MiddleSlider slides={homeData.sliderImages} />
+          <DailySpecialSection product={dailySpecial} />
+        </>
+      )}
+      <View
+        className="pt-8 pb-4"
+        onLayout={(e) => { exploreGridYRef.current = e.nativeEvent.layout.y; }}
+      >
+        <View className="px-4">
+          <SectionHeading title={isGridViewMode ? (activeCategory !== 'All' ? `Fresh from ${activeCategory}` : 'Filtered Items') : 'Explore More'} />
+        </View>
+      </View>
+    </View>
+  ), [isGridViewMode, homeData, visualCategory, activeCategory, dailySpecial, handleCategorySelect]);
+
+  const renderListEmpty = useCallback(() => {
+    if (isSwitchingCategory) return null;
+    return (
+      <View className="py-12 items-center w-full bg-white">
+        <Text className="text-gray-500 font-sans">No items available</Text>
+      </View>
+    );
+  }, [isSwitchingCategory]);
+
+  const listData = useMemo(() => {
+    if (isSwitchingCategory) return [1, 2, 3, 4, 5, 6];
+    return filteredProducts;
+  }, [isSwitchingCategory, filteredProducts]);
+
   // =========================================================================
   // Render
   // =========================================================================
   return (
-    <ScrollView 
-      contentContainerStyle={{ flex: 1 }}
-      bounces={false}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          enabled={isAtTop && !isGridViewMode}
-          tintColor="#e11d48"
-          colors={['#e11d48']}
-          progressBackgroundColor="#ffffff"
-          progressViewOffset={20}
-          style={{ zIndex: 999, elevation: 999 }}
-        />
-      }
-      className="flex-1 bg-white"
-    >
-      <View className="flex-1 bg-transparent">
-
+    <View className="flex-1 bg-white">
       {/* ── Floating Header ── */}
       <HomeHeader
         headerAnimatedStyle={headerAnimatedStyle}
@@ -675,111 +709,42 @@ export function HomeScreen() {
         <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
       </Animated.View>
 
-      {/* ── Main Scrollable Content ── */}
-      <Animated.ScrollView
+      {/* ── Main Scrollable Content via FlashList ── */}
+      <AnimatedFlashList
         ref={scrollViewRef}
+        style={{ flex: 1 }}
+        data={listData}
+        renderItem={renderProductItem}
+        keyExtractor={keyExtractorProduct}
+        numColumns={2}
+        estimatedItemSize={250}
+        ListHeaderComponent={renderListHeader}
+        ListEmptyComponent={renderListEmpty}
         onScroll={scrollHandler}
-        scrollEventThrottle={16}
+        scrollEventThrottle={1}
         showsVerticalScrollIndicator={false}
-        className="flex-1"
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
-        // In compact mode: push products below the fixed header + sticky category overlay.
-        // collapsedHeader = insets.top+60, categoryBar ≈ 100px -> total 160px
         contentContainerStyle={{
           paddingBottom: 56,
           paddingTop: isGridViewMode ? insets.top + 130 : 0,
+          backgroundColor: '#fff'
         }}
         bounces={!isGridViewMode}
         overScrollMode={!isGridViewMode ? 'auto' : 'never'}
-      >
-        {/* All mode: Hero carousel. Non-All: absolutely nothing. 
-            No spacer means y=0 is the absolute top, user CANNOT scroll up. */}
-        {!isGridViewMode && <HeroCarousel slides={homeData.heroSlides} />}
-
-        {!isGridViewMode && (
-          <View
-            className="bg-white pt-2 pb-0"
-            onLayout={(e) => {
-              const y = e.nativeEvent.layout.y;
-              categoryYRef.current = y;
-              if (y > 0) categoryY.value = y;
-            }}
-          >
-            <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
-          </View>
-        )}
-
-        {/* All-only sections */}
-        {!isGridViewMode && (
-          <>
-            <BestsellerSection bestsellers={homeData.bestsellers} />
-            <OffersSection offers={homeData.offers} />
-            <FeaturesSection />
-            <MiddleSlider slides={homeData.sliderImages} />
-            <DailySpecialSection product={dailySpecial} />
-          </>
-        )}
-
-        {/* Products Grid */}
-        <View
-          className="bg-white py-8"
-          onLayout={(e) => { exploreGridYRef.current = e.nativeEvent.layout.y; }}
-        >
-          <View className="px-4">
-            <SectionHeading title={isGridViewMode ? (activeCategory !== 'All' ? `Fresh from ${activeCategory}` : 'Filtered Items') : 'Explore More'} />
-          </View>
-
-          <View style={{ width: GRID_WIDTH, alignSelf: 'center' }}>
-            {isSwitchingCategory ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <View key={i} style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
-                    <View className="flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col">
-                      <View className="aspect-square w-full bg-gray-200 opacity-50" />
-                      <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
-                        <View>
-                          <View className="h-4 w-3/4 bg-gray-200 rounded mb-1.5 opacity-60" />
-                          <View className="h-4 w-1/2 bg-gray-200 rounded opacity-60" />
-                        </View>
-                        <View className="flex-row items-center justify-between mt-2">
-                          <View className="h-5 w-1/3 bg-gray-200 rounded opacity-60" />
-                          <View className="h-8 w-16 bg-gray-200 rounded-full opacity-60" />
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : filteredProducts.length === 0 ? (
-              <View className="py-12 items-center">
-                <Text className="text-gray-500 font-sans">No items available</Text>
-              </View>
-            ) : (
-              <FlashList
-                data={displayedProducts}
-                renderItem={({ item }) => (
-                  <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
-                    <ProductCard product={item} />
-                  </View>
-                )}
-                keyExtractor={(item) => item.id}
-                numColumns={2}
-                estimatedItemSize={258}
-                scrollEnabled={false}
-                ListFooterComponent={
-                  hasMore ? (
-                    <View className="py-6 items-center justify-center mt-2">
-                      <ActivityIndicator size="small" color="#e11d48" />
-                      <Text className="text-xs text-gray-400 mt-1 font-sans">Loading more items...</Text>
-                    </View>
-                  ) : null
-                }
-              />
-            )}
-          </View>
-        </View>
-      </Animated.ScrollView>
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            enabled={!isGridViewMode}
+            tintColor="#e11d48"
+            colors={['#e11d48']}
+            progressBackgroundColor="#ffffff"
+            progressViewOffset={20}
+            style={{ zIndex: 999, elevation: 999 }}
+          />
+        }
+      />
 
       <FilterModal
         visible={isFilterModalVisible}
@@ -787,7 +752,6 @@ export function HomeScreen() {
         activeFilter={activeFilter}
         onApplyFilter={(filter) => {
           if (filter === activeFilter) return;
-          setProductDisplayCount(PRODUCTS_PER_PAGE);
           handleModeSwitch(activeCategory, filter);
         }}
       />
@@ -819,7 +783,6 @@ export function HomeScreen() {
           router.push({ pathname: '/(shop)/search', params: { voiceQuery: transcript } });
         }}
       />
-      </View>
-    </ScrollView>
+    </View>
   );
 }

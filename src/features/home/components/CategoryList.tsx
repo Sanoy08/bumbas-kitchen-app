@@ -1,6 +1,6 @@
 // src/features/home/components/CategoryList.tsx
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { InteractionManager, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const CATEGORIES = [
@@ -21,7 +21,7 @@ interface CategoryListProps {
   setActiveCategory: (name: string) => void;
 }
 
-export const CategoryList = ({ activeCategory, setActiveCategory }: CategoryListProps) => {
+export const CategoryList = memo(({ activeCategory, setActiveCategory }: CategoryListProps) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [scrollViewWidth, setScrollViewWidth] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
@@ -88,4 +88,4 @@ export const CategoryList = ({ activeCategory, setActiveCategory }: CategoryList
       })}
     </ScrollView>
   );
-};
+});

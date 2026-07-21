@@ -1,6 +1,8 @@
 // src/features/home/components/OffersSection.tsx
-import { useEffect, useState, useRef } from 'react';
-import { Image, ScrollView, View, TouchableOpacity, Text, Dimensions, Modal, Animated, StyleSheet, Pressable, PanResponder, Easing } from 'react-native';
+import { useEffect, useState, useRef, memo } from 'react';
+import { Image as RNImage, ScrollView, View, TouchableOpacity, Text, Dimensions, Modal, Animated, StyleSheet, Pressable, PanResponder, Easing } from 'react-native';
+import { Image } from 'expo-image';
+import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import { X, ShoppingCart, Clock } from 'lucide-react-native';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
@@ -24,34 +26,30 @@ interface Offer {
   mealType?: string;
 }
 
-const OfferImage = ({ uri, width }: { uri: string; width: number }) => {
+const OfferImage = memo(({ uri, width }: { uri: string; width: number }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
-
-  useEffect(() => {
-    if (uri) {
-      Image.getSize(
-        uri,
-        (w, h) => {
-          if (w && h) setAspectRatio(w / h);
-        },
-        () => {} // Handle failure silently
-      );
-    }
-  }, [uri]);
 
   return (
     <Image 
-      source={{ uri }} 
-      style={{ width, aspectRatio, resizeMode: 'cover' }}
+      source={{ uri: optimizeImageUrl(uri) }} 
+      style={{ width, aspectRatio }}
+      contentFit="cover"
+      transition={200}
+      cachePolicy="memory-disk"
+      onLoad={(e) => {
+        if (e.source.width && e.source.height) {
+          setAspectRatio(e.source.width / e.source.height);
+        }
+      }}
     />
   );
-};
+});
 
 interface OffersSectionProps {
   offers: Offer[];
 }
 
-export const OffersSection = ({ offers }: OffersSectionProps) => {
+export const OffersSection = memo(({ offers }: OffersSectionProps) => {
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const slideAnim = useRef(new Animated.Value(height)).current;
   const addItem = useCartStore((state) => state.addItem);
@@ -265,4 +263,4 @@ export const OffersSection = ({ offers }: OffersSectionProps) => {
       </Modal>
     </View>
   );
-};
+});

@@ -1,6 +1,7 @@
 // src/features/home/components/MiddleSlider.tsx
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
+import { memo } from 'react';
 import { Dimensions, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -38,7 +39,7 @@ const AnimatedDot = ({ index, progressValue, count }: { index: number; progressV
   );
 };
 
-export const MiddleSlider = ({ slides }: MiddleSliderProps) => {
+export const MiddleSlider = memo(({ slides }: MiddleSliderProps) => {
   const progressValue = useSharedValue<number>(0);
 
   if (!slides || slides.length === 0) return null;
@@ -71,6 +72,7 @@ export const MiddleSlider = ({ slides }: MiddleSliderProps) => {
                     style={{ width: '100%', height: '100%' }}
                     contentFit="cover"
                     transition={300}
+                    cachePolicy="memory-disk"
                   />
                 </TouchableOpacity>
               </Link>
@@ -88,4 +90,4 @@ export const MiddleSlider = ({ slides }: MiddleSliderProps) => {
       )}
     </View>
   );
-};
+});

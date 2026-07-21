@@ -1,7 +1,7 @@
 // src/features/home/components/HeroCarousel.tsx
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Dimensions, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -71,7 +71,7 @@ const HeroSlideItem = ({ item }: { item: any }) => {
   );
 };
 
-export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
+export const HeroCarousel = memo(({ slides }: HeroCarouselProps) => {
   const progressValue = useSharedValue<number>(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -150,4 +150,4 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
       )}
     </View>
   );
-};
+});

@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'rea
 import { Image } from 'expo-image';
 import { RefreshCw } from 'lucide-react-native';
 import { useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface NoInternetScreenProps {
@@ -22,12 +23,19 @@ export const NoInternetScreen = ({ onRetry }: NoInternetScreenProps) => {
   };
 
   return (
-    <View className="flex-1 bg-black">
-      <Image 
-        source={require('../../../../assets/images/offline_fullscreen.png')}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-      />
+    <View className="flex-1 bg-rose-50">
+      <View style={{ width: '100%', aspectRatio: 3/6 }}>
+        <Image 
+          source={require('../../../../assets/images/offline.avif')}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(255, 241, 242, 0.8)', '#fff1f2']}
+          locations={[0, 0.6, 1]}
+          style={{ position: 'absolute', bottom: -1, left: 0, right: 0, height: 180 }}
+        />
+      </View>
 
       <View style={{ position: 'absolute', bottom: Math.max(insets.bottom + 40, 40), left: 0, right: 0, alignItems: 'center' }}>
         <TouchableOpacity 

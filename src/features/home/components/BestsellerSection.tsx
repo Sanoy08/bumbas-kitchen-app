@@ -1,5 +1,5 @@
-// src/features/home/components/BestsellerSection.tsx
 import { ScrollView, Text, View } from 'react-native';
+import { memo } from 'react';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
 import { SectionHeading } from './SectionHeading';
 
@@ -7,7 +7,7 @@ interface BestsellerSectionProps {
   bestsellers: any[];
 }
 
-export const BestsellerSection = ({ bestsellers }: BestsellerSectionProps) => {
+export const BestsellerSection = memo(({ bestsellers }: BestsellerSectionProps) => {
   if (!bestsellers || bestsellers.length === 0) return null;
 
   const half = Math.ceil(bestsellers.length / 2);
@@ -37,4 +37,4 @@ export const BestsellerSection = ({ bestsellers }: BestsellerSectionProps) => {
       </ScrollView>
     </View>
   );
-};
+});
