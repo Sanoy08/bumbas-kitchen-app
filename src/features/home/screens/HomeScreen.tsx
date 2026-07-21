@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, Text, UIManager, View } from 'react-native';
+import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, ScrollView, Text, UIManager, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -118,6 +118,7 @@ export function HomeScreen() {
   const [productDisplayCount, setProductDisplayCount] = useState(PRODUCTS_PER_PAGE);
   const [refreshing, setRefreshing] = useState(false);
   const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
+  const [isAtTop, setIsAtTop] = useState(true);
 
   // --- Scroll/Animation Refs & Values ---
   const scrollViewRef = useRef<Animated.ScrollView>(null);
@@ -147,6 +148,8 @@ export function HomeScreen() {
   // Mirrors activeCategory !== 'All' on the UI thread
   // Used inside useAnimatedStyle to switch between hero-mode and compact-mode
   const isCategoryActive = useSharedValue(false);
+  
+  const isAtTopShared = useSharedValue(true);
 
   // =========================================================================
   // Effects
@@ -167,9 +170,17 @@ export function HomeScreen() {
     isCategoryActive.value = isGridViewMode;
   }, [isGridViewMode]);
 
+  const modeSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleModeSwitch = (newCategory: string, newFilter: FilterOption) => {
+    if (modeSwitchTimeoutRef.current) {
+      clearTimeout(modeSwitchTimeoutRef.current);
+      modeSwitchTimeoutRef.current = null;
+    }
+
     const isNewGridViewMode = newCategory !== 'All' || newFilter !== 'all';
     setIsSwitchingCategory(true);
+    setVisualCategory(newCategory);
 
     if (isNewGridViewMode && !isGridViewMode) {
       // Transitioning from normal mode to grid mode
@@ -179,7 +190,7 @@ export function HomeScreen() {
       scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
 
       // Delay layout switch until scroll completes (approx 350-400ms)
-      setTimeout(() => {
+      modeSwitchTimeoutRef.current = setTimeout(() => {
         isCategoryActive.value = true;
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setActiveCategory(newCategory);
@@ -288,9 +299,18 @@ export function HomeScreen() {
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('\n=============================================');
-    console.log('🔽 PULL TO REFRESH TRIGGERED');
+    console.log('🔽 PULL TO REFRESH TRIGGERED (FULL RESET)');
     console.log('=============================================');
     setRefreshing(true);
+    
+    // Trigger the global splash screen
+    DeviceEventEmitter.emit('trigger_refresh_splash');
+    
+    // Reset category to All
+    handleModeSwitch('All', 'all');
+    
+    // Clear home data cache
+    AsyncStorage.removeItem('bumbas_home_data').catch(console.error);
 
     const promises: Promise<any>[] = [fetchHomeData(true)];
 
@@ -382,6 +402,14 @@ export function HomeScreen() {
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
       const currentY = event.contentOffset.y;
+
+      if (currentY <= 0 && !isAtTopShared.value) {
+        isAtTopShared.value = true;
+        runOnJS(setIsAtTop)(true);
+      } else if (currentY > 0 && isAtTopShared.value) {
+        isAtTopShared.value = false;
+        runOnJS(setIsAtTop)(false);
+      }
 
       // If we are in a specific category, ALWAYS keep the tab bar hidden
       if (isCategoryActive.value) {
@@ -608,7 +636,25 @@ export function HomeScreen() {
   // Render
   // =========================================================================
   return (
-    <View className="flex-1 bg-white">
+    <ScrollView 
+      contentContainerStyle={{ flex: 1 }}
+      bounces={false}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          enabled={isAtTop && !isGridViewMode}
+          tintColor="#e11d48"
+          colors={['#e11d48']}
+          progressBackgroundColor="#ffffff"
+          progressViewOffset={20}
+          style={{ zIndex: 999, elevation: 999 }}
+        />
+      }
+      className="flex-1 bg-white"
+    >
+      <View className="flex-1 bg-transparent">
 
       {/* ── Floating Header ── */}
       <HomeHeader
@@ -625,7 +671,7 @@ export function HomeScreen() {
       />
 
       {/* ── Sticky Category Bar (appears on scroll) ── */}
-      <Animated.View style={stickyCategoryStyle} className="bg-white py-2">
+      <Animated.View style={stickyCategoryStyle} className="bg-white pt-2 pb-0">
         <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
       </Animated.View>
 
@@ -635,17 +681,6 @@ export function HomeScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            enabled={!isGridViewMode}
-            tintColor="#e11d48"
-            colors={['#e11d48']}
-            progressBackgroundColor="#ffffff"
-            progressViewOffset={20}
-          />
-        }
         className="flex-1"
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
@@ -664,7 +699,7 @@ export function HomeScreen() {
 
         {!isGridViewMode && (
           <View
-            className="bg-white py-2"
+            className="bg-white pt-2 pb-0"
             onLayout={(e) => {
               const y = e.nativeEvent.layout.y;
               categoryYRef.current = y;
@@ -777,13 +812,14 @@ export function HomeScreen() {
       <NotificationPrompt />
 
       {/* ★ Voice Recording Modal ★ */}
-      <VoiceSearchModal
+      <VoiceSearchModal 
         visible={isVoiceModalVisible}
         onClose={() => setIsVoiceModalVisible(false)}
         onResult={(transcript) => {
           router.push({ pathname: '/(shop)/search', params: { voiceQuery: transcript } });
         }}
       />
-    </View>
+      </View>
+    </ScrollView>
   );
 }

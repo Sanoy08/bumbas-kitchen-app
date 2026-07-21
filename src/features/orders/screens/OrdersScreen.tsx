@@ -3,7 +3,7 @@
 // src/app/(shop)/account/orders/index.tsx
 import { format } from 'date-fns';
 import { Image } from 'expo-image';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
     Calendar,
     CheckCircle2,
@@ -66,6 +66,8 @@ export function OrdersScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false); // ★ লোডিং স্টেট
 
+  const { orderId } = useLocalSearchParams<{ orderId?: string }>();
+
   const { height } = Dimensions.get('window');
   const slideAnim = useRef(new Animated.Value(height)).current;
 
@@ -90,6 +92,25 @@ export function OrdersScreen() {
             setCompletedOrders(data.completedOrders ?? data.orders.filter((o: any) => o.Status === 'Delivered').length);
             setPage(1);
             setHasMore(data.orders.length === 10);
+            
+            if (orderId) {
+              console.log('🔗 Auto-opening order modal for orderId:', orderId);
+              const targetOrder = data.orders.find((o: Order) => o._id === orderId || o.OrderNumber === orderId);
+              if (targetOrder) {
+                console.log('✅ Found matching order! Opening modal...');
+                setTimeout(() => {
+                  setSelectedOrder(targetOrder);
+                  setIsModalOpen(true);
+                  Animated.spring(slideAnim, {
+                    toValue: 0,
+                    damping: 26,
+                    stiffness: 220,
+                    mass: 1,
+                    useNativeDriver: true,
+                  }).start();
+                }, 400); // Wait for screen transition
+              }
+            }
           } else if (!data.success && isActive) {
             console.log("Failed:", data.error);
           }

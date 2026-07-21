@@ -108,11 +108,21 @@ export default function RootLayout() {
       setIsHomeLoaded(true);
       clearTimeout(timeoutId);
     });
+    
+    const refreshListener = DeviceEventEmitter.addListener('trigger_refresh_splash', () => {
+      setShowSplash(true);
+      setIsHomeLoaded(false);
+      fadeAnim.setValue(1);
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => setIsHomeLoaded(true), 3000);
+    });
+
     // Fallback: if home doesn't load in 3 seconds, dismiss splash anyway
     timeoutId = setTimeout(() => setIsHomeLoaded(true), 3000);
 
     return () => {
       listener.remove();
+      refreshListener.remove();
       clearTimeout(timeoutId);
     };
   }, []);

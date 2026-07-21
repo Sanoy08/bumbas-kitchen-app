@@ -127,6 +127,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -150,6 +151,17 @@ export function SummaryScreen() {
   // Popup state
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successAmount, setSuccessAmount] = useState(0);
+  
+  // Timeout refs to prevent ghost popups
+  const successPopupTimeout = useRef<NodeJS.Timeout | null>(null);
+  const alertPopupTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successPopupTimeout.current) clearTimeout(successPopupTimeout.current);
+      if (alertPopupTimeout.current) clearTimeout(alertPopupTimeout.current);
+    };
+  }, []);
 
   // Use explicit shared values for the complex custom animation
   const animIsVisible = useSharedValue(false);
@@ -215,8 +227,9 @@ export function SummaryScreen() {
   const backFloatRotate = useSharedValue(0);
 
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (showSuccessPopup) {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         if (showSuccessPopup) {
           // Front ticket swing
           floatY.value = withRepeat(
@@ -249,6 +262,7 @@ export function SummaryScreen() {
       backFloatY.value = 0;
       backFloatRotate.value = 0;
     }
+    return () => clearTimeout(timer);
   }, [showSuccessPopup]);
 
   const floatStyle = useAnimatedStyle(() => ({
@@ -315,6 +329,7 @@ export function SummaryScreen() {
   };
 
   const handleApplyCoupon = async () => {
+    Keyboard.dismiss();
     if (!couponCode.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsApplyingCoupon(true);
@@ -333,12 +348,12 @@ export function SummaryScreen() {
         setShowSuccessPopup(true);
         
         // Auto-hide popup after 3 seconds
-        setTimeout(() => setShowSuccessPopup(false), 3000);
+        successPopupTimeout.current = setTimeout(() => setShowSuccessPopup(false), 3000);
 
         if (useCoins) {
           setUseCoins(false);
           // Wait for the popup (3000ms) + exit animation (600ms) to finish before showing alert
-          setTimeout(() => {
+          alertPopupTimeout.current = setTimeout(() => {
             showAlert({
               title: "Coins Removed",
               message: "You can use either a Coupon OR Bumba Coins for an order.",
