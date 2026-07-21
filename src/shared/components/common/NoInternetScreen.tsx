@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { RefreshCw } from 'lucide-react-native';
 import { useState } from 'react';
@@ -12,6 +12,8 @@ interface NoInternetScreenProps {
 export const NoInternetScreen = ({ onRetry }: NoInternetScreenProps) => {
   const [isChecking, setIsChecking] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const scale = SCREEN_WIDTH / 390;
 
   const handleRetry = async () => {
     setIsChecking(true);
@@ -31,31 +33,39 @@ export const NoInternetScreen = ({ onRetry }: NoInternetScreenProps) => {
           contentFit="cover"
         />
         <LinearGradient
-          colors={['transparent', 'rgba(255, 241, 242, 0.8)', '#fff1f2']}
-          locations={[0, 0.6, 1]}
-          style={{ position: 'absolute', bottom: -1, left: 0, right: 0, height: 180 }}
+          colors={['transparent', '#fff1f2']}
+          style={{ position: 'absolute', bottom: -1, left: 0, right: 0, height: 120 }}
         />
-      </View>
-
-      <View style={{ position: 'absolute', bottom: Math.max(insets.bottom + 40, 40), left: 0, right: 0, alignItems: 'center' }}>
-        <TouchableOpacity 
-          onPress={handleRetry}
-          disabled={isChecking}
-          activeOpacity={0.8}
-          style={{ elevation: 10, shadowColor: '#e11d48', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 15 }}
-          className={`bg-primary px-10 h-16 rounded-full flex-row items-center justify-center ${isChecking ? 'opacity-80' : ''}`}
-        >
-          {isChecking ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <RefreshCw size={22} color="white" className="mr-3" />
-              <Text className="text-white font-bold text-xl font-sans tracking-wide">
-                Try Again
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+        <View style={{
+          position: 'absolute',
+          bottom: '11.02%', // Precisely maps to the previous 86px bottom on a standard phone
+          left: 0,
+          right: 0,
+          alignItems: 'center',
+        }}>
+          <TouchableOpacity 
+            onPress={handleRetry}
+            disabled={isChecking}
+            activeOpacity={0.7}
+            style={{ 
+              backgroundColor: '#e11d48', // Primary color
+              width: '56.92%', 
+              aspectRatio: 222 / 64, 
+            }} 
+            className={`rounded-2xl flex-row items-center justify-center ${isChecking ? 'opacity-80' : ''}`}
+          >
+            {isChecking ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <>
+                <RefreshCw size={20 * scale} color="#ffffff" className="mr-3" />
+                <Text style={{ fontSize: 20 * scale, color: '#ffffff', fontWeight: 'bold', fontFamily: 'sans-serif', letterSpacing: 0.5 }}>
+                  Try Again
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );

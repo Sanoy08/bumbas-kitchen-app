@@ -730,13 +730,12 @@ export function HomeScreen() {
           paddingTop: isGridViewMode ? insets.top + 130 : 0,
           backgroundColor: '#fff'
         }}
-        bounces={!isGridViewMode}
-        overScrollMode={!isGridViewMode ? 'auto' : 'never'}
+        bounces={true}
+        overScrollMode="auto"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            enabled={!isGridViewMode}
             tintColor="#e11d48"
             colors={['#e11d48']}
             progressBackgroundColor="#ffffff"
