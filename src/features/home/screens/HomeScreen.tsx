@@ -752,6 +752,7 @@ export function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
+            enabled={!isGridViewMode}
             tintColor="#e11d48"
             colors={['#e11d48']}
             progressBackgroundColor="#ffffff"
