@@ -1,6 +1,6 @@
-import { ScrollView, Text, View } from 'react-native';
-import { memo } from 'react';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
+import { memo } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import { SectionHeading } from './SectionHeading';
 
 interface BestsellerSectionProps {
@@ -18,8 +18,8 @@ export const BestsellerSection = memo(({ bestsellers }: BestsellerSectionProps) 
 
   return (
     <View className="px-4 py-8">
-      <SectionHeading 
-        title="Our Bestsellers" 
+      <SectionHeading
+        title="Our Bestseller"
         rightElement={
           <View className="flex-row items-center bg-gray-100 px-2.5 py-1 rounded-full">
             <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mr-1 font-sans">Swipe</Text>
