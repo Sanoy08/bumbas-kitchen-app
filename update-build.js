@@ -16,9 +16,7 @@ const sourceApk = path.join(__dirname, 'android/app/build/outputs/apk/release/ap
 const appJsonPath = path.join(__dirname, 'app.json');
 const packageJsonPath = path.join(__dirname, 'package.json');
 
-// GitHub configuration
-const GITHUB_REPO = "Sanoy08/bumbas-kitchen-app";
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const backendRepoPath = path.join(__dirname, '../site');
 
 const startProcess = async () => {
     try {
@@ -38,13 +36,9 @@ const startProcess = async () => {
 
 const runBuildProcess = async (commitMsg) => {
     try {
-        console.log("\n🚀 Starting Fast Auto-Build & GitHub Release Process...");
+        console.log("\n🚀 Starting Fast Auto-Build & Dual-Push Process...");
 
-        if (!GITHUB_TOKEN) {
-            throw new Error("GITHUB_TOKEN is missing in .env file!");
-        }
-
-        // 1. Extract and bump version from Gradle
+        // ১. Gradle ফাইল থেকে ভার্সন বের করা
         let gradleContent = fs.readFileSync(gradlePath, 'utf8');
         const codeMatch = gradleContent.match(/versionCode (\d+)/);
         const nameMatch = gradleContent.match(/versionName "([^"]+)"/);
@@ -62,12 +56,12 @@ const runBuildProcess = async (commitMsg) => {
 
         console.log(`📦 Bumping Version: ${currentName} -> ${newName} (Code: ${newCode})`);
 
-        // Save new version to build.gradle
+        // ★★★ FIX: এই ৩টে লাইন আমি আগেরবার দিতে ভুলে গেছিলাম! (Gradle ফাইল সেভ করা) ★★★
         gradleContent = gradleContent.replace(/versionCode \d+/, `versionCode ${newCode}`);
         gradleContent = gradleContent.replace(/versionName "[^"]+"/, `versionName "${newName}"`);
         fs.writeFileSync(gradlePath, gradleContent);
 
-        // 2. Update app.json and package.json
+        // ২. app.json এবং package.json আপডেট করা
         if (fs.existsSync(appJsonPath)) {
             let appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
             appJson.expo.version = newName;
@@ -82,41 +76,57 @@ const runBuildProcess = async (commitMsg) => {
             console.log(`📦 Updated package.json version to ${newName}`);
         }
 
+        // ৩. ডাইনামিক ফাইল নেম তৈরি করা
         const apkFileName = `bumbas-kitchen-v${newName}.apk`;
+        const destApk = path.join(backendRepoPath, `public/${apkFileName}`); 
+        const publicDir = path.join(backendRepoPath, 'public');
 
-        // 3. Build APK natively
+        if (!fs.existsSync(publicDir)) {
+            fs.mkdirSync(publicDir, { recursive: true });
+        }
+
+        // ৪. পুরনো সব APK ফাইল public ফোল্ডার থেকে ডিলিট করে দেওয়া
+        console.log("🗑️  Removing old APKs from backend public folder...");
+        fs.readdirSync(publicDir).forEach(file => {
+            if (file.startsWith('bumbas-kitchen') && file.endsWith('.apk')) {
+                fs.unlinkSync(path.join(publicDir, file));
+            }
+        });
+
+        // ৫. MongoDB তে ভার্সন এবং নতুন URL আপডেট করা
+        console.log("\n💾 Updating version & URL in MongoDB...");
+        await updateVersionInDB(newName, `/${apkFileName}`);
+
+        // ৬. APK বিল্ড করা 
         console.log("\n🔨 Building APK natively (Please wait...)...");
         const isWindows = process.platform === "win32";
         const buildCmd = isWindows ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease';
         execSync(buildCmd, { stdio: 'inherit' });
 
-        if (!fs.existsSync(sourceApk)) {
-            throw new Error("APK generation failed! File not found.");
+        // ৭. APK ফাইল Backend এ মুভ করা
+        if (fs.existsSync(sourceApk)) {
+            fs.copyFileSync(sourceApk, destApk);
+            console.log(`✅ New APK copied to: ${destApk}`);
+        } else {
+            throw new Error("APK generation failed!");
         }
-        console.log(`✅ APK successfully built.`);
 
-        // 4. Create GitHub Release
-        console.log("\n🌐 Creating GitHub Release...");
-        const tagName = `v${newName}`;
-        const releaseData = await createGitHubRelease(tagName, commitMsg);
-        console.log(`✅ GitHub Release created: ${releaseData.html_url}`);
-
-        // 5. Upload APK to GitHub Release
-        console.log("\n⬆️  Uploading APK to GitHub Release (This may take a minute)...");
-        const downloadUrl = await uploadApkToRelease(releaseData.upload_url, sourceApk, apkFileName);
-        console.log(`✅ APK uploaded successfully! Download URL: ${downloadUrl}`);
-
-        // 6. Update MongoDB with new URL
-        console.log("\n💾 Updating version & URL in MongoDB...");
-        await updateVersionInDB(newName, downloadUrl);
-
-        // 7. Push App project to GitHub
-        console.log("\n☁️  Pushing App code to GitHub...");
+        // ৮. App প্রজেক্ট গিটহাবে পুশ করা
+        console.log("\n☁️  Pushing App to GitHub...");
         execSync('git add .', { stdio: 'inherit' });
-        execSync(`git commit -m "${commitMsg} (${tagName})"`, { stdio: 'inherit' });
+        execSync(`git commit -m "${commitMsg} (v${newName})"`, { stdio: 'inherit' });
         execSync('git push', { stdio: 'inherit' });
 
-        console.log("\n🎉 SUCCESS! App Updated, Built, Uploaded to GitHub Releases, and DB Synced!");
+        // ৯. Backend (site) প্রজেক্ট গিটহাবে পুশ করা
+        console.log("\n🚀 Pushing Backend (site) to GitHub to deploy new APK...");
+        const cdCommand = isWindows ? `cd /d "${backendRepoPath}"` : `cd "${backendRepoPath}"`;
+        
+        execSync(`${cdCommand} && git add public/${apkFileName}`, { stdio: 'inherit' });
+        execSync(`${cdCommand} && git add -u public/`, { stdio: 'inherit' }); 
+        execSync(`${cdCommand} && git commit -m "Auto-update APK to v${newName}"`, { stdio: 'inherit' });
+        execSync(`${cdCommand} && git push`, { stdio: 'inherit' });
+
+        console.log("\n🎉 SUCCESS! App Updated, DB Synced, and New APK pushed to Backend Vercel/Hostinger!");
         process.exit(0);
 
     } catch (error) {
@@ -124,59 +134,6 @@ const runBuildProcess = async (commitMsg) => {
         process.exit(1);
     }
 };
-
-async function createGitHubRelease(tagName, commitMsg) {
-    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'NodeJS'
-        },
-        body: JSON.stringify({
-            tag_name: tagName,
-            name: `Release ${tagName}`,
-            body: commitMsg,
-            draft: false,
-            prerelease: false
-        })
-    });
-
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Failed to create release: ${response.statusText} - ${errText}`);
-    }
-
-    return await response.json();
-}
-
-async function uploadApkToRelease(uploadUrlTemplate, apkPath, apkName) {
-    // upload_url looks like: https://uploads.github.com/repos/Sanoy08/bumbas-kitchen-app/releases/12345/assets{?name,label}
-    const uploadUrl = uploadUrlTemplate.replace('{?name,label}', `?name=${apkName}`);
-    
-    const fileBuffer = fs.readFileSync(apkPath);
-
-    const response = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/vnd.android.package-archive',
-            'Content-Length': fileBuffer.length.toString(),
-            'User-Agent': 'NodeJS'
-        },
-        body: fileBuffer
-    });
-
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Failed to upload APK: ${response.statusText} - ${errText}`);
-    }
-
-    const data = await response.json();
-    return data.browser_download_url;
-}
 
 async function updateVersionInDB(newVersion, newApkUrl) {
     let client;
