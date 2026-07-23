@@ -1,7 +1,7 @@
 {
   "name": "Bumba's Kitchen",
   "main": "expo-router/entry",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
     "@expo/ui": "~56.0.15",
@@ -20,6 +20,7 @@
     "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.16",
     "expo-device": "~56.0.4",
+    "expo-file-system": "~56.0.8",
     "expo-font": "~56.0.5",
     "expo-glass-effect": "~56.0.4",
     "expo-haptics": "~56.0.3",

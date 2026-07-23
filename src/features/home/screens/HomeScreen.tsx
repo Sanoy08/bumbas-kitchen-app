@@ -51,9 +51,9 @@ import { VoiceSearchModal } from '@/shared/components/search/VoiceSearchModal';
 const { width: windowWidth } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 const PRODUCTS_PER_PAGE = 10;
-const CARD_WIDTH = 160;
 const CARD_MARGIN = 6; // 6px margin on each side = 12px gap between items
-const GRID_WIDTH = (CARD_WIDTH + CARD_MARGIN * 2) * 2; // Total width of 2 columns
+const CARD_WIDTH = (windowWidth / 2) - (CARD_MARGIN * 2);
+const GRID_WIDTH = windowWidth; // Total width of 2 columns
 const HERO_CAROUSEL_HEIGHT = windowWidth + 8;
 
 export function HomeScreen() {
