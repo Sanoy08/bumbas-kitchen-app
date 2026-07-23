@@ -1,7 +1,7 @@
 // src/components/AppUpdater.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Application from 'expo-application';
 import LottieView from 'lottie-react-native';
