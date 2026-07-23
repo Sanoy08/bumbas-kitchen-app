@@ -5,6 +5,7 @@ import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Application from 'expo-application';
 import LottieView from 'lottie-react-native';
+import Toast from 'react-native-toast-message';
 
 export function AppUpdater() {
   const [showUpdate, setShowUpdate] = useState(false);
@@ -72,6 +73,7 @@ export function AppUpdater() {
     setIsDownloading(true);
     setDownloadProgress(0);
     setDownloadedMB(0);
+    Toast.show({ type: 'info', text1: 'Starting Download', text2: 'Preparing file system...' });
 
     const fileUri = (FileSystem as any).documentDirectory + 'bumbas-kitchen-update.apk';
 
@@ -102,15 +104,21 @@ export function AppUpdater() {
       }
     );
 
+    Toast.show({ type: 'info', text1: 'Resumable Created', text2: `URL: ${updateInfo.apkUrl}` });
+
     try {
       const result = await downloadResumable.downloadAsync();
       if (result?.uri) {
+        Toast.show({ type: 'success', text1: 'Download Success', text2: 'Installing...' });
         setDownloadProgress(1);
         setDownloadedUri(result.uri);
         installUpdate(result.uri);
+      } else {
+        Toast.show({ type: 'error', text1: 'Download Failed', text2: 'No URI returned.' });
       }
     } catch (e: any) {
       console.error(e);
+      Toast.show({ type: 'error', text1: 'Download Crash', text2: String(e.message) });
       // ★ Exact error msg dekhabe ebar
       alert(`Download Failed!\nError: ${e.message}`); 
     } finally {
@@ -121,13 +129,15 @@ export function AppUpdater() {
   const installUpdate = async (uri: string) => {
     try {
       const contentUri = await FileSystem.getContentUriAsync(uri);
+      Toast.show({ type: 'info', text1: 'Installing', text2: 'Triggering intent...' });
       await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
         data: contentUri,
         flags: 1, 
         type: 'application/vnd.android.package-archive',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Installation Error:", error);
+      Toast.show({ type: 'error', text1: 'Install Error', text2: String(error.message) });
       alert('Install korte somossa hocche. Apnar phone er settings e "Install Unknown Apps" allow kora ache kina check korun.');
     }
   };
