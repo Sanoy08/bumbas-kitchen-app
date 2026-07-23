@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Application from 'expo-application';
 import LottieView from 'lottie-react-native';
-import Toast from 'react-native-toast-message';
+import { toast } from 'sonner-native';
 
 export function AppUpdater() {
   const [showUpdate, setShowUpdate] = useState(false);
@@ -61,75 +61,102 @@ export function AppUpdater() {
 
   const handleDownloadAndInstall = async () => {
     if (downloadedUri) {
+      toast.info("Already downloaded, launching installer...");
       installUpdate(downloadedUri);
       return;
     }
 
     if (!updateInfo.apkUrl) {
+      toast.error("Error: Update link is broken!");
       alert("Error: Update link is broken!");
       return;
     }
 
+    // --- FULLY ADVANCED DEBUGGER ---
+    toast.info("Checking native modules...");
+    if (!FileSystem) {
+      toast.error("ERROR: FileSystem module is entirely missing!");
+      alert("CRITICAL ERROR: expo-file-system module is missing! Please install it.");
+      return;
+    }
+    if (typeof FileSystem.createDownloadResumable !== 'function') {
+      toast.error("ERROR: createDownloadResumable is not a function!");
+      alert("CRITICAL ERROR: FileSystem native code is not linked properly. Did you rebuild the APK after installing expo-file-system?");
+      return;
+    }
+    if (!(FileSystem as any).documentDirectory) {
+      toast.error("ERROR: FileSystem.documentDirectory is null");
+      alert("CRITICAL ERROR: Cannot access document directory. Permissions issue?");
+      return;
+    }
+    // -------------------------------
+
+    toast.info("Starting Download...\nURL: " + updateInfo.apkUrl);
     setIsDownloading(true);
     setDownloadProgress(0);
     setDownloadedMB(0);
-    Toast.show({ type: 'info', text1: 'Starting Download', text2: 'Preparing file system...' });
 
     const fileUri = (FileSystem as any).documentDirectory + 'bumbas-kitchen-update.apk';
+    toast.info("File path: " + fileUri);
 
-    // ★ FIX 2: Purano corrupted file thakle aage delete kore nibe
     try {
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
       if (fileInfo.exists) {
+        toast.info("Deleting old APK file...");
         await FileSystem.deleteAsync(fileUri);
       }
-    } catch(e) {}
+    } catch(e: any) {
+      toast.error("Error deleting old file: " + e.message);
+    }
 
-    const downloadResumable = FileSystem.createDownloadResumable(
-      updateInfo.apkUrl,
-      fileUri,
-      {},
-      (downloadInfo) => {
-        // ★ FIX 3: Vercel er Content-Length issue fix
-        if (downloadInfo.totalBytesExpectedToWrite > 0) {
-          const progress = downloadInfo.totalBytesWritten / downloadInfo.totalBytesExpectedToWrite;
-          setDownloadProgress(progress);
-        } else {
-          // Jodi server theke total size na ashe, tahole koto MB download holo seta hishab korbe
-          const mb = downloadInfo.totalBytesWritten / (1024 * 1024);
-          setDownloadedMB(mb);
-          // Fake progress bar (upto 95%)
-          setDownloadProgress((prev) => (prev < 0.95 ? prev + 0.01 : 0.95)); 
-        }
-      }
-    );
-
-    Toast.show({ type: 'info', text1: 'Resumable Created', text2: `URL: ${updateInfo.apkUrl}` });
-
+    toast.info("Creating Download Resumable...");
     try {
+      const downloadResumable = FileSystem.createDownloadResumable(
+        updateInfo.apkUrl,
+        fileUri,
+        {},
+        (downloadInfo) => {
+          if (downloadInfo.totalBytesExpectedToWrite > 0) {
+            const progress = downloadInfo.totalBytesWritten / downloadInfo.totalBytesExpectedToWrite;
+            setDownloadProgress(progress);
+          } else {
+            const mb = downloadInfo.totalBytesWritten / (1024 * 1024);
+            setDownloadedMB(mb);
+            setDownloadProgress((prev) => (prev < 0.95 ? prev + 0.01 : 0.95)); 
+          }
+        }
+      );
+
+      toast.info("Resumable Created! Calling downloadAsync...");
       const result = await downloadResumable.downloadAsync();
+      
       if (result?.uri) {
-        Toast.show({ type: 'success', text1: 'Download Success', text2: 'Installing...' });
+        toast.success("Download Complete!");
         setDownloadProgress(1);
         setDownloadedUri(result.uri);
         installUpdate(result.uri);
       } else {
-        Toast.show({ type: 'error', text1: 'Download Failed', text2: 'No URI returned.' });
+        toast.error("Download returned no URI");
       }
     } catch (e: any) {
-      console.error(e);
-      Toast.show({ type: 'error', text1: 'Download Crash', text2: String(e.message) });
-      // ★ Exact error msg dekhabe ebar
-      alert(`Download Failed!\nError: ${e.message}`); 
+      console.error("Full Download Error:", e);
+      toast.error(`Download Failed: ${e?.message || JSON.stringify(e)}`);
+      alert(`Download Failed!\nType: ${typeof e}\nMessage: ${e?.message}\nFull: ${JSON.stringify(e)}`); 
     } finally {
       setIsDownloading(false);
     }
   };
 
   const installUpdate = async (uri: string) => {
+    toast.info("Starting Installation: " + uri);
     try {
+      if (!IntentLauncher || !IntentLauncher.startActivityAsync) {
+         toast.error("IntentLauncher is missing!");
+         return;
+      }
       const contentUri = await FileSystem.getContentUriAsync(uri);
-      Toast.show({ type: 'info', text1: 'Installing', text2: 'Triggering intent...' });
+      toast.info("Content URI Generated: " + contentUri);
+      
       await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
         data: contentUri,
         flags: 1, 
@@ -137,8 +164,8 @@ export function AppUpdater() {
       });
     } catch (error: any) {
       console.error("Installation Error:", error);
-      Toast.show({ type: 'error', text1: 'Install Error', text2: String(error.message) });
-      alert('Install korte somossa hocche. Apnar phone er settings e "Install Unknown Apps" allow kora ache kina check korun.');
+      toast.error("Install Error: " + error.message);
+      alert(`Install Error:\n${error.message}\nPlease check "Install Unknown Apps" permission.`);
     }
   };
 
