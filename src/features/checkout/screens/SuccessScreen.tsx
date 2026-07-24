@@ -3,7 +3,7 @@
 import { formatPrice } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScratchCard } from '@/shared/components/ui';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -147,32 +147,13 @@ export function SuccessScreen() {
     transform: [{ translateY: giftBounce.value }]
   }));
 
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const player = useAudioPlayer(require('../../../../assets/sounds/success.mp3'));
 
   useEffect(() => {
-    async function playSound() {
-      if (isScreenFocused) {
-        try {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../../../assets/sounds/success.mp3')
-          );
-          setSound(sound);
-          await sound.playAsync();
-        } catch (error) {
-          console.log('Error playing sound:', error);
-        }
-      }
+    if (isScreenFocused) {
+      player.play();
     }
-    playSound();
   }, [isScreenFocused]);
-
-  useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
 
   useEffect(() => {
     // 1. Initial checkmark pop-in

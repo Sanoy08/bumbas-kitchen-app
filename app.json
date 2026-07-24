@@ -40,7 +40,10 @@
       "@react-native-community/datetimepicker",
       "expo-notifications",
       "expo-speech-recognition",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-sharing",
+      "expo-web-browser",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,
