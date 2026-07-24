@@ -13,6 +13,11 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  useAnimatedRef,
+  useAnimatedReaction,
+  scrollTo,
+  Easing,
+  withDelay,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -60,6 +65,7 @@ export function HomeScreen() {
   const router = useRouter();
   const { user, login } = useAuthStore();
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useAnimatedRef<FlashList<any>>();
   const isTabBarVisibleStore = useTabBarStore((state) => state.isVisible);
   const setTabBarVisible = useTabBarStore((state) => state.setVisibility);
   const { showAlert } = useAlert();
@@ -112,9 +118,11 @@ export function HomeScreen() {
   const [isSavingDates, setIsSavingDates] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [visualCategory, setVisualCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [visualCategory, setVisualCategory] = useState<string>('All');
+  const [visualFilter, setVisualFilter] = useState<FilterOption>('all');
   const [isSwitchingCategory, setIsSwitchingCategory] = useState(false);
+  const [hideMiddleSections, setHideMiddleSections] = useState(false);
   const [hasSkippedSession, setHasSkippedSession] = useState(false);
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
@@ -122,7 +130,6 @@ export function HomeScreen() {
   const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
 
   // --- Scroll/Animation Refs & Values ---
-  const scrollViewRef = useRef<any>(null); // AnimatedFlashList uses any ref
   const categoryYRef = useRef(0);
   const exploreGridYRef = useRef(0);
 
@@ -144,11 +151,21 @@ export function HomeScreen() {
   const filterButtonWidth = useSharedValue(42);
   const filterButtonOpacity = useSharedValue(1);
   const filterButtonMargin = useSharedValue(12);
-  // Mirrors activeCategory !== 'All' on the UI thread
-  // Used inside useAnimatedStyle to switch between hero-mode and compact-mode
+  
+  // Used to lock header and hide tab bar in Grid Mode
   const isCategoryActive = useSharedValue(false);
   
   const isAtTopShared = useSharedValue(true);
+  const programmaticScrollY = useSharedValue(-1);
+
+  useAnimatedReaction(
+    () => programmaticScrollY.value,
+    (val) => {
+      if (val >= 0) {
+        scrollTo(scrollViewRef, 0, val, false);
+      }
+    }
+  );
 
   // =========================================================================
   // Effects
@@ -164,12 +181,19 @@ export function HomeScreen() {
 
   const isGridViewMode = activeCategory !== 'All' || activeFilter !== 'all';
 
-  // Sync isGridViewMode to shared value so animated styles can react on UI thread
-  useEffect(() => {
-    isCategoryActive.value = isGridViewMode;
-  }, [isGridViewMode]);
-
   const modeSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const finalizeGridMode = useCallback((newCat: string, newFilt: FilterOption) => {
+    isCategoryActive.value = true;
+    setActiveCategory(newCat);
+    setActiveFilter(newFilt);
+    
+    // Wait a tiny bit for React to apply Grid Mode padding and remove HeroCarousel
+    modeSwitchTimeoutRef.current = setTimeout(() => {
+      scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
+      setIsSwitchingCategory(false); // Reveal real items perfectly
+    }, 50);
+  }, [isCategoryActive, scrollViewRef]);
 
   const handleModeSwitch = (newCategory: string, newFilter: FilterOption) => {
     if (modeSwitchTimeoutRef.current) {
@@ -178,55 +202,51 @@ export function HomeScreen() {
     }
 
     const isNewGridViewMode = newCategory !== 'All' || newFilter !== 'all';
-    setIsSwitchingCategory(true);
+    
+    // Instantly set visual states so text titles update before scroll
     setVisualCategory(newCategory);
+    setVisualFilter(newFilter);
 
     if (isNewGridViewMode && !isGridViewMode) {
       // Transitioning from normal mode to grid mode
+      setHideMiddleSections(true);
+      setIsSwitchingCategory(true);
+      
       const targetY = categoryYRef.current - CATEGORY_LOCK_Y;
 
-      // Scroll to the sticky point smoothly
-      scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
+      // Start search bar animations with a delay so it triggers when Category Bar is 3/4ths to the top
+      backButtonWidth.value = withDelay(350, withTiming(40, { duration: 250 }));
+      backButtonOpacity.value = withDelay(350, withTiming(1, { duration: 250 }));
+      filterButtonWidth.value = withDelay(350, withTiming(0, { duration: 250 }));
+      filterButtonOpacity.value = withDelay(350, withTiming(0, { duration: 250 }));
+      filterButtonMargin.value = withDelay(350, withTiming(0, { duration: 250 }));
+      
+      setTimeout(() => {
+        setTabBarVisible(false);
+        isTabBarVisibleShared.value = false;
+      }, 350);
 
-      // Delay layout switch until scroll completes (approx 350-400ms)
-      modeSwitchTimeoutRef.current = setTimeout(() => {
-        isCategoryActive.value = true;
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setActiveCategory(newCategory);
-        setActiveFilter(newFilter);
-        setTimeout(() => setIsSwitchingCategory(false), 500);
-      }, 400);
-    } else {
-      // Already in grid mode, or reverting to normal mode
-      isCategoryActive.value = isNewGridViewMode;
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setActiveCategory(newCategory);
-      setActiveFilter(newFilter);
-      if (!isNewGridViewMode) {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      } else {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: false }); // Snap to top of grid
-      }
-      setTimeout(() => setIsSwitchingCategory(false), 500);
-    }
-  };
+      // Give React 50ms to render the Skeletons and remove Bestsellers.
+      setTimeout(() => {
+        const startY = scrollY.value;
+        const targetYPos = Math.max(0, targetY);
+        programmaticScrollY.value = startY;
 
-  const handleCategorySelect = useCallback((category: string) => {
-    if (category === visualCategory) return;
-    setVisualCategory(category);
-    handleModeSwitch(category, activeFilter);
-  }, [activeCategory, activeFilter, visualCategory, isGridViewMode, CATEGORY_LOCK_Y]);
-
-  useEffect(() => {
-    if (isGridViewMode) {
-      backButtonWidth.value = withTiming(40, { duration: 300 });
-      backButtonOpacity.value = withTiming(1, { duration: 300 });
-      filterButtonWidth.value = withTiming(0, { duration: 300 });
-      filterButtonOpacity.value = withTiming(0, { duration: 300 });
-      filterButtonMargin.value = withTiming(0, { duration: 300 });
-      setTabBarVisible(false);
-      isTabBarVisibleShared.value = false;
-    } else {
+        programmaticScrollY.value = withTiming(
+          targetYPos,
+          { duration: 500, easing: Easing.out(Easing.cubic) },
+          (finished) => {
+            if (finished) {
+              programmaticScrollY.value = -1; // reset reaction
+              runOnJS(finalizeGridMode)(newCategory, newFilter);
+            }
+          }
+        );
+      }, 50);
+    } else if (!isNewGridViewMode && isGridViewMode) {
+      // Reverting from grid mode back to "All"
+      
+      // Revert search bar animations instantly
       backButtonWidth.value = withTiming(0, { duration: 300 });
       backButtonOpacity.value = withTiming(0, { duration: 300 });
       filterButtonWidth.value = withTiming(42, { duration: 300 });
@@ -234,8 +254,55 @@ export function HomeScreen() {
       filterButtonMargin.value = withTiming(12, { duration: 300 });
       setTabBarVisible(true);
       isTabBarVisibleShared.value = true;
+      
+      // Swap layout back to Normal Mode (Mounts HeroCarousel and Bestsellers)
+      setHideMiddleSections(false);
+      setActiveCategory(newCategory);
+      setActiveFilter(newFilter);
+      setIsSwitchingCategory(true);
+      
+      const targetY = categoryYRef.current - CATEGORY_LOCK_Y;
+      
+      // Instantly jump scroll offset so the real category bar is positioned correctly when layout updates.
+      // isCategoryActive.value remains TRUE during this time to act as a seamless mask!
+      scrollViewRef.current?.scrollToOffset({ offset: Math.max(0, targetY), animated: false });
+      
+      // Give React 100ms to paint the expanded layout robustly
+      setTimeout(() => {
+        // Enforce the offset just in case FlashList auto-adjusted
+        scrollViewRef.current?.scrollToOffset({ offset: Math.max(0, targetY), animated: false });
+        
+        // NOW turn off the sticky mask, revealing the perfectly aligned real Category Bar beneath it!
+        isCategoryActive.value = false;
+        
+        programmaticScrollY.value = Math.max(0, targetY);
+        programmaticScrollY.value = withTiming(
+          0,
+          { duration: 500, easing: Easing.out(Easing.cubic) },
+          (finished) => {
+            if (finished) {
+              programmaticScrollY.value = -1;
+              runOnJS(setIsSwitchingCategory)(false);
+            }
+          }
+        );
+      }, 100);
+    } else {
+      // Already in grid mode, just switching categories
+      isCategoryActive.value = true;
+      setActiveCategory(newCategory);
+      setActiveFilter(newFilter);
+      scrollViewRef.current?.scrollToOffset({ offset: 0, animated: true });
+      setTimeout(() => setIsSwitchingCategory(false), 350);
     }
-  }, [isGridViewMode, setTabBarVisible, isTabBarVisibleShared]);
+  };
+
+  const handleCategorySelect = useCallback((category: string) => {
+    if (category === visualCategory) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setVisualCategory(category);
+    handleModeSwitch(category, activeFilter);
+  }, [activeCategory, activeFilter, visualCategory, isGridViewMode, CATEGORY_LOCK_Y]);
 
   const fetchHomeData = useCallback(async (isRefresh = false) => {
     if (isRefresh) console.log('🔄 [Refresh] Fetching Home Data from:', `${API_URL}/home-data`);
@@ -390,19 +457,6 @@ export function HomeScreen() {
     }
   }, [user, hasSkippedSession]);
 
-  // =========================================================================
-  // Category Change → Reset & Scroll
-  // When non-All: header is already solid, sticky category already visible.
-  // Just reset products and snap scroll to top instantly.
-  // =========================================================================
-  // =========================================================================
-  // Category Change → Reset & Scroll
-  // =========================================================================
-  useEffect(() => {
-    // Instant snap to top — NO animation, NO spacer.
-    // This entirely prevents the ability to scroll up into blank space.
-    scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [activeCategory]);
 
   // =========================================================================
   // Scroll Handlers
@@ -448,14 +502,9 @@ export function HomeScreen() {
 
   // =========================================================================
   // Animated Styles
-  // Two modes:
-  //   isCategoryActive=false (All) → hero mode: header fades in, location row visible
-  //   isCategoryActive=true  (any) → compact mode: header always solid, location hidden,
-  //                                   sticky category always pinned under header
   // =========================================================================
   const headerAnimatedStyle = useAnimatedStyle(() => {
     if (isCategoryActive.value) {
-      // Always fully solid — no transparency
       return { backgroundColor: 'rgba(255, 255, 255, 1)', borderBottomWidth: 0 };
     }
     const bgOpacity = interpolate(scrollY.value, [0, 40], [0, 1], Extrapolation.CLAMP);
@@ -464,7 +513,6 @@ export function HomeScreen() {
 
   const locationRowStyle = useAnimatedStyle(() => {
     if (isCategoryActive.value) {
-      // Always collapsed — no location row in compact mode
       return { opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' };
     }
     const opacity = interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP);
@@ -476,7 +524,6 @@ export function HomeScreen() {
   const stickyCategoryStyle = useAnimatedStyle(() => {
     const collapsedHeaderHeight = insets.top + 60;
     if (isCategoryActive.value) {
-      // Always pinned — visible from the very first render in compact mode
       return {
         opacity: 1,
         position: 'absolute',
@@ -488,9 +535,9 @@ export function HomeScreen() {
         transform: [{ translateY: 0 }],
       };
     }
-    // Remove arbitrary offset so it triggers exactly when they meet
+    // Activate sticky behavior when scroll passes the category's original position
     const triggerY = categoryY.value - collapsedHeaderHeight;
-    const isSticking = categoryY.value > 0 && scrollY.value > triggerY;
+    const isSticking = categoryY.value > 0 && scrollY.value >= triggerY;
     return {
       opacity: isSticking ? 1 : 0,
       position: 'absolute',
@@ -652,9 +699,11 @@ export function HomeScreen() {
     return typeof item === 'number' ? `skeleton-${item}` : item.id;
   }, []);
 
-  const renderListHeader = useCallback(() => (
+  const listHeaderElement = useMemo(() => (
     <View className="bg-white">
-      {!isGridViewMode && <HeroCarousel slides={homeData.heroSlides} />}
+      <View style={{ display: isGridViewMode ? 'none' : 'flex' }}>
+        <HeroCarousel slides={homeData.heroSlides} />
+      </View>
       {!isGridViewMode && (
         <View
           className="pt-2 pb-0"
@@ -667,7 +716,7 @@ export function HomeScreen() {
           <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
         </View>
       )}
-      {!isGridViewMode && (
+      {!isGridViewMode && !hideMiddleSections && (
         <>
           <BestsellerSection bestsellers={homeData.bestsellers} />
           <OffersSection offers={homeData.offers} />
@@ -678,14 +727,22 @@ export function HomeScreen() {
       )}
       <View
         className="pt-8 pb-4"
-        onLayout={(e) => { exploreGridYRef.current = e.nativeEvent.layout.y; }}
+        onLayout={(e) => {
+          exploreGridYRef.current = e.nativeEvent.layout.y;
+        }}
       >
         <View className="px-4">
-          <SectionHeading title={isGridViewMode ? (activeCategory !== 'All' ? `Fresh from ${activeCategory}` : 'Filtered Items') : 'Explore More'} />
+          <SectionHeading 
+            title={
+              visualCategory !== 'All' 
+                ? `Fresh from ${visualCategory}` 
+                : (visualFilter !== 'all' ? 'Filtered Items' : 'Explore More')
+            } 
+          />
         </View>
       </View>
     </View>
-  ), [isGridViewMode, homeData, visualCategory, activeCategory, dailySpecial, handleCategorySelect]);
+  ), [isGridViewMode, homeData, visualCategory, visualFilter, dailySpecial, handleCategorySelect]);
 
   const renderListEmpty = useCallback(() => {
     if (isSwitchingCategory) return null;
@@ -734,7 +791,7 @@ export function HomeScreen() {
         keyExtractor={keyExtractorProduct}
         numColumns={2}
         estimatedItemSize={250}
-        ListHeaderComponent={renderListHeader}
+        ListHeaderComponent={listHeaderElement}
         ListEmptyComponent={renderListEmpty}
         onScroll={scrollHandler}
         scrollEventThrottle={1}
@@ -743,7 +800,7 @@ export function HomeScreen() {
         onMomentumScrollEnd={handleMomentumScrollEnd}
         contentContainerStyle={{
           paddingBottom: 56,
-          paddingTop: isGridViewMode ? insets.top + 130 : 0,
+          paddingTop: isGridViewMode ? insets.top + 150 : 0,
           backgroundColor: '#fff'
         }}
         bounces={true}
