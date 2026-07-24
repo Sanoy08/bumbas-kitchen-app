@@ -83,19 +83,19 @@ export default function TabTwoScreen() {
                 project.
               </ThemedText>
               <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
+                source={require('@/assets/images/LOGO.png')}
+                style={{ width: 400, height: 400 }}
               />
             </ThemedView>
           </Collapsible>
 
           <Collapsible title="Images">
+            <Image source={require('@/assets/images/LOGO.png')} style={styles.imageReact} />
             <ThemedText type="small">
               For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
               <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
               screen densities.
             </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
             <ExternalLink href="https://reactnative.dev/docs/images">
               <ThemedText type="linkPrimary">Learn more</ThemedText>
             </ExternalLink>

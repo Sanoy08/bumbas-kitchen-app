@@ -60,15 +60,17 @@ export function AnimatedIcon() {
   return (
     <View style={styles.iconContainer}>
       <Animated.View entering={glowKeyframe.duration(60 * 1000 * 4)} style={styles.glow}>
-        <Image style={styles.glow} source={require('@/assets/images/logo-glow.png')} />
-      </Animated.View>
+        <div className={styles.imageContainer}>
+          <Image style={styles.glow} source={require('@/assets/images/LOGO.png')} />
+        </div>
 
-      <Animated.View style={styles.background} entering={keyframe.duration(DURATION)}>
-        <div className={classes.expoLogoBackground} />
-      </Animated.View>
+        <div className={styles.imageContainer}>
+          <div className={styles.background} />
+        </div>
 
-      <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-        <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />
+        <div className={styles.imageContainer}>
+          <Image style={styles.image} source={require('@/assets/images/LOGO.png')} />
+        </div>
       </Animated.View>
     </View>
   );

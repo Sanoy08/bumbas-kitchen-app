@@ -6,6 +6,7 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import * as Application from 'expo-application';
 import LottieView from 'lottie-react-native';
 import { toast } from 'sonner-native';
+import { useAlert } from '../ui/CustomAlert';
 
 export function AppUpdater() {
   const [showUpdate, setShowUpdate] = useState(false);
@@ -14,6 +15,8 @@ export function AppUpdater() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadedUri, setDownloadedUri] = useState<string | null>(null);
   const [downloadedMB, setDownloadedMB] = useState(0); // File size na pele MB dekhabar jonno
+  
+  const { showAlert } = useAlert();
 
   useEffect(() => {
     const checkUpdate = async () => {
@@ -61,55 +64,32 @@ export function AppUpdater() {
 
   const handleDownloadAndInstall = async () => {
     if (downloadedUri) {
-      toast.info("Already downloaded, launching installer...");
       installUpdate(downloadedUri);
       return;
     }
 
     if (!updateInfo.apkUrl) {
-      toast.error("Error: Update link is broken!");
-      alert("Error: Update link is broken!");
+      showAlert({
+        title: "Link Broken",
+        message: "Error: Update link is broken!",
+        confirmText: "OK",
+      });
       return;
     }
 
-    // --- FULLY ADVANCED DEBUGGER ---
-    toast.info("Checking native modules...");
-    if (!FileSystem) {
-      toast.error("ERROR: FileSystem module is entirely missing!");
-      alert("CRITICAL ERROR: expo-file-system module is missing! Please install it.");
-      return;
-    }
-    if (typeof FileSystem.createDownloadResumable !== 'function') {
-      toast.error("ERROR: createDownloadResumable is not a function!");
-      alert("CRITICAL ERROR: FileSystem native code is not linked properly. Did you rebuild the APK after installing expo-file-system?");
-      return;
-    }
-    if (!(FileSystem as any).documentDirectory) {
-      toast.error("ERROR: FileSystem.documentDirectory is null");
-      alert("CRITICAL ERROR: Cannot access document directory. Permissions issue?");
-      return;
-    }
-    // -------------------------------
-
-    toast.info("Starting Download...\nURL: " + updateInfo.apkUrl);
     setIsDownloading(true);
     setDownloadProgress(0);
     setDownloadedMB(0);
 
     const fileUri = (FileSystem as any).documentDirectory + 'bumbas-kitchen-update.apk';
-    toast.info("File path: " + fileUri);
 
     try {
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
       if (fileInfo.exists) {
-        toast.info("Deleting old APK file...");
         await FileSystem.deleteAsync(fileUri);
       }
-    } catch(e: any) {
-      toast.error("Error deleting old file: " + e.message);
-    }
+    } catch(e: any) {}
 
-    toast.info("Creating Download Resumable...");
     try {
       const downloadResumable = FileSystem.createDownloadResumable(
         updateInfo.apkUrl,
@@ -127,35 +107,28 @@ export function AppUpdater() {
         }
       );
 
-      toast.info("Resumable Created! Calling downloadAsync...");
       const result = await downloadResumable.downloadAsync();
       
       if (result?.uri) {
-        toast.success("Download Complete!");
         setDownloadProgress(1);
         setDownloadedUri(result.uri);
         installUpdate(result.uri);
-      } else {
-        toast.error("Download returned no URI");
       }
     } catch (e: any) {
-      console.error("Full Download Error:", e);
-      toast.error(`Download Failed: ${e?.message || JSON.stringify(e)}`);
-      alert(`Download Failed!\nType: ${typeof e}\nMessage: ${e?.message}\nFull: ${JSON.stringify(e)}`); 
+      console.error("Download Error:", e);
+      showAlert({
+        title: "Download Failed",
+        message: `Error: ${e?.message}`,
+        confirmText: "OK",
+      }); 
     } finally {
       setIsDownloading(false);
     }
   };
 
   const installUpdate = async (uri: string) => {
-    toast.info("Starting Installation: " + uri);
     try {
-      if (!IntentLauncher || !IntentLauncher.startActivityAsync) {
-         toast.error("IntentLauncher is missing!");
-         return;
-      }
       const contentUri = await FileSystem.getContentUriAsync(uri);
-      toast.info("Content URI Generated: " + contentUri);
       
       await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
         data: contentUri,
@@ -164,8 +137,11 @@ export function AppUpdater() {
       });
     } catch (error: any) {
       console.error("Installation Error:", error);
-      toast.error("Install Error: " + error.message);
-      alert(`Install Error:\n${error.message}\nPlease check "Install Unknown Apps" permission.`);
+      showAlert({
+        title: "Install Error",
+        message: "Please check \"Install Unknown Apps\" permission in your phone settings.",
+        confirmText: "OK",
+      });
     }
   };
 

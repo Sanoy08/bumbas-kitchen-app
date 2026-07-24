@@ -11,20 +11,11 @@ import { Spacing } from '@/shared/theme/theme';
 
 export function WebBadge() {
   const scheme = useColorScheme();
-
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="code" themeColor="textSecondary" style={styles.versionText}>
         v{version}
       </ThemedText>
-      <Image
-        source={
-          scheme === 'dark'
-            ? require('@/assets/images/expo-badge-white.png')
-            : require('@/assets/images/expo-badge.png')
-        }
-        style={styles.badgeImage}
-      />
     </ThemedView>
   );
 }
