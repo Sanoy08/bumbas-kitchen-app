@@ -236,10 +236,9 @@ export function HomeScreen() {
           targetYPos,
           { duration: 500, easing: Easing.out(Easing.cubic) },
           (finished) => {
-            if (finished) {
-              programmaticScrollY.value = -1; // reset reaction
-              runOnJS(finalizeGridMode)(newCategory, newFilter);
-            }
+            // Always run state updates even if animation is interrupted
+            programmaticScrollY.value = -1; // reset reaction
+            runOnJS(finalizeGridMode)(newCategory, newFilter);
           }
         );
       }, 50);
@@ -280,16 +279,15 @@ export function HomeScreen() {
           0,
           { duration: 500, easing: Easing.out(Easing.cubic) },
           (finished) => {
-            if (finished) {
-              programmaticScrollY.value = -1;
-              runOnJS(setIsSwitchingCategory)(false);
-            }
+            // Always reset even if interrupted
+            programmaticScrollY.value = -1;
+            runOnJS(setIsSwitchingCategory)(false);
           }
         );
       }, 100);
     } else {
-      // Already in grid mode, just switching categories
-      isCategoryActive.value = true;
+      // Switching categories within Grid mode, OR edge case where both are false
+      isCategoryActive.value = isNewGridViewMode;
       setActiveCategory(newCategory);
       setActiveFilter(newFilter);
       scrollViewRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -813,7 +811,7 @@ export function HomeScreen() {
             tintColor="#e11d48"
             colors={['#e11d48']}
             progressBackgroundColor="#ffffff"
-            progressViewOffset={20}
+            progressViewOffset={insets.top + 120}
             style={{ zIndex: 999, elevation: 999 }}
           />
         }
