@@ -2,13 +2,13 @@
   "expo": {
     "name": "Bumba's Kitchen",
     "slug": "bumbas-kitchen",
-    "version": "1.0.39",
+    "version": "1.0.41",
     "orientation": "portrait",
-    "icon": "./assets/images/LOGO.png",
+    "icon": "./assets/images/app-logo.png",
     "scheme": "bumbaskitchenapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/LOGO.png"
+      "icon": "./assets/images/app-logo.png"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -16,17 +16,13 @@
         "REQUEST_INSTALL_PACKAGES",
         "RECORD_AUDIO"
       ],
-      "adaptiveIcon": {
-        "backgroundColor": "#e11d48",
-        "foregroundImage": "./assets/images/LOGO.png"
-      },
       "predictiveBackGestureEnabled": false,
       "package": "com.bumbaskitchen.app",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/LOGO.png"
+      "favicon": "./assets/images/app-logo.png"
     },
     "plugins": [
       "expo-router",
@@ -34,7 +30,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#e11d48",
-          "image": "./assets/images/LOGO.png"
+          "image": "./assets/images/app-logo.png"
         }
       ],
       "expo-status-bar",
