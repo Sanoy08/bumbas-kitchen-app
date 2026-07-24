@@ -97,10 +97,11 @@ export default function RootLayout() {
   }, [initAuth]);
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && isFirstRun !== null) {
+    if (isFirstRun !== null) {
+      // Hide native red splash immediately so custom Lottie splash shows up
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, isFirstRun]);
+  }, [isFirstRun]);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;

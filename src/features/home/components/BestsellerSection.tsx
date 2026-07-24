@@ -4,7 +4,11 @@ import { ScrollView, Text, View, Dimensions } from 'react-native';
 import { SectionHeading } from './SectionHeading';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.42; // Show ~2.3 cards on screen for horizontal scroll
+const GAP = 8; // Reduced gap between items
+const PEEK_AMOUNT = 32; // Amount of the 3rd card to show
+const CONTAINER_PADDING = 16; // Left padding (px-4 is 16)
+// Calculate width so exactly 2 items + a bit of 3rd item are visible
+const CARD_WIDTH = (width - CONTAINER_PADDING - GAP - PEEK_AMOUNT) / 2;
 
 interface BestsellerSectionProps {
   bestsellers: any[];
@@ -32,16 +36,16 @@ export const BestsellerSection = memo(({ bestsellers }: BestsellerSectionProps) 
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View>
-          <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', marginBottom: GAP }}>
             {topRow.map((item: any) => (
-              <View key={item.id} style={{ width: CARD_WIDTH, marginRight: 12 }}>
+              <View key={item.id} style={{ width: CARD_WIDTH, marginRight: GAP }}>
                 <ProductCard product={item} />
               </View>
             ))}
           </View>
           <View style={{ flexDirection: 'row' }}>
             {bottomRow.map((item: any) => (
-              <View key={item.id} style={{ width: CARD_WIDTH, marginRight: 12 }}>
+              <View key={item.id} style={{ width: CARD_WIDTH, marginRight: GAP }}>
                 <ProductCard product={item} />
               </View>
             ))}
