@@ -3,7 +3,7 @@
 import { formatPrice } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { WebView } from 'react-native-webview';
+import { Audio } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScratchCard } from '@/shared/components/ui';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -147,8 +147,32 @@ export function SuccessScreen() {
     transform: [{ translateY: giftBounce.value }]
   }));
 
-  const soundAsset = require('../../../../assets/sounds/success.mp3');
-  const soundUri = Image.resolveAssetSource(soundAsset).uri;
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    async function playSound() {
+      if (isScreenFocused) {
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../../../assets/sounds/success.mp3')
+          );
+          setSound(sound);
+          await sound.playAsync();
+        } catch (error) {
+          console.log('Error playing sound:', error);
+        }
+      }
+    }
+    playSound();
+  }, [isScreenFocused]);
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
 
   useEffect(() => {
     // 1. Initial checkmark pop-in
@@ -376,33 +400,7 @@ export function SuccessScreen() {
         </View>
       </Modal>
 
-    {isScreenFocused && (
-      <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-        <WebView
-          source={{
-            html: `
-              <!DOCTYPE html>
-              <html>
-                <body>
-                  <audio id="audio" src="${soundUri}" autoplay></audio>
-                  <script>
-                    document.getElementById("audio").play().catch(e => console.log(e));
-                  </script>
-                </body>
-              </html>
-            `,
-            baseUrl: ''
-          }}
-          originWhitelist={['*']}
-          mediaPlaybackRequiresUserAction={false}
-          allowFileAccess={true}
-          allowFileAccessFromFileURLs={true}
-          allowUniversalAccessFromFileURLs={true}
-          style={{ width: 0, height: 0, display: 'none' }}
-          containerStyle={{ width: 0, height: 0, display: 'none' }}
-        />
-      </View>
-    )}
+    {/* Native Audio played via expo-av in useEffect */}
     </View>
   );
 }
