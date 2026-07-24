@@ -621,7 +621,7 @@ export function HomeScreen() {
     if (typeof item === 'number') {
       return (
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+          <View style={{ width: CARD_WIDTH, margin: CARD_MARGIN }}>
             <View className="flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col">
               <View className="aspect-square w-full bg-gray-200 opacity-50" />
               <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
@@ -641,7 +641,7 @@ export function HomeScreen() {
     }
     return (
       <View style={{ flex: 1, alignItems: 'center' }}>
-        <View style={{ width: CARD_WIDTH, height: 250, margin: CARD_MARGIN }}>
+        <View style={{ width: CARD_WIDTH, margin: CARD_MARGIN }}>
           <ProductCard product={item} />
         </View>
       </View>

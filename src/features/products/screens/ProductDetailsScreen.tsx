@@ -889,7 +889,7 @@ export function ProductDetailsScreen() {
                 {randomItems.map((p) => (
                   <View
                     key={p.id || p._id}
-                    style={{ width: screenWidth * 0.45, height: 230 }}
+                    style={{ width: screenWidth * 0.45 }}
                   >
                     <ProductCard product={p} />
                   </View>
@@ -976,12 +976,12 @@ export function ProductDetailsScreen() {
                 return (
                   <View key={rowIdx} style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
                     {left && (
-                      <View style={{ width: cardWidth, height: 240 }}>
+                      <View style={{ width: cardWidth }}>
                         <ProductCard product={left} />
                       </View>
                     )}
                     {right && (
-                      <View style={{ width: cardWidth, height: 240 }}>
+                      <View style={{ width: cardWidth }}>
                         <ProductCard product={right} />
                       </View>
                     )}

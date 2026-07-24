@@ -340,7 +340,7 @@ export function SearchScreen() {
               columnWrapperStyle={{ justifyContent: 'space-between' }}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
-                <View style={{ width: CARD_WIDTH, height: 250, marginBottom: CARD_MARGIN * 4 }}>
+                <View style={{ width: CARD_WIDTH, marginBottom: CARD_MARGIN * 4 }}>
                   <ProductCard product={item} />
                 </View>
               )}

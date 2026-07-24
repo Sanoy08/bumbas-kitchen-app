@@ -1,7 +1,10 @@
 import { ProductCard } from '@/shared/components/shop/ProductCard';
 import { memo } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View, Dimensions } from 'react-native';
 import { SectionHeading } from './SectionHeading';
+
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.42; // Show ~2.3 cards on screen for horizontal scroll
 
 interface BestsellerSectionProps {
   bestsellers: any[];
@@ -31,14 +34,14 @@ export const BestsellerSection = memo(({ bestsellers }: BestsellerSectionProps) 
         <View>
           <View style={{ flexDirection: 'row', marginBottom: 16 }}>
             {topRow.map((item: any) => (
-              <View key={item.id} style={{ width: 160, height: 250, marginRight: 12 }}>
+              <View key={item.id} style={{ width: CARD_WIDTH, marginRight: 12 }}>
                 <ProductCard product={item} />
               </View>
             ))}
           </View>
           <View style={{ flexDirection: 'row' }}>
             {bottomRow.map((item: any) => (
-              <View key={item.id} style={{ width: 160, height: 250, marginRight: 12 }}>
+              <View key={item.id} style={{ width: CARD_WIDTH, marginRight: 12 }}>
                 <ProductCard product={item} />
               </View>
             ))}
