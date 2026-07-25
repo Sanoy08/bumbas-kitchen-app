@@ -8,6 +8,7 @@ import LottieView from 'lottie-react-native';
 
 import { useCartStore } from '@/shared/store/cartStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
+import { CartConflictModal } from '@/shared/components/ui/CartConflictModal';
 
 export default function ShopLayout() {
   const pathname = usePathname();
@@ -56,8 +57,9 @@ export default function ShopLayout() {
   }, [totalQuantity, itemCount]);
 
   return (
-    <Tabs
-      backBehavior="history"
+    <>
+      <Tabs
+        backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
@@ -145,6 +147,8 @@ export default function ShopLayout() {
       <Tabs.Screen name="search" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
+    <CartConflictModal />
+    </>
   );
 }
 

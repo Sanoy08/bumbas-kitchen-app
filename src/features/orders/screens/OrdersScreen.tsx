@@ -397,6 +397,14 @@ export function OrdersScreen() {
                         return (
                           <View key={idx} className={`flex-row justify-between items-center ${!isLast ? 'pb-3 mb-3 border-b border-dashed border-gray-200' : ''}`}>
                             <View className="flex-row items-center flex-1">
+                              {/* --- Image Display --- */}
+                              {(item.image?.url || item.images?.[0]?.url) && (
+                                <Image 
+                                  source={{ uri: item.image?.url || item.images?.[0]?.url }}
+                                  className="w-12 h-12 rounded-xl mr-3 bg-gray-100"
+                                  resizeMode="cover"
+                                />
+                              )}
                               <View className="flex-1 pr-2">
                                 <Text className="text-sm font-bold text-gray-800 font-sans" numberOfLines={2}>{item.name}</Text>
                                 <Text className="text-xs text-gray-500 font-medium font-sans mt-0.5">

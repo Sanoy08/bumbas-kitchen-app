@@ -1,43 +1,40 @@
 // src/app/(shop)/checkout/success.tsx
 
-import { formatPrice } from '@/shared/utils/utils';
+import { ScratchCard } from '@/shared/components/ui';
 import { useCartStore } from '@/shared/store/cartStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
+import { formatPrice } from '@/shared/utils/utils';
 import { useAudioPlayer } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ScratchCard } from '@/shared/components/ui';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { ArrowRight, Home, ShoppingBag, Sparkles, Gift, X } from 'lucide-react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
-import Svg, { Path } from 'react-native-svg';
-import { useEffect, useState, useCallback } from 'react';
+import { ArrowRight, Gift, Home, ShoppingBag, Sparkles, X } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  BackHandler,
   Dimensions,
+  Modal,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Image,
-  BackHandler,
-  Modal,
+  View
 } from 'react-native';
 import Animated, {
   Easing,
-  FadeInDown,
   FadeInUp,
   interpolate,
-  useAnimatedStyle,
   useAnimatedProps,
+  useAnimatedStyle,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
   withSpring,
-  withTiming,
-  ZoomIn,
+  withTiming
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -98,18 +95,18 @@ export function SuccessScreen() {
   useEffect(() => {
     clearCart();
     setHasOrdered(); // Mark that user has placed an order this session
-    
+
     // Log the total API calls made up to this point
     console.log(`\n=================================================`);
     console.log(`🎉 SUCCESS PAGE REACHED!`);
     console.log(`Total API Calls made from App Start: ${(global as any).apiCallCount || 0}`);
     console.log(`=================================================\n`);
-    
+
     const onBackPress = () => {
       router.replace('/(shop)');
       return true;
     };
-    
+
     const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => {
       backHandler.remove();
@@ -131,7 +128,7 @@ export function SuccessScreen() {
 
   const [isScratchModalOpen, setIsScratchModalOpen] = useState(false);
   const [isScratched, setIsScratched] = useState(false);
-  
+
   const giftBounce = useSharedValue(0);
   useEffect(() => {
     giftBounce.value = withRepeat(
@@ -213,122 +210,122 @@ export function SuccessScreen() {
     <View style={{ flex: 1 }}>
       <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <LinearGradient
-        colors={['#fff1f2', '#ffffff']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
+          colors={['#fff1f2', '#ffffff']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
 
-      <View style={styles.wrapper}>
-        {/* Animated Checkmark UI (Initially Centered) */}
-        <Animated.View style={[styles.iconContainer, iconWrapperStyle]}>
-          <PulseRing delay={0} scaleTo={1.6} opacityTo={0} />
-          <PulseRing delay={1000} scaleTo={2} opacityTo={0} />
-          
-          <Animated.View style={[styles.iconCircle, checkAnimatedStyle]}>
-            <LinearGradient
-              colors={['#f43f5e', '#e11d48']}
-              style={styles.iconGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+        <View style={styles.wrapper}>
+          {/* Animated Checkmark UI (Initially Centered) */}
+          <Animated.View style={[styles.iconContainer, iconWrapperStyle]}>
+            <PulseRing delay={0} scaleTo={1.6} opacityTo={0} />
+            <PulseRing delay={1000} scaleTo={2} opacityTo={0} />
+
+            <Animated.View style={[styles.iconCircle, checkAnimatedStyle]}>
+              <LinearGradient
+                colors={['#f43f5e', '#e11d48']}
+                style={styles.iconGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Animated.View style={iconAnimatedStyle}>
+                  <Svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                    <AnimatedPath
+                      d="M4 12L9 17L20 6"
+                      strokeDasharray={24}
+                      animatedProps={animatedCheckProps}
+                    />
+                  </Svg>
+                </Animated.View>
+              </LinearGradient>
+            </Animated.View>
+          </Animated.View>
+
+          {/* Text Content */}
+          <Animated.View style={[styles.content, detailStyle1]}>
+            <Text style={styles.title}>🎉 Order Placed!</Text>
+            <Text style={styles.subtitle} numberOfLines={2}>
+              Awesome, {name}! Your food is getting ready.
+            </Text>
+          </Animated.View>
+
+          {/* Order Details Card */}
+          <Animated.View style={[styles.cardContainer, detailStyle2]}>
+            <View style={styles.card}>
+              <View style={styles.cardRow}>
+                <Text style={styles.cardLabel}>ORDER ID</Text>
+                <Text style={styles.cardValue}>#{orderId}</Text>
+              </View>
+              <View style={styles.cardDivider} />
+              <View style={styles.cardRow}>
+                <Text style={styles.cardLabel}>AMOUNT PAID</Text>
+                <Text style={[styles.cardValue, styles.amountText]}>
+                  {formatPrice(amount)}
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Coins Earned - Gift Pill */}
+          {coins > 0 && (
+            <Animated.View style={[styles.cardContainer, detailStyle3, { alignItems: 'center', marginTop: 10 }]}>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => setIsScratchModalOpen(true)}>
+                <Animated.View style={giftStyle}>
+                  <LinearGradient
+                    colors={['#f43f5e', '#e11d48']}
+                    style={styles.giftPillGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Gift size={20} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.giftPillText}>You won a Scratch Card!</Text>
+                  </LinearGradient>
+                </Animated.View>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* Actions */}
+          <Animated.View style={[styles.buttonGroup, coins > 0 ? detailStyle4 : detailStyle3]}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.button, styles.primaryButton]}
+              onPress={() => router.replace(`/(shop)/account/orders?orderId=${orderId}`)}
             >
-              <Animated.View style={iconAnimatedStyle}>
-                <Svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                  <AnimatedPath
-                    d="M4 12L9 17L20 6"
-                    strokeDasharray={24}
-                    animatedProps={animatedCheckProps}
-                  />
-                </Svg>
-              </Animated.View>
-            </LinearGradient>
-          </Animated.View>
-        </Animated.View>
-
-        {/* Text Content */}
-        <Animated.View style={[styles.content, detailStyle1]}>
-          <Text style={styles.title}>🎉 Order Placed!</Text>
-          <Text style={styles.subtitle} numberOfLines={2}>
-            Awesome, {name}! Your food is getting ready.
-          </Text>
-        </Animated.View>
-
-        {/* Order Details Card */}
-        <Animated.View style={[styles.cardContainer, detailStyle2]}>
-          <View style={styles.card}>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>ORDER ID</Text>
-              <Text style={styles.cardValue}>#{orderId}</Text>
-            </View>
-            <View style={styles.cardDivider} />
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>AMOUNT PAID</Text>
-              <Text style={[styles.cardValue, styles.amountText]}>
-                {formatPrice(amount)}
-              </Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Coins Earned - Gift Pill */}
-        {coins > 0 && (
-          <Animated.View style={[styles.cardContainer, detailStyle3, { alignItems: 'center', marginTop: 10 }]}>
-            <TouchableOpacity activeOpacity={0.8} onPress={() => setIsScratchModalOpen(true)}>
-              <Animated.View style={giftStyle}>
-                <LinearGradient
-                  colors={['#f43f5e', '#e11d48']}
-                  style={styles.giftPillGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Gift size={20} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.giftPillText}>You won a Scratch Card!</Text>
-                </LinearGradient>
-              </Animated.View>
+              <ShoppingBag size={20} color="#fff" />
+              <Text style={styles.buttonText}>View Order</Text>
+              <ArrowRight size={18} color="#fff" style={styles.buttonIcon} />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.button, styles.secondaryButton]}
+              onPress={() => router.replace('/(shop)')}
+            >
+              <Home size={20} color="#4b5563" />
+              <Text style={styles.secondaryButtonText}>Back to Home</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.footerText}>
+              You will receive a confirmation notification shortly.
+            </Text>
           </Animated.View>
-        )}
+        </View>
+      </SafeAreaView>
 
-        {/* Actions */}
-        <Animated.View style={[styles.buttonGroup, coins > 0 ? detailStyle4 : detailStyle3]}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.button, styles.primaryButton]}
-            onPress={() => router.replace(`/(shop)/account/orders?orderId=${orderId}`)}
-          >
-            <ShoppingBag size={20} color="#fff" />
-            <Text style={styles.buttonText}>View Order</Text>
-            <ArrowRight size={18} color="#fff" style={styles.buttonIcon} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.button, styles.secondaryButton]}
-            onPress={() => router.replace('/(shop)')}
-          >
-            <Home size={20} color="#4b5563" />
-            <Text style={styles.secondaryButtonText}>Back to Home</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.footerText}>
-            You will receive a confirmation notification shortly.
-          </Text>
-        </Animated.View>
-      </View>
-    </SafeAreaView>
-      
       {/* Scratch Modal */}
       <Modal visible={isScratchModalOpen} transparent animationType="fade">
         <View style={StyleSheet.absoluteFill} className="bg-black/90 items-center justify-center p-6">
           <View style={{ position: 'absolute', top: 60, right: 24, zIndex: 10 }}>
-             <TouchableOpacity 
-               onPress={() => setIsScratchModalOpen(false)} 
-               style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}
-             >
-               <X size={24} color="white" />
-             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setIsScratchModalOpen(false)}
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={24} color="white" />
+            </TouchableOpacity>
           </View>
-          
+
           {/* Titles inside Popup */}
           <View className="items-center mb-10 w-full px-4">
             <Text className="text-3xl font-black text-white text-center mb-2">
@@ -349,39 +346,39 @@ export function SuccessScreen() {
               onScratchComplete={() => setIsScratched(true)}
             >
               <View className="flex-1 bg-white items-center justify-center rounded-3xl overflow-hidden p-6 border-4 border-yellow-400">
-                 {/* Lottie background for celebration */}
-                 {isScratched && (
-                    <LottieView
-                       source={require('../../../../assets/animations/success.json')}
-                       autoPlay
-                       loop={false}
-                       style={{ position: 'absolute', width: 400, height: 400, opacity: 0.5 }}
-                    />
-                 )}
-                 <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100">
-                    <Sparkles size={48} color="#e11d48" />
-                 </View>
-                 <Text className="text-2xl font-bold text-gray-500 mb-2">You Won!</Text>
-                 <Text className="text-6xl font-black text-primary">+{coins}</Text>
-                 <Text className="text-lg font-bold text-gray-400 mt-2">Bumba Coins</Text>
+                {/* Lottie background for celebration */}
+                {isScratched && (
+                  <LottieView
+                    source={require('../../../../assets/animations/success.json')}
+                    autoPlay
+                    loop={false}
+                    style={{ position: 'absolute', width: 400, height: 400, opacity: 0.5 }}
+                  />
+                )}
+                <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100">
+                  <Sparkles size={48} color="#e11d48" />
+                </View>
+                <Text className="text-2xl font-bold text-gray-500 mb-2">You Won!</Text>
+                <Text className="text-6xl font-black text-primary">+{coins}</Text>
+                <Text className="text-lg font-bold text-gray-400 mt-2">BK Coins</Text>
               </View>
             </ScratchCard>
           </View>
 
           {isScratched && (
-             <Animated.View entering={FadeInUp.delay(300)} className="mt-12 w-full max-w-[300px]">
-                <TouchableOpacity
-                  onPress={() => setIsScratchModalOpen(false)}
-                  className="bg-primary h-14 rounded-full items-center justify-center shadow-lg"
-                >
-                  <Text className="text-white font-bold text-lg">Claim Coins!</Text>
-                </TouchableOpacity>
-             </Animated.View>
+            <Animated.View entering={FadeInUp.delay(300)} className="mt-12 w-full max-w-[300px]">
+              <TouchableOpacity
+                onPress={() => setIsScratchModalOpen(false)}
+                className="bg-primary h-14 rounded-full items-center justify-center shadow-lg"
+              >
+                <Text className="text-white font-bold text-lg">Claim Coins!</Text>
+              </TouchableOpacity>
+            </Animated.View>
           )}
         </View>
       </Modal>
 
-    {/* Native Audio played via expo-av in useEffect */}
+      {/* Native Audio played via expo-av in useEffect */}
     </View>
   );
 }

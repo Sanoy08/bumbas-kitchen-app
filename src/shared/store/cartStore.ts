@@ -23,6 +23,12 @@ interface CartState {
   isDirty: boolean;
   isInitialized: boolean;
   syncIntervalId: ReturnType<typeof setTimeout> | null;
+  
+  // Conflict Resolution
+  pendingConflictProduct: Product | null;
+  pendingConflictQuantity: number;
+  setPendingConflict: (product: Product | null, quantity?: number) => void;
+  resolveConflict: (clearCart: boolean) => void;
 
   // Actions
   addItem: (product: Product, quantity?: number, showToast?: boolean) => void;
@@ -55,6 +61,29 @@ export const useCartStore = create<CartState>()(
       isDirty: false,
       isInitialized: false,
       syncIntervalId: null,
+      pendingConflictProduct: null,
+      pendingConflictQuantity: 1,
+
+      setPendingConflict: (product, quantity = 1) => set({ pendingConflictProduct: product, pendingConflictQuantity: quantity }),
+
+      resolveConflict: (clearCart) => {
+        const { pendingConflictProduct, pendingConflictQuantity, items, removeItem, addItem } = get();
+        if (clearCart && pendingConflictProduct) {
+          // Remove ONLY the conflicting special offers, keeping regular items in the cart
+          items.forEach(item => {
+            if (item.isSpecialOffer && (item.deliveryDate !== pendingConflictProduct.deliveryDate || item.mealType !== pendingConflictProduct.mealType)) {
+              removeItem(item.id);
+            }
+          });
+          
+          // Delay adding the new item by 50ms so React registers the quantity drop first.
+          // This forces the Navbar Lottie animation to play correctly!
+          setTimeout(() => {
+            get().addItem(pendingConflictProduct, pendingConflictQuantity, true);
+          }, 50);
+        }
+        set({ pendingConflictProduct: null, pendingConflictQuantity: 1 });
+      },
 
       setIsInitialized: (val) => set({ isInitialized: val }),
 
@@ -93,6 +122,18 @@ export const useCartStore = create<CartState>()(
       // ★ Add Item (Next.js image logic and Toast setup)
       addItem: (product, quantity = 1, showToast = true) => {
         const { items } = get();
+        
+        // --- Conflict Check ---
+        if (items.length > 0) {
+          const existingOffer = items.find(i => i.isSpecialOffer);
+          if (existingOffer && product.isSpecialOffer) {
+            if (existingOffer.deliveryDate !== product.deliveryDate || existingOffer.mealType !== product.mealType) {
+              set({ pendingConflictProduct: product, pendingConflictQuantity: quantity });
+              return;
+            }
+          }
+        }
+
         const existingItem = items.find((item) => item.id === product.id);
         const maxStock = product.stock || 100;
         const currentQty = existingItem ? existingItem.quantity : 0;

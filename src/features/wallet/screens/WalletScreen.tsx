@@ -47,13 +47,6 @@ export function WalletScreen() {
   const [tier, setTier] = useState('Bronze');
   const [totalSpent, setTotalSpent] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  
-  const [isRedeemOpen, setIsRedeemOpen] = useState(false);
-  const [redeemAmount, setRedeemAmount] = useState('');
-  const [isRedeeming, setIsRedeeming] = useState(false);
-
-  // ★ Smooth Keyboard Animation-এর জন্য Animated Value
-  const keyboardHeight = useRef(new Animated.Value(0)).current;
 
   const fetchWalletData = async () => {
     try {
@@ -82,70 +75,6 @@ export function WalletScreen() {
       router.replace('/(auth)/login');
     }
   }, [isInitialized, user]);
-
-  // ★ Keyboard Listener Effect (Login পেজের মতো)
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const showListener = Keyboard.addListener(showEvent, (e) => {
-      Animated.timing(keyboardHeight, {
-        toValue: e.endCoordinates.height,
-        duration: 250,
-        useNativeDriver: false,
-      }).start();
-    });
-
-    const hideListener = Keyboard.addListener(hideEvent, () => {
-      Animated.timing(keyboardHeight, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: false,
-      }).start();
-    });
-
-    return () => {
-      showListener.remove();
-      hideListener.remove();
-    };
-  }, [keyboardHeight]);
-
-  const handleRedeem = async () => {
-    if (!redeemAmount || parseInt(redeemAmount) < 10) {
-      Alert.alert("Error", "Minimum redeem amount is 10 coins.");
-      return;
-    }
-    if (parseInt(redeemAmount) > balance) {
-      Alert.alert("Error", "Insufficient balance.");
-      return;
-    }
-
-    setIsRedeeming(true);
-    Keyboard.dismiss();
-
-    try {
-      const res = await fetch(`${API_URL}/wallet/redeem`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coinsToRedeem: parseInt(redeemAmount) })
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        Alert.alert("Success", "Coupon Generated Successfully! Check your email.");
-        setIsRedeemOpen(false);
-        setRedeemAmount('');
-        fetchWalletData(); 
-      } else {
-        Alert.alert("Error", data.error || "Redeem failed");
-      }
-    } catch (e) {
-      Alert.alert("Error", "Error redeeming coins");
-    } finally {
-      setIsRedeeming(false);
-    }
-  };
 
   const getNextTierInfo = () => {
     if (totalSpent < 5000) return { next: 'Silver', target: 5000, current: totalSpent };
@@ -204,15 +133,6 @@ export function WalletScreen() {
               </View>
             </View>
           </View>
-
-          <TouchableOpacity 
-            onPress={() => setIsRedeemOpen(true)}
-            className="bg-white py-3 rounded-full mt-6 flex-row justify-center items-center"
-            activeOpacity={0.8}
-          >
-            <Gift size={18} color="#e11d48" className="mr-2" />
-            <Text className="text-gray-900 font-bold text-sm font-sans">Redeem Coins</Text>
-          </TouchableOpacity>
         </View>
 
         {/* --- TIER PROGRESS --- */}
@@ -296,67 +216,6 @@ export function WalletScreen() {
         </View>
 
       </ScrollView>
-
-      {/* --- REDEEM MODAL --- */}
-      <Modal visible={isRedeemOpen} animationType="fade" transparent>
-        {/* ★ Animated.View দিয়ে র‍্যাপ করা হলো এবং কীবোর্ড হাইট প্যাডিংয়ে যোগ করা হলো */}
-        <Animated.View 
-          className="flex-1 justify-end"
-          style={{ 
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            paddingBottom: keyboardHeight 
-          }}
-        >
-          <View 
-  className="bg-white rounded-t-3xl p-6"
-  style={{ paddingBottom: 60 }}
->
-            
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-xl font-bold text-gray-900 font-sans">Redeem Coins</Text>
-              <TouchableOpacity onPress={() => {
-                Keyboard.dismiss();
-                setIsRedeemOpen(false);
-              }}>
-                <Text className="text-gray-500 font-semibold font-sans">Close</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View className="bg-gray-50 p-4 rounded-2xl items-center mb-6 border border-gray-100">
-              <Text className="text-xs font-bold text-gray-500 uppercase font-sans">Available Balance</Text>
-              <Text className="text-3xl font-bold text-primary mt-1 font-sans">{balance}</Text>
-            </View>
-
-            <View className="mb-6">
-              <Text className="text-sm font-bold text-gray-700 mb-2 font-sans">Coins to Redeem</Text>
-              <View className="relative justify-center">
-                <View className="absolute left-4 z-10">
-                  <Coins size={20} color="#9ca3af" />
-                </View>
-                <TextInput 
-                  keyboardType="numeric"
-                  placeholder="Enter amount (min 10)"
-                  placeholderTextColor="#9ca3af"
-                  value={redeemAmount}
-                  onChangeText={setRedeemAmount}
-                  className="bg-white border border-gray-200 rounded-xl pl-12 pr-4 h-14 text-lg font-bold text-gray-900 font-sans"
-                />
-              </View>
-              <Text className="text-xs text-gray-500 font-medium text-right mt-2 font-sans">
-                Value: ₹{parseInt(redeemAmount || '0') * 1}
-              </Text>
-            </View>
-
-            <TouchableOpacity 
-              onPress={handleRedeem} 
-              disabled={isRedeeming || !redeemAmount}
-              className={`h-14 rounded-xl items-center justify-center shadow-sm ${isRedeeming || !redeemAmount ? 'bg-gray-300' : 'bg-primary'}`}
-            >
-              {isRedeeming ? <ActivityIndicator color="#ffffff" /> : <Text className="text-white font-bold text-lg font-sans">Confirm Redeem</Text>}
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </Modal>
 
       </View>
     </View>

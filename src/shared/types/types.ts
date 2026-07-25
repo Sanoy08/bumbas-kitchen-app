@@ -34,6 +34,10 @@ export type Product = {
   featured: boolean;
   isDailySpecial?: boolean;
   createdAt?: string;
+  isSpecialOffer?: boolean;
+  deliveryDate?: string;
+  orderCutoffTime?: string;
+  mealType?: string;
 };
 
 export type CartItem = {
