@@ -227,7 +227,7 @@ export function HomeScreen() {
         isTabBarVisibleShared.value = false;
       }, 350);
 
-      // Give React 50ms to render the Skeletons and remove Bestsellers.
+      // Give React enough time to render Skeletons and remove Bestsellers without blocking UI thread
       setTimeout(() => {
         const startY = scrollY.value;
         const targetYPos = Math.max(0, targetY);
@@ -242,7 +242,7 @@ export function HomeScreen() {
             runOnJS(finalizeGridMode)(newCategory, newFilter);
           }
         );
-      }, 50);
+      }, 150);
     } else if (!isNewGridViewMode && isGridViewMode) {
       // Reverting from grid mode back to "All"
       
@@ -267,7 +267,7 @@ export function HomeScreen() {
       // isCategoryActive.value remains TRUE during this time to act as a seamless mask!
       scrollViewRef.current?.scrollToOffset({ offset: Math.max(0, targetY), animated: false });
       
-      // Give React 100ms to paint the expanded layout robustly
+      // Give React ample time (150ms) to paint the expanded layout robustly on Android
       setTimeout(() => {
         // Enforce the offset just in case FlashList auto-adjusted
         scrollViewRef.current?.scrollToOffset({ offset: Math.max(0, targetY), animated: false });
@@ -285,7 +285,7 @@ export function HomeScreen() {
             runOnJS(setIsSwitchingCategory)(false);
           }
         );
-      }, 100);
+      }, 150);
     } else {
       // Switching categories within Grid mode, OR edge case where both are false
       isCategoryActive.value = isNewGridViewMode;
