@@ -5,3 +5,5 @@ export * from './themed-view';
 export * from './ScratchCard';
 export * from './SavingsBanner';
 export * from './CouponTag';
+export * from './CartConflictModal';
+export * from './OrderCancelledModal';

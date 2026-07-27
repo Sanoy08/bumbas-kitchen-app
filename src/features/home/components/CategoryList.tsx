@@ -52,40 +52,47 @@ export const CategoryList = memo(({ activeCategory, setActiveCategory }: Categor
   }, [activeCategory, scrollToCenter]);
 
   return (
-    <ScrollView
-      ref={scrollViewRef}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      className="px-2"
-      contentContainerStyle={{ paddingRight: 20 }}
-      onLayout={(e) => setScrollViewWidth(e.nativeEvent.layout.width)}
-      onContentSizeChange={(w) => setContentWidth(w)}
-      scrollEventThrottle={16}
-    >
-      {CATEGORIES.map((cat, idx) => {
-        const isActive = activeCategory === cat.name;
-        return (
-          <TouchableOpacity
-            key={idx}
-            onLayout={(e) => {
-              itemLayouts.current[cat.name] = {
-                x: e.nativeEvent.layout.x,
-                width: e.nativeEvent.layout.width,
-              };
-            }}
-            onPress={() => setActiveCategory(cat.name)}
-            className={`items-center mx-2 pb-0 ${isActive ? 'border-b-[3px] border-primary' : ''}`}
-            activeOpacity={0.7}
-          >
-            <View className={`h-16 w-16 rounded-full mb-1.5 overflow-hidden items-center justify-center border-2 ${isActive ? 'border-primary' : 'border-gray-200 bg-gray-50'}`}>
-              <Image source={cat.image} style={{ width: '100%', height: '100%', borderRadius: 32 }} contentFit="cover" />
-            </View>
-            <Text className={`text-xs ${isActive ? 'font-bold text-gray-900' : 'font-medium text-gray-600'} font-sans`}>
-              {cat.name}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+    <View className="border-b border-gray-200">
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="px-2"
+        contentContainerStyle={{ paddingRight: 20 }}
+        onLayout={(e) => setScrollViewWidth(e.nativeEvent.layout.width)}
+        onContentSizeChange={(w) => setContentWidth(w)}
+        scrollEventThrottle={16}
+      >
+        {CATEGORIES.map((cat, idx) => {
+          const isActive = activeCategory === cat.name;
+          return (
+            <TouchableOpacity
+              key={idx}
+              onLayout={(e) => {
+                itemLayouts.current[cat.name] = {
+                  x: e.nativeEvent.layout.x,
+                  width: e.nativeEvent.layout.width,
+                };
+              }}
+              onPress={() => setActiveCategory(cat.name)}
+              className="items-center mx-2 relative pb-2.5"
+              activeOpacity={0.7}
+            >
+              <View className={`h-16 w-16 rounded-full mb-1.5 overflow-hidden items-center justify-center border-2 ${isActive ? 'border-primary' : 'border-gray-200 bg-gray-50'}`}>
+                <Image source={cat.image} style={{ width: '100%', height: '100%', borderRadius: 32 }} contentFit="cover" />
+              </View>
+              <Text className={`text-xs ${isActive ? 'font-bold text-gray-900' : 'font-medium text-gray-600'} font-sans`}>
+                {cat.name}
+              </Text>
+              
+              {/* Active Tab Indicator (Thicker, Sloped Edges, No Gap) */}
+              {isActive && (
+                <View className="absolute bottom-[-1px] w-[90%] h-[4px] bg-primary rounded-t-full" />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 });

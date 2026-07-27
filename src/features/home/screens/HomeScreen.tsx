@@ -30,7 +30,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 import NotificationPrompt from '@/shared/components/shop/NotificationPrompt';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
-import { useAlert } from '@/shared/components/ui';
+import { useAlert, OrderCancelledModal } from '@/shared/components/ui';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
@@ -128,6 +128,7 @@ export function HomeScreen() {
   const [tempDate, setTempDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
+  const [cancelledNotification, setCancelledNotification] = useState<any>(null);
 
   // --- Scroll/Animation Refs & Values ---
   const categoryYRef = useRef(0);
@@ -345,8 +346,22 @@ export function HomeScreen() {
       const res = await fetch(`${API_URL}/notifications/history`);
       const data = await res.json();
       if (data.success && data.notifications) {
-        const hasAnyUnread = data.notifications.some((n: any) => !n.isRead);
-        useNotificationStore.getState().setHasUnread(hasAnyUnread);
+        const unreadNotifications = data.notifications.filter((n: any) => !n.isRead);
+        useNotificationStore.getState().setHasUnread(unreadNotifications.length > 0);
+
+        // Check for any unread cancelled order notification
+        const cancelledNotif = unreadNotifications.find((n: any) => 
+          n.type === 'ORDER_CANCELLED' || 
+          (n.title && n.title.toLowerCase().includes('cancel')) ||
+          (n.message && n.message.toLowerCase().includes('cancel'))
+        );
+
+        if (cancelledNotif) {
+          // Small delay for smooth entry after home screen renders
+          setTimeout(() => {
+            setCancelledNotification(cancelledNotif);
+          }, 1500);
+        }
       }
     } catch (e) {
       // silently fail
@@ -851,7 +866,18 @@ export function HomeScreen() {
         visible={isVoiceModalVisible}
         onClose={() => setIsVoiceModalVisible(false)}
         onResult={(transcript) => {
+          setIsVoiceModalVisible(false);
           router.push({ pathname: '/(shop)/search', params: { voiceQuery: transcript } });
+        }}
+      />
+
+      <OrderCancelledModal
+        visible={!!cancelledNotification}
+        notification={cancelledNotification}
+        onClose={() => {
+          fetch(`${API_URL}/notifications/mark-read`, { method: 'PATCH' }).catch(() => {});
+          useNotificationStore.getState().setHasUnread(false);
+          setCancelledNotification(null);
         }}
       />
     </View>
