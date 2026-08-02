@@ -2,19 +2,33 @@
   "expo": {
     "name": "Bumba's Kitchen",
     "slug": "bumbas-kitchen",
-    "version": "1.0.44",
+    "version": "1.0.48",
     "orientation": "portrait",
     "icon": "./assets/images/app-logo.png",
     "scheme": "bumbaskitchenapp",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/40acdafb-c0f4-4185-a987-1f04ce8c59d8"
+    },
     "ios": {
-      "icon": "./assets/images/app-logo.png"
+      "icon": "./assets/images/app-logo.png",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
+      }
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "REQUEST_INSTALL_PACKAGES",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "predictiveBackGestureEnabled": false,
       "package": "com.bumbaskitchen.app",
@@ -54,6 +68,7 @@
       "eas": {
         "projectId": "40acdafb-c0f4-4185-a987-1f04ce8c59d8"
       }
-    }
+    },
+    "owner": "sanoy08"
   }
 }

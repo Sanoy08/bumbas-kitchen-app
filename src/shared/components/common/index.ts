@@ -7,3 +7,4 @@ export * from './AppUpdater';
 export * from './Onboarding';
 export * from './NoInternetScreen';
 export * from './CustomCalendarModal';
+export * from './OtaUpdater';

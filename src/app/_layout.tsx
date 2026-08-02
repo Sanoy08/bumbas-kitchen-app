@@ -16,7 +16,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import "../../global.css";
 
-import { AppUpdater, Onboarding, NoInternetScreen } from '@/shared/components/common';
+import { AppUpdater, OtaUpdater, Onboarding, NoInternetScreen } from '@/shared/components/common';
 import { usePushNotification } from '@/shared/hooks/usePushNotification';
 import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
 
@@ -180,6 +180,7 @@ export default function RootLayout() {
           )}
 
           <AppUpdater />
+          <OtaUpdater />
 
           <Toaster position="bottom-center" theme="light" toastOptions={{ style: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }, titleStyle: { color: '#111827', fontWeight: 'regular' } }} />
         </AlertProvider>
