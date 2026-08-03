@@ -61,13 +61,7 @@ const runBuildProcess = async (commitMsg) => {
         gradleContent = gradleContent.replace(/versionName "[^"]+"/, `versionName "${newName}"`);
         fs.writeFileSync(gradlePath, gradleContent);
 
-        // ★★★ NEW FIX: Update strings.xml so OTA runtimeVersion stays in sync! ★★★
-        const stringsXmlPath = path.join(__dirname, 'android/app/src/main/res/values/strings.xml');
-        if (fs.existsSync(stringsXmlPath)) {
-            let stringsXmlContent = fs.readFileSync(stringsXmlPath, 'utf8');
-            stringsXmlContent = stringsXmlContent.replace(/<string name="expo_runtime_version">[^<]+<\/string>/, `<string name="expo_runtime_version">${newName}</string>`);
-            fs.writeFileSync(stringsXmlPath, stringsXmlContent);
-        }
+
 
         // ২. app.json এবং package.json আপডেট করা
         if (fs.existsSync(appJsonPath)) {
