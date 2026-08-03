@@ -10,15 +10,15 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import LottieView from 'lottie-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Text, TouchableOpacity, View, FlatList, NativeSyntheticEvent, NativeScrollEvent, DeviceEventEmitter } from 'react-native';
+import { Animated, DeviceEventEmitter, Dimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import "../../global.css";
 
-import { AppUpdater, Onboarding, NoInternetScreen } from '@/shared/components/common';
-import { usePushNotification } from '@/shared/hooks/usePushNotification';
+import { AppUpdater, NoInternetScreen, Onboarding } from '@/shared/components/common';
 import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
+import { usePushNotification } from '@/shared/hooks/usePushNotification';
 
 const originalFetch = fetch;
 if (!(global as any).isFetchIntercepted) {
@@ -73,18 +73,18 @@ export default function RootLayout() {
 
   useEffect(() => {
     initAuth();
-    
+
     // Listen for network restoration to re-authenticate if it failed initially
     const networkSubscription = DeviceEventEmitter.addListener('network_restored', () => {
       console.log('Network restored, re-initializing auth...');
       initAuth();
     });
-    
+
     const checkFirstRun = async () => {
       const firstRun = await AsyncStorage.getItem('isFirstRun');
       if (firstRun === null) {
         setIsFirstRun(true);
-        setShowSplash(false); 
+        setShowSplash(false);
       } else {
         setIsFirstRun(false);
       }
@@ -109,7 +109,7 @@ export default function RootLayout() {
       setIsHomeLoaded(true);
       clearTimeout(timeoutId);
     });
-    
+
     const refreshListener = DeviceEventEmitter.addListener('trigger_refresh_splash', () => {
       setShowSplash(true);
       setIsHomeLoaded(false);
@@ -136,7 +136,7 @@ export default function RootLayout() {
           duration: 400,
           useNativeDriver: true,
         }).start(() => setShowSplash(false));
-      }, 300); 
+      }, 300);
     }
   }, [isFirstRun, isInitialized, fontsLoaded, isHomeLoaded]);
 
@@ -155,17 +155,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-  <AlertProvider>
-    <StatusBar style="dark" />
-    
-    {/* ★ গ্লোবাল বটম সেফ এরিয়া: সমস্ত পেজ নেভিগেশন বারের উপরে থাকবে */}
-    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="addressModal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      </Stack>
-    </SafeAreaView>
-    
-    {isFirstRun && <Onboarding onFinish={finishOnboarding} />}
+        <AlertProvider>
+          <StatusBar style="dark" />
+
+          {/* ★ গ্লোবাল বটম সেফ এরিয়া: সমস্ত পেজ নেভিগেশন বারের উপরে থাকবে */}
+          <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="addressModal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            </Stack>
+          </SafeAreaView>
+
+          {isFirstRun && <Onboarding onFinish={finishOnboarding} />}
 
           {!isFirstRun && showSplash && (
             <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#e11d48', elevation: 15, justifyContent: 'center', alignItems: 'center' }}>
