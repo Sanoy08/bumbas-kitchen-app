@@ -2,14 +2,9 @@
 
 // src/components/ui/CustomAlert.tsx
 import React, { createContext, useContext, useState, useRef } from 'react';
-import { Modal, Text, TouchableOpacity, View, ActivityIndicator, Animated, Easing, Dimensions, Pressable, StyleSheet } from 'react-native';
+import { Modal, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
-import { X } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEffect } from 'react';
-
-const { height } = Dimensions.get('window');
 
 type AlertOptions = {
   title: string;
@@ -31,7 +26,6 @@ type AlertContextType = {
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
 export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
-  const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [options, setOptions] = useState<AlertOptions>({
     title: '',
@@ -65,120 +59,83 @@ export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
     onCancelRef.current = undefined;
   };
 
-  const slideAnim = useRef(new Animated.Value(height)).current;
-
-  useEffect(() => {
-    if (visible) {
-      slideAnim.setValue(height);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 350,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, slideAnim]);
-
-  const closeWithAnimation = (action: () => void) => {
-    Animated.timing(slideAnim, {
-      toValue: height,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      action();
-    });
-  };
-
   const handleConfirm = async () => {
     if (onConfirmRef.current) {
       onConfirmRef.current();
     }
-    closeWithAnimation(hideAlert);
+    hideAlert();
   };
 
   const handleCancel = () => {
     if (onCancelRef.current) {
       onCancelRef.current();
     }
-    closeWithAnimation(hideAlert);
+    hideAlert();
   };
 
   return (
     <AlertContext.Provider value={{ showAlert, hideAlert }}>
       {children}
-      <Modal transparent visible={visible} animationType="fade" onRequestClose={handleCancel}>
-        <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-end">
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleCancel} />
-          
-          <Animated.View 
-            className="w-full flex-1 justify-end"
-            style={{ transform: [{ translateY: slideAnim }] }}
-          >
-            {/* Floating Close Button exactly outside the top */}
-            <View className="items-center mb-4">
-              <TouchableOpacity 
-                onPress={handleCancel} 
-                activeOpacity={0.7}
-                style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
-                className="shadow-2xl border-2 border-white/20"
+      <Modal transparent visible={visible} animationType="fade">
+        <View className="flex-1 justify-center items-center bg-black/50 px-6">
+          <View className="bg-white w-full rounded-2xl overflow-hidden shadow-xl">
+            {/* Optional Lottie Animation */}
+            {options.lottieSource && (
+              <View className="items-center pt-6 pb-2">
+                <LottieView
+                  source={options.lottieSource}
+                  autoPlay
+                  loop
+                  style={{ width: 120, height: 120 }}
+                />
+              </View>
+            )}
+            
+            {/* Title */}
+            <View className={`px-5 ${options.lottieSource ? 'pt-2' : 'pt-5'} pb-2`}>
+              <Text className="text-lg font-bold text-gray-900 text-center font-sans">
+                {options.title}
+              </Text>
+            </View>
+            {/* Message */}
+            <View className="px-5 pb-5">
+              <Text className="text-sm text-gray-600 text-center leading-5 font-sans">
+                {options.message}
+              </Text>
+            </View>
+            {/* Buttons */}
+            <View className="flex-row border-t border-gray-100">
+              {options.cancelText && (
+                <TouchableOpacity
+                  onPress={handleCancel}
+                  className="flex-1 py-4 items-center border-r border-gray-100"
+                >
+                  <Text className="text-gray-500 font-semibold font-sans">
+                    {options.cancelText}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={handleConfirm}
+                disabled={loading}
+                className={`flex-1 py-4 items-center ${options.confirmButtonStyle === 'destructive' ? 'bg-red-50' : ''}`}
               >
-                <X size={28} color="white" />
+                {loading ? (
+                  <ActivityIndicator size="small" color="#e11d48" />
+                ) : (
+                  <Text
+                    className={`font-bold font-sans ${
+                      options.confirmButtonStyle === 'destructive'
+                        ? 'text-red-600'
+                        : 'text-primary'
+                    }`}
+                  >
+                    {options.confirmText}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
-
-            <View className="bg-white w-full rounded-t-[32px] pt-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
-              {/* Optional Lottie Animation */}
-              {options.lottieSource && (
-                <View className="items-center pb-4">
-                  <LottieView
-                    source={options.lottieSource}
-                    autoPlay
-                    loop
-                    style={{ width: 120, height: 120 }}
-                  />
-                </View>
-              )}
-              
-              {/* Title */}
-              <View className="px-6 pb-2">
-                <Text className="text-xl font-bold text-gray-900 text-center font-sans">
-                  {options.title}
-                </Text>
-              </View>
-              {/* Message */}
-              <View className="px-6 pb-8">
-                <Text className="text-sm text-gray-500 text-center leading-5 font-sans">
-                  {options.message}
-                </Text>
-              </View>
-              {/* Buttons */}
-              <View className="flex-row px-6 gap-3">
-                {options.cancelText && (
-                  <TouchableOpacity
-                    onPress={handleCancel}
-                    className="flex-1 py-4 bg-gray-100 rounded-2xl items-center justify-center border border-gray-200"
-                  >
-                    <Text className="text-gray-700 font-bold font-sans">
-                      {options.cancelText}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  onPress={handleConfirm}
-                  disabled={loading}
-                  className={`flex-1 py-4 rounded-2xl items-center justify-center ${options.confirmButtonStyle === 'destructive' ? 'bg-red-500 shadow-md shadow-red-500/20' : 'bg-primary shadow-md shadow-primary/20'}`}
-                >
-                  {loading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text className="font-bold font-sans text-white">
-                      {options.confirmText}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Animated.View>
+          </View>
         </View>
       </Modal>
     </AlertContext.Provider>
