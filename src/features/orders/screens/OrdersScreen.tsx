@@ -15,7 +15,7 @@ import {
     Utensils,
     X
 } from 'lucide-react-native';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View, Animated, Easing, PanResponder, Dimensions, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -101,13 +101,6 @@ export function OrdersScreen() {
                 setTimeout(() => {
                   setSelectedOrder(targetOrder);
                   setIsModalOpen(true);
-                  Animated.spring(slideAnim, {
-                    toValue: 0,
-                    damping: 26,
-                    stiffness: 220,
-                    mass: 1,
-                    useNativeDriver: true,
-                  }).start();
                 }, 400); // Wait for screen transition
               }
             }
@@ -132,6 +125,18 @@ export function OrdersScreen() {
     }, [isInitialized, user])
   );
 
+  useEffect(() => {
+    if (isModalOpen) {
+      slideAnim.setValue(height);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isModalOpen, slideAnim, height]);
+
   const loadMoreOrders = async () => {
     if (isLoadingMore || !hasMore) return;
     setIsLoadingMore(true);
@@ -155,13 +160,6 @@ export function OrdersScreen() {
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      damping: 26,
-      stiffness: 220,
-      mass: 1,
-      useNativeDriver: true,
-    }).start();
   };
 
   const closeModal = () => {
@@ -177,32 +175,7 @@ export function OrdersScreen() {
     });
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          slideAnim.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 120 || gestureState.vy > 0.5) {
-          closeModal();
-        } else {
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            damping: 26,
-            stiffness: 220,
-            mass: 1,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
+
 
   const getStatusStyle = (status: string) => {
     const s = status?.toLowerCase() || '';
@@ -362,11 +335,7 @@ export function OrdersScreen() {
               </TouchableOpacity>
             </View>
 
-            <View className="bg-white rounded-t-[32px] px-6 pb-8 shadow-2xl flex-shrink">
-              {/* Drag Handle for Swipe Down */}
-              <View {...panResponder.panHandlers} className="w-full pt-4 pb-4 items-center">
-                <View className="w-12 h-1.5 bg-gray-300 rounded-full" />
-              </View>
+            <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
 
               <View className="flex-row items-center justify-between mb-4">
                 <View>
@@ -384,7 +353,7 @@ export function OrdersScreen() {
                 </View>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
                 {selectedOrder && (
                 <View className="space-y-6">
                   
@@ -457,7 +426,7 @@ export function OrdersScreen() {
                     onPress={() => handleDownloadInvoice(selectedOrder)}
                     disabled={isDownloading}
                     activeOpacity={0.8}
-                    className={`w-full h-14 rounded-xl flex-row items-center justify-center shadow-md mb-6 ${isDownloading ? 'bg-gray-700' : 'bg-gray-900'}`}
+                    className={`w-full h-14 rounded-xl flex-row items-center justify-center shadow-md ${isDownloading ? 'bg-gray-700' : 'bg-gray-900'}`}
                   >
                     {isDownloading ? (
                       <ActivityIndicator color="#ffffff" />

@@ -1,10 +1,13 @@
 // src/features/home/components/DatePopupModal.tsx
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { Cake, ChevronRight, Gift, Heart, Sparkles } from 'lucide-react-native';
-import { ActivityIndicator, Modal, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { Cake, ChevronRight, Gift, Heart, Sparkles, X } from 'lucide-react-native';
+import { ActivityIndicator, Modal, Platform, Text, TouchableOpacity, View, Animated, Dimensions, Easing, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CustomCalendarModal } from '@/shared/components/common';
+import { useRef, useEffect } from 'react';
+
+const { height } = Dimensions.get('window');
 
 interface DatePopupModalProps {
   visible: boolean;
@@ -38,12 +41,53 @@ export const DatePopupModal = ({
   onDateSelected,
 }: DatePopupModalProps) => {
   const insets = useSafeAreaInsets();
+  const slideAnim = useRef(new Animated.Value(height)).current;
+
+  useEffect(() => {
+    if (visible) {
+      slideAnim.setValue(height);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, slideAnim]);
+
+  const closeWithAnimation = (action: () => void) => {
+    Animated.timing(slideAnim, {
+      toValue: height,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      action();
+    });
+  };
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="fade">
-        <View className="flex-1 justify-center items-center bg-black/60 px-4">
-          <View className="bg-white w-full rounded-3xl overflow-hidden">
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={() => closeWithAnimation(onSkip)}>
+        <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-end">
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => closeWithAnimation(onSkip)} />
+          
+          <Animated.View 
+            className="w-full flex-1 justify-end"
+            style={{ transform: [{ translateY: slideAnim }] }}
+          >
+            {/* Floating Close Button exactly outside the top */}
+            <View className="items-center mb-4">
+              <TouchableOpacity 
+                onPress={() => closeWithAnimation(onSkip)} 
+                activeOpacity={0.7}
+                style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
+                className="shadow-2xl border-2 border-white/20"
+              >
+                <X size={28} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="bg-white w-full rounded-t-[32px] overflow-hidden shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
             <View className="relative bg-orange-50 p-8 pb-10 items-center overflow-hidden">
               <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-200/50 rounded-full" />
               <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />
@@ -112,14 +156,12 @@ export const DatePopupModal = ({
                     <Text className="text-white font-bold text-base font-sans tracking-wide">Claim 5% Discount</Text>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={onSkip} className="py-4 mt-1">
-                  <Text className="text-gray-400 font-semibold font-sans text-center">Maybe Later</Text>
-                </TouchableOpacity>
               </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Animated.View>
+      </View>
+    </Modal>
 
       <CustomCalendarModal
         visible={!!activeDatePicker}

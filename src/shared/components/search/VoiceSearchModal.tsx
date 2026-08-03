@@ -4,6 +4,7 @@ import { Mic } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { toast } from 'sonner-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface VoiceSearchModalProps {
   visible: boolean;
@@ -12,6 +13,7 @@ interface VoiceSearchModalProps {
 }
 
 export const VoiceSearchModal = ({ visible, onClose, onResult }: VoiceSearchModalProps) => {
+  const insets = useSafeAreaInsets();
   const [isListening, setIsListening] = useState(false);
   const [noSpeechError, setNoSpeechError] = useState(false);
   const [partialText, setPartialText] = useState('');
@@ -133,7 +135,7 @@ export const VoiceSearchModal = ({ visible, onClose, onResult }: VoiceSearchModa
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 justify-end bg-black/60">
-        <View className="bg-white rounded-t-[32px] p-8 items-center pb-12 shadow-lg">
+        <View className="bg-white rounded-t-[32px] p-8 items-center shadow-lg" style={{ paddingBottom: Math.max(insets.bottom, 48) }}>
           {noSpeechError ? (
             <>
               <Text className="text-xl font-bold text-gray-900 mb-4 font-sans">

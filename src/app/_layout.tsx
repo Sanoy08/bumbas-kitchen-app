@@ -168,7 +168,7 @@ export default function RootLayout() {
     {isFirstRun && <Onboarding onFinish={finishOnboarding} />}
 
           {!isFirstRun && showSplash && (
-            <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#F8F9FA', elevation: 15, justifyContent: 'center', alignItems: 'center' }}>
+            <Animated.View style={{ opacity: fadeAnim, position: 'absolute', inset: 0, zIndex: 999, backgroundColor: '#e11d48', elevation: 15, justifyContent: 'center', alignItems: 'center' }}>
               <LottieView source={require('../../assets/animations/splash.json')} autoPlay loop style={{ width: width * 1.2, height: width * 1.2 }} resizeMode="cover" />
             </Animated.View>
           )}

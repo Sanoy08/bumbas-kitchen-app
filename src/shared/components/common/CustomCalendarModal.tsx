@@ -3,10 +3,14 @@ import { View, Text, Modal, TouchableOpacity, ScrollView, Animated, PanResponder
 import { Calendar } from 'react-native-calendars';
 import { ChevronRight, X } from 'lucide-react-native';
 import { format } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Easing } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const { height } = Dimensions.get('window');
 
 export interface CustomCalendarModalProps {
   visible: boolean;
@@ -31,8 +35,8 @@ export const CustomCalendarModal = ({ visible, onClose, onDateSelected, initialD
   const currentYearInt = new Date().getFullYear();
   const years = Array.from({ length: currentYearInt - 1930 + 1 }, (_, i) => currentYearInt - i);
 
-  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const slideAnim = React.useRef(new Animated.Value(height)).current;
 
   useEffect(() => {
     if (visible) {
@@ -44,39 +48,22 @@ export const CustomCalendarModal = ({ visible, onClose, onDateSelected, initialD
       setCurrentMonth(formatted);
       setMode('calendar');
       
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          damping: 26,
-          stiffness: 220,
-          mass: 1,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        })
-      ]).start();
-    } else {
-      scaleAnim.setValue(0.9);
-      fadeAnim.setValue(0);
+      slideAnim.setValue(height);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
     }
   }, [visible, initialDate]);
 
   const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      })
-    ]).start(() => onClose());
+    Animated.timing(slideAnim, {
+      toValue: height,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => onClose());
   };
 
   const handleDayPress = (day: any) => {
@@ -104,21 +91,31 @@ export const CustomCalendarModal = ({ visible, onClose, onDateSelected, initialD
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
-      <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-center items-center px-4">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-end">
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         
         <Animated.View 
-          className="w-full bg-white rounded-3xl pb-6 shadow-2xl overflow-hidden"
-          style={{ transform: [{ scale: scaleAnim }], opacity: fadeAnim }}
+          className="w-full flex-1 justify-end"
+          style={{ transform: [{ translateY: slideAnim }] }}
         >
+          {/* Floating Close Button exactly outside the top */}
+          <View className="items-center mb-4">
+            <TouchableOpacity 
+              onPress={handleClose} 
+              activeOpacity={0.7}
+              style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
+              className="shadow-2xl border-2 border-white/20"
+            >
+              <X size={28} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="bg-white w-full rounded-t-[32px] overflow-hidden shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
           {/* Colored Header */}
           <View className="bg-primary px-6 py-6 pb-8">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-white/80 font-bold font-sans uppercase tracking-wider text-xs">{title}</Text>
-              <TouchableOpacity onPress={handleClose} className="p-1.5 bg-white/20 rounded-full">
-                <X size={16} color="white" />
-              </TouchableOpacity>
             </View>
 
             <View className="flex-row items-end justify-between mt-2">
@@ -215,6 +212,7 @@ export const CustomCalendarModal = ({ visible, onClose, onDateSelected, initialD
             >
               <Text className="text-white font-bold text-lg tracking-wide font-sans">Done</Text>
             </TouchableOpacity>
+          </View>
           </View>
           </View>
         </Animated.View>

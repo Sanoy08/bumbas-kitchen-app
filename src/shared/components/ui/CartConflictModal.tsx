@@ -11,12 +11,14 @@ import {
   Pressable,
   Easing
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Clock, X } from 'lucide-react-native';
 import { useCartStore } from '@/shared/store/cartStore';
 
 const { height } = Dimensions.get('window');
 
 export function CartConflictModal() {
+  const insets = useSafeAreaInsets();
   const pendingProduct = useCartStore((state) => state.pendingConflictProduct);
   const resolveConflict = useCartStore((state) => state.resolveConflict);
   const existingItems = useCartStore((state) => state.items);
@@ -26,15 +28,13 @@ export function CartConflictModal() {
 
   useEffect(() => {
     if (isVisible) {
-      Animated.spring(slideAnim, {
+      slideAnim.setValue(height);
+      Animated.timing(slideAnim, {
         toValue: 0,
-        damping: 26,
-        stiffness: 220,
-        mass: 1,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
-    } else {
-      slideAnim.setValue(height);
     }
   }, [isVisible, slideAnim]);
 
@@ -50,32 +50,7 @@ export function CartConflictModal() {
     });
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          slideAnim.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 120 || gestureState.vy > 0.5) {
-          closeModal(false);
-        } else {
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            damping: 26,
-            stiffness: 220,
-            mass: 1,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
+
 
   if (!isVisible) return null;
 
@@ -108,11 +83,7 @@ export function CartConflictModal() {
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-t-[32px] px-6 pb-8 shadow-2xl flex-shrink">
-            {/* Drag Handle for Swipe Down */}
-            <View {...panResponder.panHandlers} className="w-full pt-4 pb-6 items-center">
-              <View className="w-12 h-1.5 bg-gray-300 rounded-full" />
-            </View>
+          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 32) }}>
 
             <View className="items-center mb-5">
               <View className="w-16 h-16 bg-orange-50 rounded-full items-center justify-center mb-4 relative">

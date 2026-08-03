@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, Text, TouchableOpacity, View, TouchableWithoutFeedback, Animated, Dimensions, StyleSheet, Pressable, Easing } from 'react-native';
 import { X, Check } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ const FILTER_OPTIONS: { id: FilterOption; label: string }[] = [
 ];
 
 export const FilterModal = ({ visible, onClose, activeFilter, onApplyFilter }: FilterModalProps) => {
+  const insets = useSafeAreaInsets();
   const [selectedFilter, setSelectedFilter] = React.useState<FilterOption>(activeFilter);
 
   // Reset local state when modal opens
@@ -91,7 +93,7 @@ export const FilterModal = ({ visible, onClose, activeFilter, onApplyFilter }: F
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-t-[32px] pt-6 pb-8 px-6 shadow-2xl">
+          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-black text-gray-900 font-sans">Sort & Filters</Text>
             </View>

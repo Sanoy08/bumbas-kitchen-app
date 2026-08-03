@@ -33,7 +33,8 @@ import {
     PanResponder,
     Pressable,
     Dimensions,
-    StyleSheet
+    StyleSheet,
+    Easing
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -88,11 +89,11 @@ export function AccountScreen() {
 
   const openEditModal = () => {
     setIsEditProfileOpen(true);
-    Animated.spring(slideAnim, {
+    slideAnim.setValue(height);
+    Animated.timing(slideAnim, {
       toValue: 0,
-      damping: 26,
-      stiffness: 220,
-      mass: 1,
+      duration: 350,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   };
@@ -105,26 +106,7 @@ export function AccountScreen() {
     }).start(() => setIsEditProfileOpen(false));
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) slideAnim.setValue(gestureState.dy);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 120 || gestureState.vy > 0.5) closeEditModal();
-        else {
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            damping: 26,
-            stiffness: 220,
-            mass: 1,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
+
   
   // Forms & Loading
   const [isSaving, setIsSaving] = useState(false);
@@ -375,7 +357,7 @@ export function AccountScreen() {
             className="w-full flex-1 justify-end"
             style={{ transform: [{ translateY: slideAnim }], maxHeight: height * 0.85 }}
           >
-            {/* Floating Close Button */}
+            {/* Floating Close Button exactly outside the top */}
             <View className="items-center mb-4">
               <TouchableOpacity 
                 onPress={closeEditModal} 
@@ -387,11 +369,8 @@ export function AccountScreen() {
               </TouchableOpacity>
             </View>
 
-            <View className="bg-white rounded-t-[32px] px-6 pb-8 shadow-2xl flex-shrink">
-              {/* Drag Handle */}
-              <View {...panResponder.panHandlers} className="w-full pt-4 pb-4 items-center">
-                <View className="w-12 h-1.5 bg-gray-300 rounded-full" />
-              </View>
+            <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 32) }}>
+
 
               <Text className="text-2xl font-extrabold text-gray-900 font-sans mb-6">Edit Profile Details</Text>
               

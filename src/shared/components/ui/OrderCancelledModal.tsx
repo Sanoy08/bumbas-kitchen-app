@@ -12,6 +12,7 @@ import {
   Easing,
   Linking
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, HeadphonesIcon, Info } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 
@@ -24,17 +25,18 @@ type OrderCancelledModalProps = {
 };
 
 export function OrderCancelledModal({ visible, notification, onClose }: OrderCancelledModalProps) {
+  const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
+      slideAnim.setValue(height);
       Animated.parallel([
-        Animated.spring(slideAnim, {
+        Animated.timing(slideAnim, {
           toValue: 0,
-          damping: 26,
-          stiffness: 220,
-          mass: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
@@ -69,32 +71,7 @@ export function OrderCancelledModal({ visible, notification, onClose }: OrderCan
     });
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          slideAnim.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 120 || gestureState.vy > 0.5) {
-          handleClose();
-        } else {
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            damping: 26,
-            stiffness: 220,
-            mass: 1,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
+
 
   if (!visible) return null;
 
@@ -128,15 +105,11 @@ export function OrderCancelledModal({ visible, notification, onClose }: OrderCan
               style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
               className="shadow-2xl border-2 border-white/20"
             >
-              <X size={28} color="white" strokeWidth={2} />
+              <X size={28} color="white" />
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-t-[32px] px-6 pb-8 shadow-2xl flex-shrink">
-            {/* Drag Handle for Swipe Down */}
-            <View {...panResponder.panHandlers} className="w-full pt-4 pb-6 items-center">
-              <View className="w-12 h-1.5 bg-gray-300 rounded-full" />
-            </View>
+          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 32) }}>
 
             {/* Header Lottie Animation */}
             <View className="items-center mb-6 mt-0">

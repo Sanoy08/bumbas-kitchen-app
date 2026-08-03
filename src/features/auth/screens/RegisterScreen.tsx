@@ -31,7 +31,6 @@ const registerSchema = z.object({
 });
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
-const HERO_IMAGE_URL = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1000&auto=format&fit=crop';
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function RegisterScreen() {
@@ -258,7 +257,7 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: HERO_IMAGE_URL }} style={styles.heroImage} resizeMode="cover" />
+        <Image source={require('../../../../assets/images/login.avif')} style={styles.heroImage} resizeMode="cover" />
         <View style={styles.overlay} />
       </View>
 
