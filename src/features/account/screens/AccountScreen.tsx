@@ -369,7 +369,7 @@ export function AccountScreen() {
               </TouchableOpacity>
             </View>
 
-            <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 32) }}>
+            <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl" style={{ paddingBottom: insets.bottom + 24 }}>
 
 
               <Text className="text-2xl font-extrabold text-gray-900 font-sans mb-6">Edit Profile Details</Text>

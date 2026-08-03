@@ -111,7 +111,7 @@ export const CustomCalendarModal = ({ visible, onClose, onDateSelected, initialD
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white w-full rounded-t-[32px] overflow-hidden shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
+          <View className="bg-white w-full rounded-t-[32px] overflow-hidden shadow-2xl flex-shrink" style={{ paddingBottom: insets.bottom + 24 }}>
           {/* Colored Header */}
           <View className="bg-primary px-6 py-6 pb-8">
             <View className="flex-row items-center justify-between mb-2">

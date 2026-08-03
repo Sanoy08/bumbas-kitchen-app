@@ -109,7 +109,7 @@ export function OrderCancelledModal({ visible, notification, onClose }: OrderCan
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 32) }}>
+          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: insets.bottom + 24 }}>
 
             {/* Header Lottie Animation */}
             <View className="items-center mb-6 mt-0">

@@ -83,7 +83,7 @@ export function CartConflictModal() {
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 32) }}>
+          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: insets.bottom + 24 }}>
 
             <View className="items-center mb-5">
               <View className="w-16 h-16 bg-orange-50 rounded-full items-center justify-center mb-4 relative">

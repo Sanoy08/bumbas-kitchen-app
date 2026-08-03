@@ -92,7 +92,7 @@ export default function NotificationPrompt() {
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-t-[32px] pt-6 px-6 items-center shadow-2xl" style={{ paddingBottom: Math.max(insets.bottom, 40) }}>
+          <View className="bg-white rounded-t-[32px] pt-6 px-6 items-center shadow-2xl" style={{ paddingBottom: insets.bottom + 24 }}>
           <View className="h-16 w-16 bg-primary/10 rounded-full items-center justify-center mb-4">
             <Bell size={28} color="#e11d48" />
           </View>

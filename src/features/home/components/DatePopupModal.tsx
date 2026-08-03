@@ -87,7 +87,7 @@ export const DatePopupModal = ({
               </TouchableOpacity>
             </View>
 
-            <View className="bg-white w-full rounded-t-[32px] overflow-hidden shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
+            <View className="bg-white rounded-t-[32px] pt-8 px-6 pb-6 shadow-2xl items-center" style={{ paddingBottom: insets.bottom + 24 }}>
             <View className="relative bg-orange-50 p-8 pb-10 items-center overflow-hidden">
               <View className="absolute -top-6 -left-6 w-24 h-24 bg-pink-200/50 rounded-full" />
               <View className="absolute bottom-0 -right-6 w-32 h-32 bg-amber-200/50 rounded-full" />

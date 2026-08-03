@@ -93,7 +93,7 @@ export const FilterModal = ({ visible, onClose, activeFilter, onApplyFilter }: F
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+          <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl" style={{ paddingBottom: insets.bottom + 24 }}>
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-black text-gray-900 font-sans">Sort & Filters</Text>
             </View>
