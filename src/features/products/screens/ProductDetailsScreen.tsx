@@ -46,7 +46,28 @@ import { useCartStore } from '@/shared/store/cartStore';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const LOTTIE_PLACEHOLDER = require('@/assets/animations/Image-Loading.json');
+const CART_ANIMATION = require('@/assets/animations/details-Cart.json');
 const DESC_LIMIT = 350; // ওয়েবের সাথে মেলানো
+
+const AnimatedDot = ({ index, progressValue, count }: { index: number; progressValue: Animated.SharedValue<number>; count: number }) => {
+  const dotStyle = useAnimatedStyle(() => {
+    let dist = Math.abs(progressValue.value - index);
+    if (dist > count / 2) {
+      dist = count - dist; // wrap around
+    }
+    
+    const width = interpolate(dist, [0, 1], [20, 6], Extrapolation.CLAMP);
+    const opacity = interpolate(dist, [0, 1], [1, 0.4], Extrapolation.CLAMP);
+
+    return { width, opacity };
+  });
+
+  return (
+    <Reanimated.View
+      style={[{ height: 6, borderRadius: 3, backgroundColor: '#ffffff', marginHorizontal: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 1 }, dotStyle]}
+    />
+  );
+};
 
 const ImageWithLottie = ({ uri, style, contentFit = 'cover', transition = 150, opacity = 1 }: any) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -180,7 +201,7 @@ export function ProductDetailsScreen() {
   const inlineCartRef = useRef<View>(null);
   const cartIconRef = useRef<View>(null);
   const scrollViewRef = useRef<ScrollView>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const carouselRef = useRef<ICarouselInstance>(null);
 
   // Header fade animation
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -191,6 +212,12 @@ export function ProductDetailsScreen() {
 
   // Header visibility tracker
   const isHeaderVisible = useRef(false);
+  const outerY = useRef<number>(0);
+  const inlineCartY = useRef<number>(0);
+  const progressValue = useSharedValue<number>(0);
+
+  // Cart Animation Ref
+  const cartAnimRef = useRef<LottieView>(null);
 
   // --- Fetch Product (ONLY FROM CACHE) ---
   useEffect(() => {
@@ -322,19 +349,21 @@ export function ProductDetailsScreen() {
     addItem(product, quantity, false);
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    cartAnimRef.current?.reset();
+    cartAnimRef.current?.play();
   };
 
   // --- Scroll handling for header and bottom bar ---
   const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
 
-    // Header fade: show abruptly with a smooth animation after scrolling 10px
-    if (offsetY > 10) {
+    // Header background fade: show smoothly after scrolling past the image
+    if (offsetY > screenWidth - 100) {
       if (!isHeaderVisible.current) {
         isHeaderVisible.current = true;
         Animated.timing(headerOpacity, {
           toValue: 1,
-          duration: 150,
+          duration: 200,
           useNativeDriver: true,
         }).start();
       }
@@ -343,44 +372,45 @@ export function ProductDetailsScreen() {
         isHeaderVisible.current = false;
         Animated.timing(headerOpacity, {
           toValue: 0,
-          duration: 150,
+          duration: 200,
           useNativeDriver: true,
         }).start();
       }
     }
 
     // Bottom bar: show when inline cart is out of view
-    if (offsetY > 200) {
-      if (inlineCartRef.current) {
-        const handle = findNodeHandle(inlineCartRef.current);
-        if (handle) {
-          UIManager.measure(handle, (x, y, width, height, pageX, pageY) => {
-            const isVisible = pageY + height > 0 && pageY < screenHeight;
-            if (!isVisible && !showBottomBar) {
-              setShowBottomBar(true);
-              // Animate bottom bar slide up
-              Animated.parallel([
-                Animated.timing(bottomBarTranslateY, {
-                  toValue: 0,
-                  duration: 300,
-                  easing: Easing.out(Easing.ease),
-                  useNativeDriver: true,
-                }),
-                Animated.timing(bottomBarOpacity, {
-                  toValue: 1,
-                  duration: 300,
-                  easing: Easing.out(Easing.ease),
-                  useNativeDriver: true,
-                }),
-              ]).start();
-            }
-          });
-        }
-      }
-    } else {
-      if (showBottomBar) {
+    // Since inlineCart is nested inside an outer View, its absolute Y is outerY + inlineCartY
+    const absoluteCartY = outerY.current + inlineCartY.current;
+    if (absoluteCartY > 0) {
+      const cartTop = absoluteCartY;
+      
+      // The header exactly takes (insets.top + 60) pixels at the top.
+      const headerHeight = insets.top + 60;
+      const effectiveScreenTop = offsetY + headerHeight;
+      const screenBottom = offsetY + screenHeight;
+
+      // The user wants it to trigger as soon as it TOUCHES the header (cartTop < effectiveScreenTop)
+      // or if it goes completely below the screen (cartTop > screenBottom)
+      const isCartOutOfView = cartTop < effectiveScreenTop || cartTop > screenBottom;
+      
+      if (isCartOutOfView && !showBottomBar) {
+        setShowBottomBar(true);
+        Animated.parallel([
+          Animated.timing(bottomBarTranslateY, {
+            toValue: 0,
+            duration: 300,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(bottomBarOpacity, {
+            toValue: 1,
+            duration: 300,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else if (!isCartOutOfView && showBottomBar) {
         setShowBottomBar(false);
-        // Animate bottom bar slide down
         Animated.parallel([
           Animated.timing(bottomBarTranslateY, {
             toValue: 200,
@@ -531,55 +561,91 @@ export function ProductDetailsScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      {/* --- HEADER (fades in on scroll) --- */}
-      <Animated.View
+      {/* --- HEADER --- */}
+      <View
         style={{
           position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
-          zIndex: 50,
-          backgroundColor: 'white',
+          zIndex: 60,
           paddingTop: insets.top + 10,
           paddingBottom: 10,
           paddingHorizontal: 16,
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderBottomWidth: 1,
-          borderBottomColor: '#e5e7eb',
-          opacity: headerOpacity,
         }}
+        pointerEvents="box-none"
       >
+        {/* Animated Background */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'white',
+            borderBottomWidth: 1,
+            borderBottomColor: '#e5e7eb',
+            opacity: headerOpacity,
+          }}
+          pointerEvents="none"
+        />
+
+        {/* Title */}
+        <Animated.View 
+          style={{ 
+            position: 'absolute', 
+            left: 60, 
+            right: 60,
+            bottom: 10, // aligns with paddingBottom
+            height: 40, // aligns with icon height
+            justifyContent: 'center',
+            alignItems: 'center',
+            opacity: headerOpacity 
+          }} 
+          pointerEvents="none"
+        >
+          <Text className="text-lg font-bold text-gray-900 font-sans text-center" numberOfLines={1}>
+            {product.name}
+          </Text>
+        </Animated.View>
+
         <TouchableOpacity
           onPress={() => router.back()}
           className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
         >
           <ArrowLeft size={22} color="#374151" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900 font-sans" numberOfLines={1}>
-          {product.name}
-        </Text>
+        
         <View className="flex-row gap-2">
-  <TouchableOpacity
-  onPress={() => router.push('/(shop)/cart')}
-  className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
-  ref={cartIconRef}   // ★ এই লাইন যোগ করো
->
-  <ShoppingCart size={18} color="#374151" />
-</TouchableOpacity>
-  <TouchableOpacity
-    onPress={toggleFavorite}
-    className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
-  >
-    <Heart
-      size={20}
-      color={isFavorite ? '#ef4444' : '#374151'}
-      fill={isFavorite ? '#ef4444' : 'transparent'}
-    />
-  </TouchableOpacity>
-</View>
-      </Animated.View>
+          <TouchableOpacity
+            onPress={() => router.push('/(shop)/cart')}
+            className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
+            ref={cartIconRef}
+          >
+            <LottieView
+               ref={cartAnimRef}
+               source={CART_ANIMATION}
+               autoPlay={false}
+               loop={false}
+               style={{ width: 34, height: 34 }}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={toggleFavorite}
+            className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
+          >
+            <Heart
+              size={20}
+              color={isFavorite ? '#ef4444' : '#374151'}
+              fill={isFavorite ? '#ef4444' : 'transparent'}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* --- Main Content --- */}
       <ScrollView
@@ -590,60 +656,76 @@ export function ProductDetailsScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* Image Slider (Swipeable) */}
+        {/* Image Slider (Swipeable Hero Style) */}
         <View style={{ width: screenWidth, height: screenWidth, backgroundColor: '#f9fafb' }}>
-          <FlatList
-            ref={flatListRef}
+          <Carousel
+            ref={carouselRef}
+            loop
+            width={screenWidth}
+            height={screenWidth}
+            autoPlay={displayImages.length > 1}
+            autoPlayInterval={4000}
             data={displayImages}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            bounces={false}
-            onMomentumScrollEnd={(e) => {
-              const newIndex = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
-              setActiveSlide(newIndex);
+            scrollAnimationDuration={400}
+            onSnapToItem={(index) => setActiveSlide(index)}
+            onProgressChange={(_, absoluteProgress) => {
+              progressValue.value = absoluteProgress;
             }}
-            keyExtractor={(_, index) => index.toString()}
-            getItemLayout={(_, index) => ({
-              length: screenWidth,
-              offset: screenWidth * index,
-              index,
-            })}
-            renderItem={({ item }) => {
-              return (
-                <View style={{ width: screenWidth, height: screenWidth, overflow: 'hidden' }}>
-                  {item.isPlaceholder ? (
-                      <LottieView
-                        source={LOTTIE_PLACEHOLDER}
-                        autoPlay
-                        loop
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                  ) : (
-                    <ImageWithLottie
-                      uri={optimizeImageUrl(item.url)}
-                      opacity={1}
-                      transition={150}
-                    />
-                  )}
-                </View>
+            customAnimation={(value: number) => {
+              "worklet";
+              const translateX = interpolate(
+                value,
+                [-1, 0, 1],
+                [-screenWidth * 0.25, 0, screenWidth],
+                Extrapolation.CLAMP
               );
+
+              const zIndex = Math.round(interpolate(
+                value, 
+                [-1, 0, 1], 
+                [0, 1, 2],
+                Extrapolation.CLAMP
+              ));
+
+              const opacity = interpolate(
+                value,
+                [-2, -1, 0, 1, 2],
+                [0, 1, 1, 1, 0],
+                Extrapolation.CLAMP
+              );
+
+              return {
+                transform: [{ translateX }],
+                zIndex,
+                opacity,
+              };
             }}
+            renderItem={({ item }) => (
+              <View style={{ width: screenWidth, height: screenWidth, overflow: 'hidden' }}>
+                {item.isPlaceholder ? (
+                    <LottieView
+                      source={LOTTIE_PLACEHOLDER}
+                      autoPlay
+                      loop
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                ) : (
+                  <ImageWithLottie
+                    uri={optimizeImageUrl(item.url)}
+                    opacity={1}
+                    transition={150}
+                  />
+                )}
+              </View>
+            )}
           />
 
-          {/* Dots */}
+          {/* Animated Dots */}
           {displayImages.length > 1 && (
-            <View className="absolute bottom-4 left-0 right-0 pointer-events-none justify-end">
-              <View className="flex-row justify-center gap-1.5 z-20">
-                {displayImages.map((_: any, idx: number) => (
-                  <View
-                    key={idx}
-                    className={`h-1.5 rounded-full transition-all shadow-sm ${
-                      activeSlide === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/60'
-                    }`}
-                  />
-                ))}
-              </View>
+            <View style={{ position: 'absolute', bottom: 14, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', zIndex: 10, pointerEvents: 'none' }}>
+              {displayImages.map((_: any, idx: number) => (
+                <AnimatedDot key={idx} index={idx} progressValue={progressValue} count={displayImages.length} />
+              ))}
             </View>
           )}
         </View>
@@ -665,7 +747,7 @@ export function ProductDetailsScreen() {
                   key={idx}
                   onPress={() => {
                     if (activeSlide !== idx) {
-                      flatListRef.current?.scrollToIndex({ index: idx, animated: true });
+                      carouselRef.current?.scrollTo({ index: idx, animated: true });
                       setActiveSlide(idx);
                     }
                   }}
@@ -694,7 +776,7 @@ export function ProductDetailsScreen() {
           </ScrollView>
         )}
 
-        <View className="px-4 pt-6">
+        <View className="px-4 pt-6" onLayout={(e) => { outerY.current = e.nativeEvent.layout.y; }}>
           {/* Tags & Rating */}
           <View className="flex-row items-center justify-between mb-3">
             <View
@@ -783,7 +865,7 @@ export function ProductDetailsScreen() {
           </View>
 
           {/* INLINE CART (ref for visibility check) */}
-          <View ref={inlineCartRef} className="mb-8">
+          <View onLayout={(e) => { inlineCartY.current = e.nativeEvent.layout.y; }} ref={inlineCartRef} className="mb-8">
             {!isOutOfStock ? (
               <View className="flex-row w-full gap-3">
                 <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-xl h-14 px-1.5">
@@ -815,6 +897,8 @@ export function ProductDetailsScreen() {
                       } else {
                         setQuantity((q) => q + 1);
                       }
+                      cartAnimRef.current?.reset();
+                      cartAnimRef.current?.play();
                     }}
                     className="h-10 w-10 items-center justify-center bg-white rounded-lg shadow-sm border border-gray-100"
                   >
