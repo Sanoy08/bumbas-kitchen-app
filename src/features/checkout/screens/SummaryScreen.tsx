@@ -315,8 +315,12 @@ export function SummaryScreen() {
   useEffect(() => {
     if (isInitialized) {
       if (!user) {
-        toast.error("Please login to continue.");
-        router.push('/(auth)/login');
+        showAlert({
+          title: "Login Required",
+          message: "You need to sign in or create an account to place an order.",
+          confirmText: "Login Now",
+          onConfirm: () => router.push('/(auth)/login')
+        });
       }
     }
   }, [isInitialized, user, itemCount, router]);

@@ -17,10 +17,12 @@ import { formatPrice } from '@/shared/utils/utils';
 import { LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import { toast } from 'sonner-native';
+import { useAlert } from '@/shared/components/ui';
 
 export function FavoritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   
   const [favorites, setFavorites] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,14 +48,23 @@ export function FavoritesScreen() {
   };
 
   const removeFavorite = async (id: string, name: string) => {
-    try {
-      const newFavs = favorites.filter((fav) => fav.id !== id);
-      setFavorites(newFavs);
-      await AsyncStorage.setItem('bumbas_favorites', JSON.stringify(newFavs));
-      toast.success(`${name} removed from favorites`);
-    } catch (error) {
-      toast.error('Failed to remove item');
-    }
+    showAlert({
+      title: "Remove Favorite?",
+      message: `Are you sure you want to remove ${name} from your favorites?`,
+      confirmText: "Remove",
+      cancelText: "Cancel",
+      confirmButtonStyle: "destructive",
+      onConfirm: async () => {
+        try {
+          const newFavs = favorites.filter((fav) => fav.id !== id);
+          setFavorites(newFavs);
+          await AsyncStorage.setItem('bumbas_favorites', JSON.stringify(newFavs));
+          toast.success(`${name} removed`);
+        } catch (error) {
+          toast.error('Failed to remove item');
+        }
+      }
+    });
   };
 
   const FavoriteItem = React.memo(({ item, removeFavorite }: { item: any, removeFavorite: (id: string, name: string) => void }) => {

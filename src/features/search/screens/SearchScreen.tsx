@@ -26,6 +26,7 @@ import LottieView from 'lottie-react-native';
 
 import { VoiceSearchModal } from '@/shared/components/search/VoiceSearchModal';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
+import { useAlert } from '@/shared/components/ui';
 
 const { width: windowWidth } = Dimensions.get('window');
 const CONTAINER_PADDING = 16;
@@ -74,6 +75,7 @@ const fuzzyMatch = (query: string, target: string) => {
 
 export function SearchScreen() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const searchParams = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
@@ -200,9 +202,18 @@ export function SearchScreen() {
   };
 
   const clearRecentSearches = async () => {
-    setRecentSearches([]);
-    await AsyncStorage.removeItem('recent_searches');
-    toast.success('Search history cleared');
+    showAlert({
+      title: "Clear Search History?",
+      message: "Are you sure you want to delete all your recent searches?",
+      confirmText: "Clear",
+      cancelText: "Cancel",
+      confirmButtonStyle: "destructive",
+      onConfirm: async () => {
+        setRecentSearches([]);
+        await AsyncStorage.removeItem('recent_searches');
+        toast.success('Search history cleared');
+      }
+    });
   };
 
   return (

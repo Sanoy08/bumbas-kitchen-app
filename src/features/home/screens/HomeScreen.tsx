@@ -621,7 +621,11 @@ export function HomeScreen() {
   const handleSaveDates = async () => {
     const isDobMissing = !user?.dob || user?.dob === '';
     if (isDobMissing && !dob) {
-      toast.error('Please add your Birthday first.');
+      showAlert({
+        title: "Birthday Required",
+        message: "We need your birthday to calculate your special rewards. Please add it first!",
+        confirmText: "Got it"
+      });
       return;
     }
     setIsSavingDates(true);

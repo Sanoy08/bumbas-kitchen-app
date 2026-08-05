@@ -3,7 +3,7 @@
 import { useRouter } from 'expo-router';
 import { AlertCircle, Briefcase, Home, Info, Loader2, MapPin, Pencil, Plus, Search, Trash2, X, LocateFixed, ChevronLeft } from 'lucide-react-native';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { ActivityIndicator, Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View, BackHandler } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View, BackHandler, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 import * as Location from 'expo-location';
@@ -281,7 +281,11 @@ export function AddressScreen() {
       return;
     }
     if(outOfRange) {
-      toast.error("Location is outside our 50km delivery range.");
+      showAlert({
+        title: "Out of Delivery Area",
+        message: "Sorry, we currently do not deliver to this location as it is outside our 50km radius.",
+        confirmText: "Understood"
+      });
       return;
     }
 
@@ -408,7 +412,12 @@ export function AddressScreen() {
         });
         handleLocationSelect(loc.coords.latitude, loc.coords.longitude);
       } else {
-        toast.error('Location permission denied');
+        showAlert({
+          title: "Location Permission Required",
+          message: "Please enable location services in your device settings to auto-detect your address.",
+          confirmText: "Settings",
+          onConfirm: () => Linking.openSettings()
+        });
       }
     } catch (e) {
       toast.error('Could not get location');

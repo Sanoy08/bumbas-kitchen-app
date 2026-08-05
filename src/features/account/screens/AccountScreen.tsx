@@ -192,7 +192,11 @@ export function AccountScreen() {
 
     // Cannot save Anniversary without Birthday
     if (isDobMissing && !dob) {
-      toast.error("Please add your Birthday first.");
+      showAlert({
+        title: "Birthday Required",
+        message: "We need your birthday to calculate your special rewards. Please add it first!",
+        confirmText: "Got it"
+      });
       return;
     }
 
