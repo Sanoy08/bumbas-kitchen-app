@@ -30,7 +30,15 @@ if (!(global as any).isFetchIntercepted) {
       (global as any).apiCallCount++;
       console.log(`[API CALL #${(global as any).apiCallCount}]`, url);
     }
-    return originalFetch(...args);
+    const response = await originalFetch(...args);
+    
+    // Global 401 Unauthorized handler
+    if (response.status === 401) {
+      console.log('[API Interceptor] 401 Unauthorized detected. Logging out...');
+      useAuthStore.getState().logout();
+    }
+    
+    return response;
   };
 }
 

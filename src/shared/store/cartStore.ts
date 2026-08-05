@@ -1,5 +1,6 @@
 import type { CartItem, Product } from '@/shared/types/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createMMKV } from 'react-native-mmkv';
+import { AppState, type NativeEventSubscription } from 'react-native';
 import Pusher from 'pusher-js';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -9,6 +10,21 @@ import { useAuthStore } from '@/shared/store/authStore';
 // import Toast from 'react-native-toast-message';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
+
+// --- MMKV Storage Setup ---
+const storage = createMMKV();
+const zustandStorage = {
+  setItem: (name: string, value: string) => {
+    return storage.set(name, value);
+  },
+  getItem: (name: string) => {
+    const value = storage.getString(name);
+    return value ?? null;
+  },
+  removeItem: (name: string) => {
+    return storage.delete(name);
+  },
+};
 
 type CheckoutState = {
   couponCode: string;
@@ -23,6 +39,7 @@ interface CartState {
   isDirty: boolean;
   isInitialized: boolean;
   syncIntervalId: ReturnType<typeof setTimeout> | null;
+  appStateSubscription: NativeEventSubscription | null;
   
   // Conflict Resolution
   pendingConflictProduct: Product | null;
@@ -61,6 +78,7 @@ export const useCartStore = create<CartState>()(
       isDirty: false,
       isInitialized: false,
       syncIntervalId: null,
+      appStateSubscription: null,
       pendingConflictProduct: null,
       pendingConflictQuantity: 1,
 
@@ -274,29 +292,56 @@ export const useCartStore = create<CartState>()(
         }
       },
 
-      // ★ 30-Second Auto Sync Interval
+      // ★ 30-Second Auto Sync Interval with AppState Battery Drain Fix
       startAutoSync: () => {
          get().stopAutoSync();
          
-         const interval = setInterval(() => {
-            const { isDirty, isSyncing } = get();
-            const token = useAuthStore.getState().token;
-            console.log(`[Cart Sync] Tick — isDirty: ${isDirty}, hasToken: ${!!token}`);
-            if (token && isDirty && !isSyncing) {
-               console.log('[Cart Sync] ✅ Syncing to database...');
-               get().syncToDatabase();
-            }
-         }, 30000);
-         
-         set({ syncIntervalId: interval });
+         // Start interval immediately if app is active
+         const startInterval = () => {
+           if (!get().syncIntervalId) {
+             const interval = setInterval(() => {
+                const { isDirty, isSyncing } = get();
+                const token = useAuthStore.getState().token;
+                console.log(`[Cart Sync] Tick — isDirty: ${isDirty}, hasToken: ${!!token}`);
+                if (token && isDirty && !isSyncing) {
+                   console.log('[Cart Sync] ✅ Syncing to database...');
+                   get().syncToDatabase();
+                }
+             }, 30000);
+             set({ syncIntervalId: interval });
+           }
+         };
+
+         const stopInterval = () => {
+           const { syncIntervalId } = get();
+           if (syncIntervalId) {
+             clearInterval(syncIntervalId);
+             set({ syncIntervalId: null });
+           }
+         };
+
+         // Listen to AppState to pause sync when in background
+         const subscription = AppState.addEventListener('change', (nextAppState) => {
+           if (nextAppState === 'active') {
+             startInterval();
+           } else {
+             stopInterval();
+           }
+         });
+
+         set({ appStateSubscription: subscription });
+         startInterval();
       },
 
       stopAutoSync: () => {
-         const { syncIntervalId } = get();
+         const { syncIntervalId, appStateSubscription } = get();
          if (syncIntervalId) {
             clearInterval(syncIntervalId);
-            set({ syncIntervalId: null });
          }
+         if (appStateSubscription) {
+            appStateSubscription.remove();
+         }
+         set({ syncIntervalId: null, appStateSubscription: null });
       },
 
       // ★ Pusher Real-time Init
@@ -329,7 +374,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'bumbas-kitchen-cart',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
       partialize: (state) => ({ items: state.items, checkoutState: state.checkoutState }),
     }
   )

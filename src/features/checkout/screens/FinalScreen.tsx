@@ -502,7 +502,12 @@ export function FinalScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload),
       });
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error('Server error occurred');
+      }
 
       if (!res.ok) throw new Error(data.error || 'Order placement failed');
 

@@ -181,6 +181,7 @@ export function AddressScreen() {
   const fetchAddresses = async () => {
     try {
       const res = await fetch(`${API_URL}/user/addresses`);
+      if (!res.ok) throw new Error('API failed');
       const data = await res.json();
       if (data.success) {
         setAddresses(data.addresses);
@@ -201,6 +202,7 @@ export function AddressScreen() {
       }
       try {
         const res = await fetch(`${API_URL}/location/search?q=${debouncedSearch}`);
+        if (!res.ok) throw new Error('API failed');
         const data = await res.json();
         setSuggestions(data.suggestions || []);
         setShowSuggestions(true);
@@ -215,11 +217,13 @@ export function AddressScreen() {
       
       if (!addressStr) {
         const revRes = await fetch(`${API_URL}/location/reverse?lat=${lat}&lon=${lng}`);
+        if (!revRes.ok) throw new Error('API failed');
         const revData = await revRes.json();
         addressStr = revData.address;
       }
       
       const res = await fetch(`${API_URL}/location/distance?lat=${lat}&lng=${lng}`);
+      if (!res.ok) throw new Error('API failed');
       const data = await res.json();
       
       if(data.success) {

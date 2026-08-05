@@ -35,7 +35,7 @@ import {
   View,
 } from 'react-native';
 import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel';
-import { default as Reanimated, Extrapolation, interpolate, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as REasing } from 'react-native-reanimated';
+import { default as Reanimated, Extrapolation, interpolate, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as REasing, cancelAnimation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 
@@ -80,6 +80,10 @@ const ProductSkeleton = () => {
       -1,
       true
     );
+    
+    return () => {
+      cancelAnimation(opacity);
+    };
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
