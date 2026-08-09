@@ -124,12 +124,7 @@ const ProductSkeleton = () => {
         {/* Main Image */}
         <Reanimated.View style={[{ width: screenWidth, height: screenWidth, backgroundColor: '#e5e7eb' }, animatedStyle]} />
         
-        {/* Thumbnails */}
-        <View className="px-4 mt-4 flex-row gap-3">
-          {[1, 2, 3, 4].map(i => (
-            <Reanimated.View key={i} style={[{ width: THUMBNAIL_WIDTH, height: THUMBNAIL_WIDTH, backgroundColor: '#e5e7eb', borderRadius: 12 }, animatedStyle]} />
-          ))}
-        </View>
+
 
         {/* Content */}
         <View className="px-4 pt-6">
@@ -638,10 +633,12 @@ export function ProductDetailsScreen() {
             onPress={toggleFavorite}
             className="h-10 w-10 rounded-full items-center justify-center bg-gray-100"
           >
-            <Heart
-              size={20}
-              color={isFavorite ? '#ef4444' : '#374151'}
-              fill={isFavorite ? '#ef4444' : 'transparent'}
+            <LottieView
+              ref={favAnimRef}
+              source={require('../../../../assets/animations/fav.json')}
+              autoPlay={false}
+              loop={false}
+              style={{ width: 44, height: 44 }}
             />
           </TouchableOpacity>
         </View>
@@ -660,10 +657,11 @@ export function ProductDetailsScreen() {
         <View style={{ width: screenWidth, height: screenWidth, backgroundColor: '#f9fafb' }}>
           <Carousel
             ref={carouselRef}
-            loop
+            loop={displayImages.length > 1}
+            enabled={displayImages.length > 1}
             width={screenWidth}
             height={screenWidth}
-            autoPlay={displayImages.length > 1}
+            autoPlay={false}
             autoPlayInterval={4000}
             data={displayImages}
             scrollAnimationDuration={400}
@@ -730,51 +728,7 @@ export function ProductDetailsScreen() {
           )}
         </View>
 
-        {/* Thumbnails */}
-        {displayImages.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="px-4 mt-4"
-            contentContainerStyle={{ gap: 12, paddingRight: 32 }}
-          >
-            {displayImages.map((img: any, idx: number) => {
-              const THUMBNAIL_GAP = 12;
-              const THUMBNAIL_WIDTH = (screenWidth - 32 - (THUMBNAIL_GAP * 3)) / 4;
-              
-              return (
-                <TouchableOpacity
-                  key={idx}
-                  onPress={() => {
-                    if (activeSlide !== idx) {
-                      carouselRef.current?.scrollTo({ index: idx, animated: true });
-                      setActiveSlide(idx);
-                    }
-                  }}
-                  style={{ width: THUMBNAIL_WIDTH, height: THUMBNAIL_WIDTH }}
-                  className={`rounded-xl overflow-hidden bg-gray-100 border-2 ${
-                    activeSlide === idx ? 'border-primary' : 'border-transparent'
-                  }`}
-                >
-                  {img.isPlaceholder ? (
-                    <LottieView
-                      source={LOTTIE_PLACEHOLDER}
-                      autoPlay
-                      loop
-                      style={{ width: '100%', height: '100%' }}
-                    />
-                  ) : (
-                    <ImageWithLottie
-                      uri={optimizeImageUrl(img.url)}
-                      contentFit="cover"
-                      transition={150}
-                    />
-                  )}
-              </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
+
 
         <View className="px-4 pt-6" onLayout={(e) => { outerY.current = e.nativeEvent.layout.y; }}>
           {/* Tags & Rating */}

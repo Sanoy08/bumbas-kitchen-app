@@ -189,7 +189,7 @@ export default function RootLayout() {
 
           <AppUpdater />
 
-          <Toaster position="bottom-center" theme="light" toastOptions={{ style: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }, titleStyle: { color: '#111827', fontWeight: 'regular' } }} />
+          <Toaster duration={1000} visibleToasts={1} position="bottom-center" theme="light" toastOptions={{ style: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }, titleStyle: { color: '#111827', fontWeight: 'regular' } }} />
         </AlertProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
