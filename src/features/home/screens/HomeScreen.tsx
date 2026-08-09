@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, ScrollView, Text, UIManager, View } from 'react-native';
@@ -687,15 +688,15 @@ export function HomeScreen() {
         <View style={{ flex: 1, alignItems: 'center' }}>
           <View style={{ width: CARD_WIDTH, margin: CARD_MARGIN }}>
             <View className="flex-1 m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col">
-              <View className="aspect-square w-full bg-gray-200 opacity-50" />
+              <ShimmerSkeleton style={{ aspectRatio: 1, width: '100%', borderRadius: 0 }} />
               <View className="p-2.5 md:p-3 flex-col justify-between" style={{ minHeight: 96 }}>
                 <View>
-                  <View className="h-4 w-3/4 bg-gray-200 rounded mb-1.5 opacity-60" />
-                  <View className="h-4 w-1/2 bg-gray-200 rounded opacity-60" />
+                  <ShimmerSkeleton width="75%" height={16} style={{ marginBottom: 6 }} />
+                  <ShimmerSkeleton width="50%" height={16} />
                 </View>
                 <View className="flex-row items-center justify-between mt-2">
-                  <View className="h-5 w-1/3 bg-gray-200 rounded opacity-60" />
-                  <View className="h-8 w-16 bg-gray-200 rounded-full opacity-60" />
+                  <ShimmerSkeleton width="33%" height={20} />
+                  <ShimmerSkeleton width={64} height={32} borderRadius={16} />
                 </View>
               </View>
             </View>

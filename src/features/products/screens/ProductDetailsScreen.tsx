@@ -17,7 +17,8 @@ import {
   Star,
   ArrowRight
 } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import {
   ActivityIndicator,
   Animated,
@@ -93,22 +94,6 @@ const ImageWithLottie = ({ uri, style, contentFit = 'cover', transition = 150, o
 };
 
 const ProductSkeleton = () => {
-  const opacity = useSharedValue(0.4);
-  
-  useEffect(() => {
-    opacity.value = withRepeat(
-      withTiming(0.8, { duration: 800, easing: REasing.inOut(REasing.ease) }),
-      -1,
-      true
-    );
-    
-    return () => {
-      cancelAnimation(opacity);
-    };
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
   const THUMBNAIL_GAP = 12;
   const THUMBNAIL_WIDTH = (screenWidth - 32 - (THUMBNAIL_GAP * 3)) / 4;
 
@@ -122,7 +107,7 @@ const ProductSkeleton = () => {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }} scrollEnabled={false}>
         {/* Main Image */}
-        <Reanimated.View style={[{ width: screenWidth, height: screenWidth, backgroundColor: '#e5e7eb' }, animatedStyle]} />
+        <ShimmerSkeleton width={screenWidth} height={screenWidth} borderRadius={0} />
         
 
 
@@ -130,34 +115,37 @@ const ProductSkeleton = () => {
         <View className="px-4 pt-6">
           {/* Tags */}
           <View className="flex-row items-center justify-between mb-3">
-            <Reanimated.View style={[{ width: 80, height: 24, backgroundColor: '#e5e7eb', borderRadius: 4 }, animatedStyle]} />
-            <Reanimated.View style={[{ width: 50, height: 24, backgroundColor: '#e5e7eb', borderRadius: 4 }, animatedStyle]} />
+            <ShimmerSkeleton width={80} height={24} borderRadius={4} />
+            <ShimmerSkeleton width={50} height={24} borderRadius={4} />
           </View>
 
           {/* Title */}
-          <Reanimated.View style={[{ width: '80%', height: 32, backgroundColor: '#e5e7eb', borderRadius: 6, marginBottom: 8 }, animatedStyle]} />
+          <ShimmerSkeleton width="80%" height={32} borderRadius={6} style={{ marginBottom: 8 }} />
           {/* Category */}
-          <Reanimated.View style={[{ width: '40%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 24 }, animatedStyle]} />
+          <ShimmerSkeleton width="40%" height={16} borderRadius={4} style={{ marginBottom: 24 }} />
+
+          {/* Quantity Selector skeleton */}
+          <ShimmerSkeleton width={130} height={48} borderRadius={24} style={{ marginBottom: 32 }} />
 
           <View className="h-[1px] bg-gray-100 w-full mb-6" />
 
           {/* Price */}
           <View className="mb-8">
-            <Reanimated.View style={[{ width: 120, height: 40, backgroundColor: '#e5e7eb', borderRadius: 6, marginBottom: 8 }, animatedStyle]} />
-            <Reanimated.View style={[{ width: 150, height: 14, backgroundColor: '#e5e7eb', borderRadius: 4 }, animatedStyle]} />
+            <ShimmerSkeleton width={120} height={40} borderRadius={6} style={{ marginBottom: 8 }} />
+            <ShimmerSkeleton width={150} height={14} borderRadius={4} />
           </View>
 
-          {/* Inline Cart buttons skeleton */}
-          <View className="flex-row w-full gap-3 mb-8">
-            <Reanimated.View style={[{ flex: 1, height: 56, backgroundColor: '#e5e7eb', borderRadius: 12 }, animatedStyle]} />
-            <Reanimated.View style={[{ flex: 2, height: 56, backgroundColor: '#e5e7eb', borderRadius: 12 }, animatedStyle]} />
+          {/* Action Buttons */}
+          <View className="flex-row items-center justify-between mb-8 space-x-4">
+            <ShimmerSkeleton style={{ flex: 1, height: 56, borderRadius: 12 }} />
+            <ShimmerSkeleton style={{ flex: 2, height: 56, borderRadius: 12 }} />
           </View>
 
           {/* Description Lines */}
-          <Reanimated.View style={[{ width: '100%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
-          <Reanimated.View style={[{ width: '90%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
-          <Reanimated.View style={[{ width: '95%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
-          <Reanimated.View style={[{ width: '70%', height: 16, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12 }, animatedStyle]} />
+          <ShimmerSkeleton width="100%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
+          <ShimmerSkeleton width="90%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
+          <ShimmerSkeleton width="95%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
+          <ShimmerSkeleton width="70%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
         </View>
       </ScrollView>
     </View>
@@ -213,6 +201,9 @@ export function ProductDetailsScreen() {
 
   // Cart Animation Ref
   const cartAnimRef = useRef<LottieView>(null);
+  
+  // Favorite Animation Ref
+  const favAnimRef = useRef<LottieView>(null);
 
   // --- Fetch Product (ONLY FROM CACHE) ---
   useEffect(() => {
@@ -321,6 +312,10 @@ export function ProductDetailsScreen() {
         price: product.price,
       });
       toast.success('Added to favorites! ❤️');
+      
+      // Play heart animation
+      favAnimRef.current?.reset();
+      favAnimRef.current?.play(0, 60);
     }
     await AsyncStorage.setItem('bumbas_favorites', JSON.stringify(savedFavs));
     setIsFavorite(!isFavorite);
