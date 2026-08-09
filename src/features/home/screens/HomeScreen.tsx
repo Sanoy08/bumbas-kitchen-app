@@ -800,16 +800,6 @@ export function HomeScreen() {
         <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
       </Animated.View>
 
-      {/* ── DEV BUTTON FOR TEST SCRATCH ── */}
-      <View style={{ position: 'absolute', bottom: 100, right: 20, zIndex: 999 }}>
-        <TouchableOpacity
-          onPress={() => router.push('/(shop)/test-scratch')}
-          className="bg-yellow-400 px-4 py-3 rounded-full shadow-lg border-2 border-yellow-500 flex-row items-center"
-        >
-          <Text className="font-bold text-gray-900">🧪 Test Scratch</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* ── Main Scrollable Content via FlashList ── */}
       <AnimatedFlashList
         ref={scrollViewRef}

@@ -21,13 +21,14 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   FadeIn,
   FadeInUp,
-  FadeOut,
   ZoomIn,
   interpolate,
+  runOnJS,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
@@ -175,8 +176,13 @@ export function SuccessScreen() {
     detailsOpacity1.value = withDelay(990, withTiming(1, fadeConfig));
     detailsOpacity2.value = withDelay(1140, withTiming(1, fadeConfig));
     detailsOpacity3.value = withDelay(1290, withTiming(1, fadeConfig));
-    detailsOpacity4.value = withDelay(1440, withTiming(1, fadeConfig));
-  }, []);
+    detailsOpacity4.value = withDelay(1440, withTiming(1, fadeConfig, (finished) => {
+      // 4. Automatically open Scratch Card exactly when final animation finishes
+      if (finished && coins > 0) {
+        runOnJS(setIsScratchModalOpen)(true);
+      }
+    }));
+  }, [coins]);
 
   const checkAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -272,24 +278,7 @@ export function SuccessScreen() {
             </View>
           </Animated.View>
 
-          {/* Coins Earned - Gift Pill */}
-          {coins > 0 && !isScratched && (
-            <Animated.View exiting={FadeOut.duration(300)} style={[styles.cardContainer, detailStyle3, { alignItems: 'center', marginTop: 10 }]}>
-              <TouchableOpacity activeOpacity={0.8} onPress={() => setIsScratchModalOpen(true)}>
-                <Animated.View style={giftStyle}>
-                  <LinearGradient
-                    colors={['#f43f5e', '#e11d48']}
-                    style={styles.giftPillGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Gift size={20} color="#fff" style={{ marginRight: 8 }} />
-                    <Text style={styles.giftPillText}>You won a Scratch Card!</Text>
-                  </LinearGradient>
-                </Animated.View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+          {/* Removed Coins Earned - Gift Pill because it now auto-opens */}
 
           {/* Actions */}
           <Animated.View style={[styles.buttonGroup, coins > 0 ? detailStyle4 : detailStyle3]}>
@@ -320,77 +309,77 @@ export function SuccessScreen() {
       </SafeAreaView>
 
       {/* Scratch Modal */}
-      <Modal visible={isScratchModalOpen} transparent animationType="fade">
-        <View style={StyleSheet.absoluteFill} className="bg-black/90 items-center justify-center p-6">
-          <View style={{ position: 'absolute', top: 60, right: 24, zIndex: 10 }}>
-            <TouchableOpacity
-              onPress={() => setIsScratchModalOpen(false)}
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Titles inside Popup */}
-          <View className="items-center mb-10 w-full px-4">
-            <Text className="text-3xl font-black text-white text-center mb-2">
-              {isScratched ? "Congratulations! 🎉" : "You got a surprise! 🎁"}
-            </Text>
-            <Text className="text-base font-bold text-gray-300 text-center">
-              {isScratched ? "Your coins have been added to your wallet." : "Scratch the card below to reveal your reward"}
-            </Text>
-          </View>
-
-          <View style={{ position: 'relative' }}>
-            <ScratchCard
-              width={300}
-              height={300}
-              coverColor="#e11d48"
-              strokeWidth={45}
-              scratchThreshold={40}
-              onScratchComplete={() => setIsScratched(true)}
-            >
-              <View className="flex-1 bg-white items-center justify-center rounded-[32px] overflow-hidden p-6 border-4 border-yellow-400 shadow-xl">
-                <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100 shadow-md">
-                  <Sparkles size={48} color="#e11d48" />
-                </View>
-                <Text className="text-2xl font-bold text-gray-500 mb-2">You Won!</Text>
-                <Text className="text-6xl font-black text-primary">+{coins}</Text>
-                <Text className="text-lg font-bold text-gray-400 mt-2 uppercase tracking-widest">BK Coins</Text>
+      <Modal visible={isScratchModalOpen} transparent animationType="none">
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Animated.View entering={FadeIn.duration(500)} style={StyleSheet.absoluteFill} className="bg-black/90">
+            
+            {/* Main Content Container */}
+            <Animated.View entering={ZoomIn.delay(200).springify().damping(18).stiffness(150)} style={StyleSheet.absoluteFill} className="items-center justify-center p-6">
+              
+              {/* Titles inside Popup */}
+              <View className="items-center mb-10 w-full px-4">
+                <Text className="text-3xl font-black text-white text-center mb-2">
+                  {isScratched ? "Congratulations! 🎉" : "You got a surprise! 🎁"}
+                </Text>
+                <Text className="text-base font-bold text-gray-300 text-center">
+                  {isScratched ? "Your coins have been added to your wallet." : "Scratch the card below to reveal your reward"}
+                </Text>
               </View>
-            </ScratchCard>
-          </View>
 
-          {isScratched && (
-            <Animated.View entering={FadeInUp.delay(300)} className="mt-12 w-full max-w-[300px]">
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  setIsClaiming(true);
-                }}
-                className="bg-primary h-14 rounded-full items-center justify-center shadow-lg"
-              >
-                <Text className="text-white font-bold text-lg">Claim Coins!</Text>
-              </TouchableOpacity>
+              <View style={{ position: 'relative' }}>
+                <ScratchCard
+                  key={isScratchModalOpen ? 'open' : 'closed'}
+                  width={300}
+                  height={300}
+                  coverColor="#e11d48"
+                  strokeWidth={45}
+                  scratchThreshold={40}
+                  onScratchComplete={() => setIsScratched(true)}
+                >
+                  <View className="flex-1 bg-white items-center justify-center rounded-[32px] overflow-hidden p-6 border-4 border-yellow-400 shadow-xl">
+                    <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100 shadow-md">
+                      <Sparkles size={48} color="#e11d48" />
+                    </View>
+                    <Text className="text-2xl font-bold text-gray-500 mb-2">You Won!</Text>
+                    <Text className="text-6xl font-black text-primary">+{coins}</Text>
+                    <Text className="text-lg font-bold text-gray-400 mt-2 uppercase tracking-widest">BK Coins</Text>
+                  </View>
+                </ScratchCard>
+              </View>
+
+              {isScratched && (
+                <Animated.View entering={FadeInUp.delay(300)} className="mt-12 w-full max-w-[300px]">
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      setIsClaiming(true);
+                    }}
+                    className="bg-primary h-14 rounded-full items-center justify-center shadow-lg"
+                  >
+                    <Text className="text-white font-bold text-lg">Claim Coins!</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+              
             </Animated.View>
-          )}
 
-          {/* Coin Claim Animation Overlay inside Modal */}
-          {isClaiming && (
-            <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999 }]} pointerEvents="none">
-              <LottieView
-                source={require('../../../../assets/animations/coin-claim.json')}
-                autoPlay
-                loop={false}
-                style={StyleSheet.absoluteFillObject}
-                onAnimationFinish={() => {
-                  setIsClaiming(false);
-                  setIsScratchModalOpen(false);
-                }}
-              />
-            </View>
-          )}
-        </View>
+            {/* Coin Claim Animation Overlay outside of flex container */}
+            {isClaiming && (
+              <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999, elevation: 9999, alignItems: 'center', justifyContent: 'center' }]} pointerEvents="none">
+                <LottieView
+                  source={require('../../../../assets/animations/coin-claim.json')}
+                  autoPlay
+                  loop={false}
+                  style={{ width: '100%', height: '100%', transform: [{ scale: 1.2 }] }}
+                  onAnimationFinish={() => {
+                    setIsClaiming(false);
+                    setIsScratchModalOpen(false);
+                  }}
+                />
+              </View>
+            )}
+          </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );
