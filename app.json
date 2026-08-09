@@ -25,6 +25,7 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "predictiveBackGestureEnabled": false,
+      "backgroundColor": "#ffffff",
       "package": "com.bumbaskitchen.app",
       "googleServicesFile": "./google-services.json"
     },

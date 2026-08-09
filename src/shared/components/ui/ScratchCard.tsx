@@ -27,6 +27,7 @@ export const ScratchCard: React.FC<ScratchCardProps> = ({
   
   const currentPath = useRef<string>('');
   const pointsCount = useRef<number>(0);
+  const lastPointRef = useRef<{x: number, y: number} | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const panResponder = useRef(
@@ -37,12 +38,22 @@ export const ScratchCard: React.FC<ScratchCardProps> = ({
         if (isCompleted) return;
         const { locationX, locationY } = evt.nativeEvent;
         currentPath.current = `M ${locationX} ${locationY} L ${locationX} ${locationY}`;
+        lastPointRef.current = { x: locationX, y: locationY };
         setPaths((prev) => [...prev, currentPath.current]);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
       onPanResponderMove: (evt) => {
         if (isCompleted) return;
         const { locationX, locationY } = evt.nativeEvent;
+
+        // OPTIMIZATION: Only update if moved more than 15 pixels to prevent massive lag
+        if (lastPointRef.current) {
+          const dx = locationX - lastPointRef.current.x;
+          const dy = locationY - lastPointRef.current.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 15) return;
+        }
+        lastPointRef.current = { x: locationX, y: locationY };
+
         currentPath.current += ` L ${locationX} ${locationY}`;
         
         // Update the last path
@@ -55,11 +66,11 @@ export const ScratchCard: React.FC<ScratchCardProps> = ({
         pointsCount.current += 1;
         
         // Add subtle haptic feedback every few scratch points
-        if (pointsCount.current % 8 === 0) {
+        if (pointsCount.current % 4 === 0) {
            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
 
-        if (pointsCount.current > scratchThreshold && !isCompleted) {
+        if (pointsCount.current > (scratchThreshold / 2) && !isCompleted) {
           handleComplete();
         }
       },

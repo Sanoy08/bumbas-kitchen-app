@@ -38,8 +38,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  LayoutAnimation,
+  Platform,
+  UIManager
 } from 'react-native';
+
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { toast } from 'sonner-native';
@@ -286,10 +296,6 @@ export function SummaryScreen() {
 
   const itemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
-  // অ্যানিমেশন ভ্যালু
-  const savingsOpacity = useRef(new Animated.Value(0)).current;
-  const savingsTranslateY = useRef(new Animated.Value(-10)).current;
-
   // ★ Calculate total directly to ensure 100% reactivity
   useFocusEffect(
     useCallback(() => {
@@ -379,6 +385,7 @@ export function SummaryScreen() {
 
   const handleCoinToggle = (checked: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     if (checked) {
       if (couponDiscount > 0) {
         removeCoupon();
@@ -394,21 +401,7 @@ export function SummaryScreen() {
     }
   };
 
-  // অ্যানিমেশন কন্ট্রোল
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(savingsOpacity, {
-        toValue: useCoins && walletBalance > 0 ? 1 : 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(savingsTranslateY, {
-        toValue: useCoins && walletBalance > 0 ? 0 : -10,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [useCoins, walletBalance]);
+
 
   const maxCoinDiscount = totalPrice * 0.5;
   const coinDiscountAmount = useCoins ? Math.min(walletBalance, Math.floor(maxCoinDiscount)) : 0;
@@ -426,8 +419,6 @@ export function SummaryScreen() {
     router.push('/(checkout)/final');
   };
 
-
-
   if (!isInitialized || !user || itemCount === 0)
     return (
       <View className="flex-1 justify-center items-center bg-white">
@@ -436,7 +427,7 @@ export function SummaryScreen() {
     );
 
   const coinGradientColors = walletBalance > 0
-    ? (['#eab308', '#f97316', '#dc2626'] as const)
+    ? (['#f43f5e', '#e11d48', '#be123c'] as const)
     : (['#9ca3af', '#6b7280'] as const);
 
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
@@ -468,27 +459,43 @@ export function SummaryScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* ─── COIN CARD ─── */}
-        <View className="mb-5 rounded-2xl overflow-hidden shadow-xl">
+        <View className="mb-5 rounded-2xl overflow-hidden shadow-xl" style={{ shadowColor: coinGradientColors[0], shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }}>
           <LinearGradient
             colors={coinGradientColors as any}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ padding: 24 }}
+            style={{ padding: 20 }}
           >
+            {/* Magical Background Ornaments */}
             {walletBalance > 0 && (
-              <View className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -mt-10 -mr-10" />
+              <>
+                <View className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mt-12 -mr-12" />
+                <View className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -mb-8 -ml-8" />
+                <View className="absolute top-1/2 left-1/2 w-32 h-32 bg-white/5 rounded-full transform -translate-x-16 -translate-y-16" />
+              </>
             )}
+            
             <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-4">
-                <View className="h-14 w-14 bg-white/20 rounded-full items-center justify-center border border-white/30">
-                  <Coins size={28} color="#fff" />
+              <View className="flex-row items-center flex-1">
+                <View className="items-center justify-center -ml-2 mr-2 z-10" style={{
+                  shadowColor: '#fbbf24',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 8,
+                }}>
+                  <LottieView 
+                    source={require('../../../../assets/animations/coin.json')} 
+                    autoPlay 
+                    loop 
+                    style={{ width: 80, height: 80 }} 
+                  />
                 </View>
-                <View>
-                  <View className="flex-row items-center gap-2">
-                    <Text className="text-white font-bold text-xl">BK Coins</Text>
-                    {walletBalance > 0 && <Sparkles size={14} color="#fef08a" />}
+                <View className="flex-1">
+                  <View className="flex-row items-center gap-1.5 mb-1">
+                    <Text className="text-white font-black text-2xl tracking-wide font-sans">BK Coins</Text>
+                    {walletBalance > 0 && <Sparkles size={16} color="#fef08a" style={{ marginBottom: 4 }} />}
                   </View>
-                  <Text className="text-white/90 text-sm font-medium mt-0.5">
+                  <Text className="text-white/90 text-sm font-semibold font-sans">
                     {walletBalance > 0
                       ? `Available Balance: ${walletBalance}`
                       : 'No coins available yet.'}
@@ -502,24 +509,23 @@ export function SummaryScreen() {
                 trackColor={{ false: '#ffffff30', true: '#ffffff90' }}
                 thumbColor={useCoins ? '#fbbf24' : '#f3f4f6'}
                 ios_backgroundColor="#ffffff20"
+                style={{ transform: [{ scale: 1.1 }] }}
               />
             </View>
-            <Animated.View
-              style={{
-                opacity: savingsOpacity,
-                transform: [{ translateY: savingsTranslateY }],
-              }}
-              className="mt-4 pt-4 border-t border-white/20"
-            >
-              {useCoins && walletBalance > 0 ? (
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-yellow-50 text-sm font-medium">Savings applied</Text>
-                  <Text className="text-2xl font-bold text-white">
+            
+            {useCoins && walletBalance > 0 && (
+              <View className="mt-2">
+                <View className="flex-row justify-between items-center bg-black/10 px-4 py-3 rounded-xl mt-2 border border-white/20">
+                  <View className="flex-row items-center gap-2">
+                    <Sparkles size={16} color="#fef08a" />
+                    <Text className="text-yellow-50 text-sm font-bold font-sans tracking-wide">SAVINGS APPLIED</Text>
+                  </View>
+                  <Text className="text-2xl font-black text-white font-sans">
                     - {formatPrice(coinDiscountAmount)}
                   </Text>
                 </View>
-              ) : null}
-            </Animated.View>
+              </View>
+            )}
           </LinearGradient>
         </View>
 

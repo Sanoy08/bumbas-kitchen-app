@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, ScrollView, Text, UIManager, View } from 'react-native';
+import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, {
   Extrapolation,
@@ -799,6 +799,16 @@ export function HomeScreen() {
       <Animated.View style={stickyCategoryStyle} className="bg-white pt-2 pb-0">
         <CategoryList activeCategory={visualCategory} setActiveCategory={handleCategorySelect} />
       </Animated.View>
+
+      {/* ── DEV BUTTON FOR TEST SCRATCH ── */}
+      <View style={{ position: 'absolute', bottom: 100, right: 20, zIndex: 999 }}>
+        <TouchableOpacity
+          onPress={() => router.push('/(shop)/test-scratch')}
+          className="bg-yellow-400 px-4 py-3 rounded-full shadow-lg border-2 border-yellow-500 flex-row items-center"
+        >
+          <Text className="font-bold text-gray-900">🧪 Test Scratch</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ── Main Scrollable Content via FlashList ── */}
       <AnimatedFlashList

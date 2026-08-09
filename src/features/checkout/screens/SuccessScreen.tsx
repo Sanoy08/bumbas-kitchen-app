@@ -7,6 +7,7 @@ import { formatPrice } from '@/shared/utils/utils';
 import { useAudioPlayer } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 import { ArrowRight, Gift, Home, ShoppingBag, Sparkles, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -22,7 +23,10 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
+  FadeIn,
   FadeInUp,
+  FadeOut,
+  ZoomIn,
   interpolate,
   useAnimatedProps,
   useAnimatedStyle,
@@ -128,6 +132,7 @@ export function SuccessScreen() {
 
   const [isScratchModalOpen, setIsScratchModalOpen] = useState(false);
   const [isScratched, setIsScratched] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const giftBounce = useSharedValue(0);
   useEffect(() => {
@@ -268,8 +273,8 @@ export function SuccessScreen() {
           </Animated.View>
 
           {/* Coins Earned - Gift Pill */}
-          {coins > 0 && (
-            <Animated.View style={[styles.cardContainer, detailStyle3, { alignItems: 'center', marginTop: 10 }]}>
+          {coins > 0 && !isScratched && (
+            <Animated.View exiting={FadeOut.duration(300)} style={[styles.cardContainer, detailStyle3, { alignItems: 'center', marginTop: 10 }]}>
               <TouchableOpacity activeOpacity={0.8} onPress={() => setIsScratchModalOpen(true)}>
                 <Animated.View style={giftStyle}>
                   <LinearGradient
@@ -341,26 +346,17 @@ export function SuccessScreen() {
               width={300}
               height={300}
               coverColor="#e11d48"
-              strokeWidth={40}
-              scratchThreshold={60}
+              strokeWidth={45}
+              scratchThreshold={40}
               onScratchComplete={() => setIsScratched(true)}
             >
-              <View className="flex-1 bg-white items-center justify-center rounded-3xl overflow-hidden p-6 border-4 border-yellow-400">
-                {/* Lottie background for celebration */}
-                {isScratched && (
-                  <LottieView
-                    source={require('../../../../assets/animations/success.json')}
-                    autoPlay
-                    loop={false}
-                    style={{ position: 'absolute', width: 400, height: 400, opacity: 0.5 }}
-                  />
-                )}
-                <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100">
+              <View className="flex-1 bg-white items-center justify-center rounded-[32px] overflow-hidden p-6 border-4 border-yellow-400 shadow-xl">
+                <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100 shadow-md">
                   <Sparkles size={48} color="#e11d48" />
                 </View>
                 <Text className="text-2xl font-bold text-gray-500 mb-2">You Won!</Text>
                 <Text className="text-6xl font-black text-primary">+{coins}</Text>
-                <Text className="text-lg font-bold text-gray-400 mt-2">BK Coins</Text>
+                <Text className="text-lg font-bold text-gray-400 mt-2 uppercase tracking-widest">BK Coins</Text>
               </View>
             </ScratchCard>
           </View>
@@ -368,17 +364,34 @@ export function SuccessScreen() {
           {isScratched && (
             <Animated.View entering={FadeInUp.delay(300)} className="mt-12 w-full max-w-[300px]">
               <TouchableOpacity
-                onPress={() => setIsScratchModalOpen(false)}
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  setIsClaiming(true);
+                }}
                 className="bg-primary h-14 rounded-full items-center justify-center shadow-lg"
               >
                 <Text className="text-white font-bold text-lg">Claim Coins!</Text>
               </TouchableOpacity>
             </Animated.View>
           )}
+
+          {/* Coin Claim Animation Overlay inside Modal */}
+          {isClaiming && (
+            <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999 }]} pointerEvents="none">
+              <LottieView
+                source={require('../../../../assets/animations/coin-claim.json')}
+                autoPlay
+                loop={false}
+                style={StyleSheet.absoluteFillObject}
+                onAnimationFinish={() => {
+                  setIsClaiming(false);
+                  setIsScratchModalOpen(false);
+                }}
+              />
+            </View>
+          )}
         </View>
       </Modal>
-
-      {/* Native Audio played via expo-av in useEffect */}
     </View>
   );
 }

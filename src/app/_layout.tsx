@@ -161,14 +161,14 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <SafeAreaProvider>
         <AlertProvider>
           <StatusBar style="dark" />
 
           {/* ★ গ্লোবাল বটম সেফ এরিয়া: সমস্ত পেজ নেভিগেশন বারের উপরে থাকবে */}
-          <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-            <Stack screenOptions={{ headerShown: false, animation: 'simple_push' }}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }} edges={['bottom']}>
+            <Stack screenOptions={{ headerShown: false, animation: 'simple_push', contentStyle: { backgroundColor: '#ffffff' } }}>
               <Stack.Screen name="addressModal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             </Stack>
           </SafeAreaView>

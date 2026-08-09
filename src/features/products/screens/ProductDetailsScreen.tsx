@@ -94,54 +94,61 @@ const ImageWithLottie = ({ uri, style, contentFit = 'cover', transition = 150, o
 };
 
 const ProductSkeleton = () => {
-  const THUMBNAIL_GAP = 12;
-  const THUMBNAIL_WIDTH = (screenWidth - 32 - (THUMBNAIL_GAP * 3)) / 4;
+  const insets = useSafeAreaInsets();
 
   return (
     <View className="flex-1 bg-white">
       {/* Header Skeleton */}
-      <View className="absolute top-0 left-0 right-0 z-50 flex-row justify-between px-4 pt-12 pb-4">
-        <View className="w-10 h-10 rounded-full bg-gray-200" />
-        <View className="w-10 h-10 rounded-full bg-gray-200" />
+      <View 
+        className="absolute top-0 left-0 right-0 z-50 flex-row justify-between items-center px-4 pb-2.5"
+        style={{ paddingTop: insets.top + 10 }}
+      >
+        <ShimmerSkeleton width={40} height={40} borderRadius={20} />
+        <View className="flex-row gap-2">
+          <ShimmerSkeleton width={40} height={40} borderRadius={20} />
+          <ShimmerSkeleton width={40} height={40} borderRadius={20} />
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }} scrollEnabled={false}>
         {/* Main Image */}
         <ShimmerSkeleton width={screenWidth} height={screenWidth} borderRadius={0} />
-        
-
 
         {/* Content */}
         <View className="px-4 pt-6">
-          {/* Tags */}
+          {/* Tags & Rating */}
           <View className="flex-row items-center justify-between mb-3">
-            <ShimmerSkeleton width={80} height={24} borderRadius={4} />
-            <ShimmerSkeleton width={50} height={24} borderRadius={4} />
+            <ShimmerSkeleton width={64} height={22} borderRadius={4} />
+            <ShimmerSkeleton width={42} height={22} borderRadius={4} />
           </View>
 
           {/* Title */}
-          <ShimmerSkeleton width="80%" height={32} borderRadius={6} style={{ marginBottom: 8 }} />
+          <ShimmerSkeleton width="75%" height={32} borderRadius={6} style={{ marginBottom: 6 }} />
           {/* Category */}
-          <ShimmerSkeleton width="40%" height={16} borderRadius={4} style={{ marginBottom: 24 }} />
+          <ShimmerSkeleton width="30%" height={16} borderRadius={4} style={{ marginBottom: 16 }} />
 
-          {/* Quantity Selector skeleton */}
-          <ShimmerSkeleton width={130} height={48} borderRadius={24} style={{ marginBottom: 32 }} />
+          {/* Badges */}
+          <View className="flex-row gap-2 mb-6">
+            <ShimmerSkeleton width={70} height={20} borderRadius={4} />
+            <ShimmerSkeleton width={90} height={20} borderRadius={4} />
+          </View>
 
           <View className="h-[1px] bg-gray-100 w-full mb-6" />
 
-          {/* Price */}
+          {/* Price & Taxes */}
           <View className="mb-8">
-            <ShimmerSkeleton width={120} height={40} borderRadius={6} style={{ marginBottom: 8 }} />
-            <ShimmerSkeleton width={150} height={14} borderRadius={4} />
+            <ShimmerSkeleton width={110} height={36} borderRadius={6} style={{ marginBottom: 8 }} />
+            <ShimmerSkeleton width={130} height={14} borderRadius={4} />
           </View>
 
-          {/* Action Buttons */}
-          <View className="flex-row items-center justify-between mb-8 space-x-4">
+          {/* Action Buttons (Quantity & Add) */}
+          <View className="flex-row w-full gap-3 mb-8">
+            <ShimmerSkeleton width={135} height={56} borderRadius={12} />
             <ShimmerSkeleton style={{ flex: 1, height: 56, borderRadius: 12 }} />
-            <ShimmerSkeleton style={{ flex: 2, height: 56, borderRadius: 12 }} />
           </View>
 
           {/* Description Lines */}
+          <ShimmerSkeleton width="40%" height={24} borderRadius={6} style={{ marginBottom: 16 }} />
           <ShimmerSkeleton width="100%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
           <ShimmerSkeleton width="90%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
           <ShimmerSkeleton width="95%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
@@ -283,11 +290,14 @@ export function ProductDetailsScreen() {
       const savedFavs = JSON.parse(
         (await AsyncStorage.getItem('bumbas_favorites')) || '[]'
       );
-      setIsFavorite(
-        savedFavs.some(
-          (fav: any) => fav.id === product.id || fav.slug === product.slug
-        )
+      const isFav = savedFavs.some(
+        (fav: any) => fav.id === product.id || fav.slug === product.slug
       );
+      setIsFavorite(isFav);
+      if (isFav) {
+        // Set to last frame if already favorite
+        setTimeout(() => favAnimRef.current?.play(100, 100), 100);
+      }
     };
     checkFav();
   }, [product]);
@@ -303,6 +313,8 @@ export function ProductDetailsScreen() {
         (fav: any) => fav.id !== product.id && fav.slug !== product.slug
       );
       toast.info('Removed from favorites');
+      favAnimRef.current?.reset();
+      favAnimRef.current?.play(0, 0);
     } else {
       savedFavs.push({
         id: product.id || product._id,
@@ -313,9 +325,9 @@ export function ProductDetailsScreen() {
       });
       toast.success('Added to favorites! ❤️');
       
-      // Play heart animation
+      // Play heart animation to the end
       favAnimRef.current?.reset();
-      favAnimRef.current?.play(0, 60);
+      favAnimRef.current?.play();
     }
     await AsyncStorage.setItem('bumbas_favorites', JSON.stringify(savedFavs));
     setIsFavorite(!isFavorite);
@@ -869,8 +881,8 @@ export function ProductDetailsScreen() {
                       shadowRadius: 5,
                     }}
                   >
-                    <ShoppingCart size={20} color="#ffffff" className="mr-2" />
-                    <Text className="text-white font-bold text-base font-sans">
+                    <ShoppingCart size={20} color="#ffffff" />
+                    <Text className="text-white font-bold text-base font-sans ml-4">
                       View Cart
                     </Text>
                   </TouchableOpacity>
@@ -885,8 +897,8 @@ export function ProductDetailsScreen() {
                       shadowRadius: 5,
                     }}
                   >
-                    <ShoppingCart size={20} color="#ffffff" className="mr-2" />
-                    <Text className="text-white font-bold text-base font-sans">
+                    <ShoppingCart size={20} color="#ffffff" />
+                    <Text className="text-white font-bold text-base font-sans ml-4">
                       Add
                     </Text>
                     <Text className="text-white font-black text-base ml-2 font-sans opacity-90">
@@ -897,8 +909,8 @@ export function ProductDetailsScreen() {
               </View>
             ) : (
               <View className="w-full h-14 bg-gray-100 rounded-xl flex-row items-center justify-center border border-gray-200">
-                <Ban size={20} color="#9ca3af" className="mr-2" />
-                <Text className="text-gray-500 font-bold text-lg font-sans">
+                <Ban size={20} color="#9ca3af" />
+                <Text className="text-gray-500 font-bold text-lg font-sans ml-2">
                   Item Sold Out
                 </Text>
               </View>
@@ -1106,8 +1118,8 @@ export function ProductDetailsScreen() {
                   shadowRadius: 5,
                 }}
               >
-                <ShoppingCart size={20} color="#ffffff" className="mr-2" />
-                <Text className="text-white font-bold text-base font-sans">
+                <ShoppingCart size={20} color="#ffffff" />
+                <Text className="text-white font-bold text-base font-sans ml-4">
                   View Cart
                 </Text>
               </TouchableOpacity>
@@ -1122,8 +1134,8 @@ export function ProductDetailsScreen() {
                   shadowRadius: 5,
                 }}
               >
-                <ShoppingCart size={20} color="#ffffff" className="mr-2" />
-                <Text className="text-white font-bold text-base font-sans">
+                <ShoppingCart size={20} color="#ffffff" />
+                <Text className="text-white font-bold text-base font-sans ml-4">
                   Add
                 </Text>
                 <Text className="text-white font-black text-base ml-2 font-sans opacity-90">
