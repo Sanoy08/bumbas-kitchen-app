@@ -89,7 +89,7 @@ export const HomeHeader = ({
         </View>
         <View className="flex-row items-center gap-3">
           <TouchableOpacity
-            onPress={() => router.push('/(shop)/notifications')}
+            onPress={() => router.push('/notifications')}
             className="h-10 w-10 bg-white/90 rounded-full items-center justify-center border border-gray-100 shadow-sm relative"
           >
             <Bell size={20} color="#e11d48" />
@@ -120,7 +120,7 @@ export const HomeHeader = ({
 
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => router.push('/(shop)/search')}
+          onPress={() => router.push('/search')}
           className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl pl-3 pr-1 py-1"
         >
           <Search size={20} color="#e11d48" />

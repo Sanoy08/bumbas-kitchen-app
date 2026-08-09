@@ -291,7 +291,7 @@ export function SuccessScreen() {
             <TouchableOpacity
               activeOpacity={0.8}
               style={[styles.button, styles.primaryButton]}
-              onPress={() => router.replace(`/(shop)/account/orders?orderId=${orderId}`)}
+              onPress={() => router.replace(`/account/orders?orderId=${orderId}`)}
             >
               <ShoppingBag size={20} color="#fff" />
               <Text style={styles.buttonText}>View Order</Text>

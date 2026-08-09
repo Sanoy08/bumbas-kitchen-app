@@ -146,7 +146,7 @@ const CartItem = React.memo(
         <Animated.View style={{ opacity }}>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => router.push(`/(shop)/menus/${item.slug}`)}
+            onPress={() => router.push(`/menus/${item.slug}`)}
             className="bg-white rounded-2xl p-4 mb-4 border border-gray-100"
             accessibilityLabel={`View details of ${item.name}`}
             accessibilityRole="button"
@@ -405,7 +405,10 @@ export function CartScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push('/(checkout)/summary')}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push('/(checkout)/summary');
+          }}
           className="bg-primary flex-row items-center px-6 py-3.5 rounded-2xl shadow-lg"
           style={{
             shadowColor: '#e11d48',

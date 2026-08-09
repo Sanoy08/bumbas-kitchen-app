@@ -5,6 +5,7 @@ import { Home, ShoppingCart, User } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LottieView from 'lottie-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { useCartStore } from '@/shared/store/cartStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
@@ -29,7 +30,6 @@ export default function ShopLayout() {
 
   const shouldHideTabBar = 
     pathname.includes('/checkout') || 
-    pathname.includes('/menus/') || 
     pathname.includes('/search') ||
     (pathname === '/cart' && isCartNotEmpty); 
 
@@ -74,6 +74,11 @@ export default function ShopLayout() {
         ],
         tabBarActiveTintColor: '#e11d48',
         tabBarInactiveTintColor: '#9ca3af',
+      }}
+      screenListeners={{
+        tabPress: () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
       }}
     >
       <Tabs.Screen
@@ -137,15 +142,6 @@ export default function ShopLayout() {
         }}
       />
 
-      {/* ─── Hidden Screens ─── */}
-      <Tabs.Screen name="account/orders" options={{ href: null }} />
-      <Tabs.Screen name="account/addresses" options={{ href: null }} />
-      <Tabs.Screen name="account/wallet/index" options={{ href: null }} />
-      <Tabs.Screen name="account/coupons/index" options={{ href: null }} />
-      <Tabs.Screen name="account/favorites/index" options={{ href: null }} />
-      <Tabs.Screen name="menus/[slug]" options={{ href: null }} />
-      <Tabs.Screen name="search" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
     <CartConflictModal />
     </>

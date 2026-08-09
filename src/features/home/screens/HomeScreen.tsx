@@ -872,7 +872,7 @@ export function HomeScreen() {
         onClose={() => setIsVoiceModalVisible(false)}
         onResult={(transcript) => {
           setIsVoiceModalVisible(false);
-          router.push({ pathname: '/(shop)/search', params: { voiceQuery: transcript } });
+          router.push({ pathname: '/search', params: { voiceQuery: transcript } });
         }}
       />
 

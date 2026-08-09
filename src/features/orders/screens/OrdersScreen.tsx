@@ -15,8 +15,9 @@ import {
     Utensils,
     X
 } from 'lucide-react-native';
+import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View, Animated, Easing, PanResponder, Dimensions, Pressable, StyleSheet } from 'react-native';
+import { Alert, Modal, ScrollView, Text, TouchableOpacity, View, Animated, Easing, PanResponder, Dimensions, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
@@ -200,8 +201,28 @@ export function OrdersScreen() {
 
   if (!isInitialized || isLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#e11d48" />
+      <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
+        <View className="flex-1 bg-gray-50 px-4 pt-4">
+          <ShimmerSkeleton width={120} height={32} borderRadius={6} style={{ marginBottom: 24 }} />
+          <View className="flex-row gap-4 mb-8">
+            <ShimmerSkeleton style={{ flex: 1, height: 80, borderRadius: 16 }} />
+            <ShimmerSkeleton style={{ flex: 1, height: 80, borderRadius: 16 }} />
+          </View>
+          <ShimmerSkeleton width={150} height={24} borderRadius={6} style={{ marginBottom: 16 }} />
+          {[1, 2, 3].map(i => (
+            <View key={i} className="bg-white rounded-2xl p-4 mb-4 border border-gray-100">
+              <View className="flex-row justify-between mb-4">
+                <ShimmerSkeleton width={100} height={20} />
+                <ShimmerSkeleton width={60} height={20} />
+              </View>
+              <ShimmerSkeleton width="100%" height={60} borderRadius={8} style={{ marginBottom: 12 }} />
+              <View className="flex-row justify-between">
+                <ShimmerSkeleton width={80} height={16} />
+                <ShimmerSkeleton width={80} height={16} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }

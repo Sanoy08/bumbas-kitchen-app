@@ -388,7 +388,7 @@ export function FinalScreen() {
   };
 
   const handleAddAddress = () => {
-    router.push('/(shop)/account/addresses');
+    router.push('/account/addresses');
   };
 
   const handleDateSelect = (date: Date) => {

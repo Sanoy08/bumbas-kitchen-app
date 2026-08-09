@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeft, HeartCrack, Trash2 } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Platform,
   Text,
@@ -13,6 +12,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import LottieView from 'lottie-react-native';
+import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
+import * as Haptics from 'expo-haptics';
 import { formatPrice } from '@/shared/utils/utils';
 import { LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
@@ -47,7 +48,8 @@ export function FavoritesScreen() {
     }
   };
 
-  const removeFavorite = async (id: string, name: string) => {
+  const removeFavorite = useCallback(async (id: string, name: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     showAlert({
       title: "Remove Favorite?",
       message: `Are you sure you want to remove ${name} from your favorites?`,
@@ -65,14 +67,14 @@ export function FavoritesScreen() {
         }
       }
     });
-  };
+  }, [favorites, showAlert]);
 
   const FavoriteItem = React.memo(({ item, removeFavorite }: { item: any, removeFavorite: (id: string, name: string) => void }) => {
     const [isImageLoaded, setIsImageLoaded] = useState(false);
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => router.push(`/(shop)/menus/${item.slug}`)}
+        onPress={() => router.push(`/menus/${item.slug}`)}
         className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-4 shadow-sm"
       >
         <View className="h-24 w-24 rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
@@ -155,8 +157,17 @@ export function FavoritesScreen() {
 
       {/* Main Content */}
       {isLoading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#e11d48" />
+        <View className="px-4 pt-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-4 shadow-sm">
+              <ShimmerSkeleton width={96} height={96} borderRadius={12} />
+              <View className="flex-1 ml-4 justify-center">
+                <ShimmerSkeleton width="80%" height={20} style={{ marginBottom: 8 }} />
+                <ShimmerSkeleton width="40%" height={20} />
+              </View>
+              <ShimmerSkeleton width={40} height={40} borderRadius={20} className="ml-2" />
+            </View>
+          ))}
         </View>
       ) : favorites.length > 0 ? (
         <FlatList

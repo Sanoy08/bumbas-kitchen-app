@@ -319,7 +319,7 @@ export function AccountScreen() {
 
         {/* --- HORIZONTAL HIGHLIGHT SECTION --- */}
         <View className="flex-row gap-3 mb-6">
-          <TouchableOpacity onPress={() => router.push('/(shop)/account/wallet')} activeOpacity={0.8} className="flex-1 bg-amber-50 border border-amber-100 p-4 rounded-2xl relative overflow-hidden">
+          <TouchableOpacity onPress={() => router.push('/account/wallet')} activeOpacity={0.8} className="flex-1 bg-amber-50 border border-amber-100 p-4 rounded-2xl relative overflow-hidden">
             <View className="absolute top-2 right-2 opacity-10"><Wallet size={48} color="#d97706" /></View>
             <View className="flex-row items-center mb-2">
               <View className="p-1.5 bg-white rounded-lg"><Wallet size={14} color="#d97706" /></View>
@@ -329,7 +329,7 @@ export function AccountScreen() {
             <Text className="text-[10px] text-gray-500 font-medium font-sans mt-0.5">Available Balance</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => router.push('/(shop)/account/coupons')} activeOpacity={0.8} className="flex-1 bg-blue-50 border border-blue-100 p-4 rounded-2xl relative overflow-hidden">
+          <TouchableOpacity onPress={() => router.push('/account/coupons')} activeOpacity={0.8} className="flex-1 bg-blue-50 border border-blue-100 p-4 rounded-2xl relative overflow-hidden">
             <View className="absolute top-2 right-2 opacity-10"><TicketPercent size={48} color="#2563eb" /></View>
             <View className="flex-row items-center mb-2">
               <View className="p-1.5 bg-white rounded-lg"><TicketPercent size={14} color="#2563eb" /></View>
@@ -341,11 +341,11 @@ export function AccountScreen() {
         </View>
 
         {/* --- MENU LIST --- */}
-        <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/(shop)/account/orders')} />
-        <MenuItem icon={Heart} title="My Favorites" subtitle="View and order your favorite dishes" onPress={() => router.push('/(shop)/account/favorites')} />
-        <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => router.push('/(shop)/account/addresses')} />
-        <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/(shop)/account/wallet')} />
-        <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => router.push('/(shop)/account/coupons')} />
+        <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/account/orders')} />
+        <MenuItem icon={Heart} title="My Favorites" subtitle="View and order your favorite dishes" onPress={() => router.push('/account/favorites')} />
+        <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => router.push('/account/addresses')} />
+        <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/account/wallet')} />
+        <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => router.push('/account/coupons')} />
 
         <View className="mt-4">
           <MenuItem icon={LogOut} title="Log Out" subtitle="Sign out of your account" isDestructive onPress={confirmLogout} />
