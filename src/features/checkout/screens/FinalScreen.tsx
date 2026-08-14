@@ -12,8 +12,7 @@ import {
   ArrowLeft,
   Calendar as CalendarIcon,
   Check,
-  ChevronDown,
-  ChevronUp,
+
   ChevronLeft,
   ChevronRight,
   Home,
@@ -268,7 +267,6 @@ export function FinalScreen() {
   // Always delivery – no toggle
   const orderType = 'delivery';
 
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -581,69 +579,7 @@ export function FinalScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        {/* Order Summary (collapsible) */}
-        <View className="lg:hidden mb-6">
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setIsSummaryExpanded(!isSummaryExpanded)}
-            className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm"
-          >
-            <View className="flex-row justify-between items-center">
-              <View className="flex-row items-center">
-                <Text className="font-bold text-gray-900">Order Summary</Text>
-                {isSummaryExpanded ? (
-                  <ChevronUp size={18} color="#6b7280" className="ml-2" />
-                ) : (
-                  <ChevronDown size={18} color="#6b7280" className="ml-2" />
-                )}
-              </View>
-              <Text className="font-bold text-lg text-primary">{formatPrice(finalTotal)}</Text>
-            </View>
-          </TouchableOpacity>
-          {isSummaryExpanded && (
-            <View className="bg-white border border-gray-200 rounded-2xl p-4 mt-2 shadow-sm">
-              <View className="space-y-2">
-                {items.map((item) => (
-                  <View key={item.id} className="flex-row justify-between">
-                    <Text className="text-sm text-gray-600">
-                      {item.quantity}x {item.name}
-                    </Text>
-                    <Text className="text-sm font-medium text-gray-900">
-                      {formatPrice(item.price * item.quantity)}
-                    </Text>
-                  </View>
-                ))}
-                <View className="border-t border-gray-200 my-2" />
-                <View className="flex-row justify-between text-gray-500">
-                  <Text>Subtotal</Text>
-                  <Text>{formatPrice(totalPrice)}</Text>
-                </View>
-                <View className="flex-row justify-between text-gray-500">
-                  <Text>Delivery Fee</Text>
-                  <Text
-                    className={
-                      currentDeliveryFee === 0 ? 'text-green-600 font-medium' : 'font-medium'
-                    }
-                  >
-                    {currentDeliveryFee === 0 ? 'Free' : formatPrice(currentDeliveryFee)}
-                  </Text>
-                </View>
-                {couponDiscount > 0 && (
-                  <View className="flex-row justify-between text-green-600">
-                    <Text>Coupon</Text>
-                    <Text>- {formatPrice(couponDiscount)}</Text>
-                  </View>
-                )}
-                {coinDiscountAmount > 0 && (
-                  <View className="flex-row justify-between text-amber-600">
-                    <Text>Coins</Text>
-                    <Text>- {formatPrice(coinDiscountAmount)}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-        </View>
+
 
         {/* Delivery Address Selection (always visible, no toggle) */}
         <View className="mb-6">

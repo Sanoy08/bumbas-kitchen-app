@@ -95,6 +95,16 @@ const runBuildProcess = async (commitMsg) => {
             }
         });
 
+        // ৪.৫ Backend-এর Next.js Web Page-এ URL আপডেট করা
+        const webPagePath = path.join(backendRepoPath, 'src/app/web/page.tsx');
+        if (fs.existsSync(webPagePath)) {
+            let webPageContent = fs.readFileSync(webPagePath, 'utf8');
+            // Find href="/bumbas-kitchen...apk" and replace it
+            webPageContent = webPageContent.replace(/href="\/bumbas-kitchen[^"]*\.apk"/, `href="/${apkFileName}"`);
+            fs.writeFileSync(webPagePath, webPageContent);
+            console.log(`🔗 Updated download link in site/src/app/web/page.tsx to /${apkFileName}`);
+        }
+
         // ৫. MongoDB তে ভার্সন এবং নতুন URL আপডেট করা
         console.log("\n💾 Updating version & URL in MongoDB...");
         await updateVersionInDB(newName, `/${apkFileName}`);
@@ -125,6 +135,7 @@ const runBuildProcess = async (commitMsg) => {
         
         execSync(`${cdCommand} && git add public/${apkFileName}`, { stdio: 'inherit' });
         execSync(`${cdCommand} && git add -u public/`, { stdio: 'inherit' }); 
+        execSync(`${cdCommand} && git add src/app/web/page.tsx`, { stdio: 'inherit' }); // Add the modified page.tsx
         execSync(`${cdCommand} && git commit -m "Auto-update APK to v${newName}"`, { stdio: 'inherit' });
         execSync(`${cdCommand} && git push`, { stdio: 'inherit' });
 

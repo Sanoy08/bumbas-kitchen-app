@@ -11,7 +11,6 @@ import {
     ActivityIndicator,
     Animated,
     Dimensions,
-    Image,
     Keyboard,
     Modal,
     Platform,
@@ -23,6 +22,7 @@ import {
     DeviceEventEmitter,
     View
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useAlert } from '@/shared/components/ui/CustomAlert';
 import RNOtpVerify from 'react-native-otp-verify';
 import { toast } from 'sonner-native';
@@ -61,37 +61,50 @@ export default function LoginScreen() {
 
   const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
 
+  const [hasPromptedOnTap, setHasPromptedOnTap] = useState(false);
+
+  const requestPhoneHint = async () => {
+    try {
+      if (Platform.OS !== 'android') return;
+      const isAvailable = await isAvailableAsync();
+      if (isAvailable) {
+        const phoneNumber = await showPhoneNumberHintAsync();
+        if (phoneNumber) {
+          const cleaned = phoneNumber.replace(/\D/g, '');
+          const tenDigits = cleaned.slice(-10);
+          setValue('phone', tenDigits, { shouldValidate: true });
+        }
+      }
+    } catch (error) {
+      console.log('Phone selection cancelled or failed', error);
+    }
+  };
+
   // ★ Auto Phone Number Hint (Alert Box) ★
   useFocusEffect(
     useCallback(() => {
       let isMounted = true;
-      const requestPhone = async () => {
+      const initHint = async () => {
         try {
           if (Platform.OS !== 'android' || step !== 'phone') return;
           // Check if onboarding is completed before showing prompt
           const isFirstRun = await AsyncStorage.getItem('isFirstRun');
           if (isFirstRun !== 'false') return;
 
-          const isAvailable = await isAvailableAsync();
-          if (isAvailable && isMounted) {
-            const phoneNumber = await showPhoneNumberHintAsync();
-            if (phoneNumber && isMounted) {
-              const cleaned = phoneNumber.replace(/\D/g, '');
-              const tenDigits = cleaned.slice(-10); // +91 বা অন্য কোড বাদ দিয়ে শুধু ১০ ডিজিট
-              setValue('phone', tenDigits, { shouldValidate: true });
-            }
+          if (isMounted) {
+            await requestPhoneHint();
           }
         } catch (error) {
-          console.log('Phone selection cancelled or failed', error);
+          console.log('Init hint failed', error);
         }
       };
 
       // Call immediately if focused
-      setTimeout(requestPhone, 300);
+      setTimeout(initHint, 300);
 
       // Also listen for onboarding completion if it happens while already mounted
       const sub = DeviceEventEmitter.addListener('onboarding_finished', () => {
-        setTimeout(requestPhone, 500); // Small delay after fade out
+        setTimeout(initHint, 500); // Small delay after fade out
       });
 
       return () => { 
@@ -295,7 +308,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={require('../../../../assets/images/login.avif')} style={styles.heroImage} resizeMode="cover" />
+        <Image source={require('../../../../assets/images/login.avif')} style={styles.heroImage} contentFit="cover" />
         <View style={styles.overlay} />
       </View>
 
@@ -340,6 +353,10 @@ export default function LoginScreen() {
                           value={value}
                           editable={!isLoading}
                           onFocus={(event) => {
+                            if (!value && !hasPromptedOnTap && step === 'phone') {
+                              setHasPromptedOnTap(true);
+                              requestPhoneHint();
+                            }
                             event.currentTarget.measure((fx, fy, width, height, px, py) => {
                               scrollToInput(py);
                             });

@@ -1,15 +1,16 @@
 // src/app/(auth)/register.tsx
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/shared/store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useRouter, useLocalSearchParams } from 'expo-router';
+import { isAvailableAsync, showPhoneNumberHintAsync } from 'expo-phone-number-hint';
+import { Link, useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { AlertOctagon, ArrowLeft, ArrowRight, Clock, RefreshCw, ShieldAlert, User } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
     ActivityIndicator,
     Animated,
     Dimensions,
-    Image,
     Keyboard,
     Modal,
     Platform,
@@ -18,8 +19,10 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
+    DeviceEventEmitter,
     View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useAlert } from '@/shared/components/ui/CustomAlert';
 import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
 import { toast } from 'sonner-native';
@@ -63,6 +66,59 @@ export default function RegisterScreen() {
     return currentStep === 'details' ? 20 : 52;
   };
   const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
+
+  const [hasPromptedOnTap, setHasPromptedOnTap] = useState(false);
+
+  const requestPhoneHint = async () => {
+    try {
+      if (Platform.OS !== 'android') return;
+      const isAvailable = await isAvailableAsync();
+      if (isAvailable) {
+        const phoneNumber = await showPhoneNumberHintAsync();
+        if (phoneNumber) {
+          const cleaned = phoneNumber.replace(/\D/g, '');
+          const tenDigits = cleaned.slice(-10);
+          setValue('phone', tenDigits, { shouldValidate: true });
+        }
+      }
+    } catch (error) {
+      console.log('Phone selection cancelled or failed', error);
+    }
+  };
+
+  // ★ Auto Phone Number Hint (Alert Box) ★
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      const initHint = async () => {
+        try {
+          if (Platform.OS !== 'android' || step !== 'details') return;
+          // Check if onboarding is completed before showing prompt
+          const isFirstRun = await AsyncStorage.getItem('isFirstRun');
+          if (isFirstRun !== 'false') return;
+
+          if (isMounted) {
+            await requestPhoneHint();
+          }
+        } catch (error) {
+          console.log('Init hint failed', error);
+        }
+      };
+
+      // Call immediately if focused
+      setTimeout(initHint, 300);
+
+      // Also listen for onboarding completion if it happens while already mounted
+      const sub = DeviceEventEmitter.addListener('onboarding_finished', () => {
+        setTimeout(initHint, 500); // Small delay after fade out
+      });
+
+      return () => { 
+        isMounted = false; 
+        sub.remove();
+      };
+    }, [step, setValue])
+  );
 
   useEffect(() => {
     Animated.timing(animatedBottom, {
@@ -257,7 +313,7 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={require('../../../../assets/images/login.avif')} style={styles.heroImage} resizeMode="cover" />
+        <Image source={require('../../../../assets/images/login.avif')} style={styles.heroImage} contentFit="cover" />
         <View style={styles.overlay} />
       </View>
 
@@ -333,6 +389,10 @@ export default function RegisterScreen() {
                           value={value}
                           editable={!isLoading}
                           onFocus={(event) => {
+                            if (!value && !hasPromptedOnTap && step === 'details') {
+                              setHasPromptedOnTap(true);
+                              requestPhoneHint();
+                            }
                             event.currentTarget.measure((fx, fy, width, height, px, py) => {
                               scrollToInput(py);
                             });
