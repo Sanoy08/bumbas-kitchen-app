@@ -8,8 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
 import * as Location from 'expo-location';
 
-// ★ react-native-maps / WebView সরিয়ে MapLibre Native আনা হলো
-import { Camera, type CameraRef, Map, type MapRef } from '@maplibre/maplibre-react-native';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Crypto from 'expo-crypto';
 
 import { useAlert } from '@/shared/components/ui';
 import { formatPrice } from '@/shared/utils/utils';
@@ -94,8 +94,7 @@ export function AddressScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const [isMapReady, setIsMapReady] = useState(false);
-  const cameraRef = useRef<CameraRef>(null);
-  const mapRef = useRef<MapRef>(null);
+  const mapRef = useRef<MapView>(null);
   const [isPanning, setIsPanning] = useState(false);
   // Prevents onRegionDidChange from calling handleLocationSelect during programmatic camera moves
   const isProgrammaticMove = useRef(false);
@@ -119,6 +118,7 @@ export function AddressScreen() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const [sessionToken, setSessionToken] = useState(() => Crypto.randomUUID());
 
   useEffect(() => {
     if (isInitialized && !user) {
@@ -168,12 +168,10 @@ export function AddressScreen() {
   // Move camera programmatically without triggering the pan→update loop
   const moveCameraTo = (lat: number, lng: number, zoom = 17) => {
     isProgrammaticMove.current = true;
-    cameraRef.current?.easeTo({
-      center: [lng, lat],
-      zoom,
-      duration: 600,
-      easing: 'ease',
-    });
+    mapRef.current?.animateCamera({
+      center: { latitude: lat, longitude: lng },
+      zoom: zoom,
+    }, { duration: 600 });
     // Reset flag after animation finishes
     setTimeout(() => { isProgrammaticMove.current = false; }, 800);
   };
@@ -201,7 +199,7 @@ export function AddressScreen() {
         return; 
       }
       try {
-        const res = await fetch(`${API_URL}/location/search?q=${debouncedSearch}`);
+        const res = await fetch(`${API_URL}/location/search?q=${debouncedSearch}&sessionToken=${sessionToken}`);
         if (!res.ok) throw new Error('API failed');
         const data = await res.json();
         setSuggestions(data.suggestions || []);
@@ -210,6 +208,27 @@ export function AddressScreen() {
     };
     fetchLocations();
   }, [debouncedSearch]);
+
+  const handleSuggestionSelect = async (placeId: string, description: string) => {
+    try {
+      setSearchQuery(description);
+      setShowSuggestions(false);
+      
+      const res = await fetch(`${API_URL}/location/details?place_id=${placeId}&sessionToken=${sessionToken}`);
+      if (!res.ok) throw new Error('API failed');
+      const data = await res.json();
+      
+      if (data.success && data.location) {
+        // Drop the pin and move camera
+        moveCameraTo(data.location.lat, data.location.lng);
+        handleLocationSelect(data.location.lat, data.location.lng, description);
+        // Refresh session token for the next session
+        setSessionToken(Crypto.randomUUID());
+      }
+    } catch (e) {
+      toast.error('Could not fetch place details');
+    }
+  };
 
   const handleLocationSelect = async (lat: number, lng: number, addressStr?: string) => {
     try {
@@ -349,53 +368,36 @@ export function AddressScreen() {
     return <MapPin size={20} color="#e11d48" />;
   };
 
-  // ★ MapLibre Map Style for Google Hybrid
-  const mapStyleJSON = JSON.stringify({
-    version: 8,
-    sources: {
-      'google-hybrid': {
-        type: 'raster',
-        tiles: ['https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'],
-        tileSize: 256,
-      },
-    },
-    layers: [
-      {
-        id: 'google-hybrid-layer',
-        type: 'raster',
-        source: 'google-hybrid',
-        minzoom: 0,
-        maxzoom: 22,
-      },
-    ],
-  });
 
   const defaultLat = formData.coordinates?.lat || 22.717958;
   const defaultLng = formData.coordinates?.lng || 88.260207;
 
   // When map finishes panning, grab the center and set that as pin location
-  const onRegionDidChange = async () => {
+  const regionChangeTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const onRegionDidChange = async (region: any) => {
     setIsPanning(false);
-    // Skip if this was a programmatic camera move (GPS/search) to avoid feedback loop
     if (isProgrammaticMove.current) return;
-    try {
-      const center = await mapRef.current?.getCenter();
-      if (center) {
-        const [lng, lat] = center;
-        handleLocationSelect(lat, lng);
+    
+    if (regionChangeTimer.current) clearTimeout(regionChangeTimer.current);
+    regionChangeTimer.current = setTimeout(() => {
+      try {
+        if (region) {
+          handleLocationSelect(region.latitude, region.longitude);
+        }
+      } catch (e) {
+        console.log('Region change error:', e);
       }
-    } catch (e) {
-      console.log('Region change error:', e);
-    }
+    }, 600);
   };
 
   // Tap on a spot to jump camera there (onRegionDidChange will then update address)
-  const onMapPress = (feature: any) => {
+  const onMapPress = (e: any) => {
     try {
-      if (feature?.geometry?.coordinates) {
-        const [lng, lat] = feature.geometry.coordinates;
+      const { coordinate } = e.nativeEvent;
+      if (coordinate) {
         // Don't set isProgrammaticMove — we WANT onRegionDidChange to fire after this
-        cameraRef.current?.easeTo({ center: [lng, lat], zoom: 17, duration: 300 });
+        mapRef.current?.animateCamera({ center: coordinate, zoom: 17 }, { duration: 300 });
       }
     } catch (e) {
       console.log('Map press error:', e);
@@ -562,24 +564,23 @@ export function AddressScreen() {
                     <ActivityIndicator size="large" color="#e11d48" />
                   </View>
                 ) : (
-                  <Map
+                  <MapView
                     ref={mapRef}
+                    provider={PROVIDER_GOOGLE}
                     style={{ flex: 1, width: '100%' }}
-                    mapStyle={mapStyleJSON}
                     onPress={onMapPress}
-                    onRegionWillChange={() => setIsPanning(true)}
-                    onRegionDidChange={onRegionDidChange}
-                    compass={false}
-                    logo={false}
-                    attribution={false}
-                  >
-                    {/* Restrict camera panning to a 10km box around the restaurant */}
-                    <Camera
-                      ref={cameraRef}
-                      initialViewState={{ center: [defaultLng, defaultLat], zoom: 17 }}
-                      maxBounds={[88.162807, 22.628158, 88.357607, 22.807758]}
-                    />
-                  </Map>
+                    onPanDrag={() => setIsPanning(true)}
+                    onRegionChangeComplete={onRegionDidChange}
+                    showsCompass={false}
+                    showsUserLocation={false}
+                    initialCamera={{
+                      center: { latitude: defaultLat, longitude: defaultLng },
+                      pitch: 0,
+                      heading: 0,
+                      altitude: 1000,
+                      zoom: 17
+                    }}
+                  />
                 )}
 
                 {/* ── Premium 3D crosshair pin (always at visual center) ── */}
@@ -735,12 +736,18 @@ export function AddressScreen() {
                     />
                     {showSuggestions && suggestions.length > 0 && (
                       <View style={{ position: 'absolute', top: 50, left: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', maxHeight: 200, overflow: 'hidden', zIndex: 50, elevation: 16, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10 }}>
-                        <ScrollView keyboardShouldPersistTaps="handled">
-                          {suggestions.map((item: any) => (
-                            <TouchableOpacity
-                              key={item.place_id}
-                              onPress={() => handleSelectSearchItem(item)}
-                              style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', flexDirection: 'row', alignItems: 'flex-start' }}
+                        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled={true}>
+                          {suggestions.map((item: any, index: number) => (
+                            <TouchableOpacity 
+                              key={index} 
+                              onPress={() => handleSuggestionSelect(item.place_id, item.description)}
+                              style={{ 
+                                padding: 12, 
+                                borderBottomWidth: 1, 
+                                borderBottomColor: '#f3f4f6',
+                                flexDirection: 'row',
+                                alignItems: 'flex-start'
+                              }}
                             >
                               <MapPin size={15} color="#e11d48" style={{ marginTop: 1, marginRight: 10, flexShrink: 0 }} />
                               <View style={{ flex: 1 }}>
