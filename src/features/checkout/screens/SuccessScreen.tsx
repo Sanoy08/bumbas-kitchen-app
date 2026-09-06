@@ -314,7 +314,7 @@ export function SuccessScreen() {
           <Animated.View entering={FadeIn.duration(500)} style={StyleSheet.absoluteFill} className="bg-black/90">
             
             {/* Main Content Container */}
-            <Animated.View entering={ZoomIn.delay(200).springify().damping(18).stiffness(150)} style={StyleSheet.absoluteFill} className="items-center justify-center p-6">
+            <Animated.View entering={ZoomIn.delay(200).duration(400)} style={StyleSheet.absoluteFill} className="items-center justify-center p-6">
               
               {/* Titles inside Popup */}
               <View className="items-center mb-10 w-full px-4">
@@ -333,7 +333,7 @@ export function SuccessScreen() {
                   height={300}
                   coverColor="#e11d48"
                   strokeWidth={45}
-                  scratchThreshold={40}
+                  scratchThreshold={400}
                   onScratchComplete={() => setIsScratched(true)}
                 >
                   <View className="flex-1 bg-white items-center justify-center rounded-[32px] overflow-hidden p-6 border-4 border-yellow-400 shadow-xl">

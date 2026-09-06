@@ -58,7 +58,8 @@ export const DatePopupModal = ({
   const closeWithAnimation = (action: () => void) => {
     Animated.timing(slideAnim, {
       toValue: height,
-      duration: 250,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
       action();

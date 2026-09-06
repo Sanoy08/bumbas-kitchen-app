@@ -13,8 +13,10 @@ import {
   Calendar as CalendarIcon,
   Check,
 
+  ChefHat,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Home,
   Lock,
   MapPin,
@@ -22,7 +24,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, memo, useCallback } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -33,9 +35,24 @@ import {
   TouchableOpacity,
   View,
   Easing,
+  Dimensions,
+  StyleSheet,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PanGestureHandler, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolateColor,
+  withSequence,
+} from 'react-native-reanimated';
 import { toast } from 'sonner-native';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
@@ -253,6 +270,222 @@ const SwipeableCalendar = ({
   );
 };
 
+// --- Swipe To Order Button ---
+const SWIPE_BUTTON_WIDTH = screenWidth - 64; // px-4 on ScrollView (32) + p-4 on wrapper (32)
+const SWIPE_KNOB_SIZE = 56;
+const MAX_SWIPE = SWIPE_BUTTON_WIDTH - SWIPE_KNOB_SIZE - 8; // 8 for padding
+
+const SwipeToOrderButton = ({ onSwipeComplete, isSubmitting, total }: { onSwipeComplete: (reset: () => void) => void, isSubmitting: boolean, total: number }) => {
+  const translateX = useSharedValue(0);
+  const startX = useSharedValue(0);
+
+  const resetSlider = () => {
+    translateX.value = withSpring(0);
+  };
+
+  const panGesture = Gesture.Pan()
+    .enabled(!isSubmitting)
+    .onStart(() => {
+      startX.value = translateX.value;
+      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+    })
+    .onUpdate((event) => {
+      let nextX = startX.value + event.translationX;
+      if (nextX < 0) nextX = 0;
+      if (nextX > MAX_SWIPE) nextX = MAX_SWIPE;
+      translateX.value = nextX;
+    })
+    .onEnd(() => {
+      if (translateX.value > MAX_SWIPE * 0.8) {
+        translateX.value = withSpring(MAX_SWIPE, { overshootClamping: true });
+        runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
+        runOnJS(onSwipeComplete)(resetSlider);
+      } else {
+        translateX.value = withSpring(0);
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Rigid);
+      }
+    });
+
+  const animatedKnobStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: translateX.value }],
+    };
+  });
+
+  const animatedTrackStyle = useAnimatedStyle(() => {
+    return {
+      width: translateX.value + SWIPE_KNOB_SIZE + 4,
+    };
+  });
+
+  const animatedTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: 1 - translateX.value / (MAX_SWIPE * 0.5),
+    };
+  });
+
+  return (
+    <View className="h-[64px] bg-gray-50 rounded-full justify-center px-1 border border-gray-200 overflow-hidden relative shadow-inner" style={{ elevation: 1 }}>
+      {/* Background Track when swiped */}
+      <Reanimated.View className="absolute left-1 top-1 bottom-1 bg-primary/10 rounded-full" style={animatedTrackStyle} />
+      
+      {/* Background Text */}
+      <Reanimated.View className="absolute inset-0 items-center justify-center pointer-events-none flex-row" style={animatedTextStyle}>
+        <Text className="text-primary font-bold text-base ml-8">Swipe to Place Order</Text>
+        <ChevronRight size={20} color="#e11d48" className="ml-1 opacity-50" />
+        <ChevronRight size={20} color="#e11d48" className="-ml-2 opacity-30" />
+      </Reanimated.View>
+
+      {/* Draggable Knob */}
+      <GestureDetector gesture={panGesture}>
+        <Reanimated.View 
+          className={`h-[56px] w-[56px] rounded-full items-center justify-center shadow-md z-10 ${isSubmitting ? 'bg-gray-300' : 'bg-primary'}`}
+          style={animatedKnobStyle}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <ChevronRight size={28} color="white" />
+          )}
+        </Reanimated.View>
+      </GestureDetector>
+    </View>
+  );
+};
+
+// --- Segmented Control ---
+const SegmentedControl = ({ value, onChange, disabled, lunchDisabled, dinnerDisabled, onDisabledPress }: { value: 'lunch' | 'dinner', onChange: (val: 'lunch' | 'dinner') => void, disabled?: boolean, lunchDisabled?: boolean, dinnerDisabled?: boolean, onDisabledPress?: (type: 'lunch' | 'dinner') => void }) => {
+  const animatedStylePercent = useAnimatedStyle(() => {
+    return {
+      left: withTiming(value === 'lunch' ? '1%' : '51%', { duration: 250 }),
+    };
+  });
+
+  return (
+    <View className={`flex-row h-12 bg-gray-100 rounded-xl p-1 relative ${disabled ? 'opacity-50' : ''}`}>
+      <Reanimated.View className="absolute top-1 bottom-1 w-[48%] bg-white rounded-lg shadow-sm" style={[animatedStylePercent, { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }]} />
+      
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => {
+          if (disabled || lunchDisabled) {
+            onDisabledPress?.('lunch');
+          } else {
+            runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+            onChange('lunch');
+          }
+        }}
+        className="flex-1 items-center justify-center z-10"
+      >
+        <Text className={`font-bold ${value === 'lunch' ? 'text-gray-900' : 'text-gray-500'}`}>Lunch</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => {
+          if (disabled || dinnerDisabled) {
+            onDisabledPress?.('dinner');
+          } else {
+            runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+            onChange('dinner');
+          }
+        }}
+        className="flex-1 items-center justify-center z-10"
+      >
+        <Text className={`font-bold ${value === 'dinner' ? 'text-gray-900' : 'text-gray-500'}`}>Dinner</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+// --- Helper for Icons ---
+const getIcon = (name: string, isSelected: boolean) => {
+  const color = isSelected ? '#ffffff' : '#e11d48';
+  const n = name.toLowerCase();
+  if (n.includes('home')) return <Home size={20} color={color} />;
+  return <MapPin size={20} color={color} />;
+};
+
+// --- Compact Address Card (Main Screen) ---
+const CompactAddressCard = ({ addr, onPress, getIcon }: { addr: any, onPress: () => void, getIcon: (name: string, isSelected: boolean) => React.ReactNode }) => {
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.8} 
+      onPress={onPress}
+      className="bg-rose-50/40 rounded-[20px] p-4 flex-row items-center justify-between border border-rose-100"
+    >
+      <View className="flex-row items-center flex-1">
+        <View className="h-10 w-10 rounded-full items-center justify-center bg-white shadow-sm mr-3">
+          {getIcon(addr?.name || '', false)}
+        </View>
+        <View className="flex-1 mr-2">
+          <Text className="font-bold text-gray-900 text-base">{addr?.name || 'Select Address'}</Text>
+          <Text className="text-xs text-gray-600 mt-0.5" numberOfLines={1}>
+            {addr?.address || 'Choose a delivery location'}
+          </Text>
+        </View>
+      </View>
+      <View className="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
+        <Text className="text-xs font-bold text-primary">Change</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// --- Modal Address Item ---
+const ModalAddressItem = ({ addr, isSelected, onPress, getIcon }: { addr: any, isSelected: boolean, onPress: (id: string) => void, getIcon: (name: string, isSelected: boolean) => React.ReactNode }) => {
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.7} 
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(addr.id); }}
+      className={`flex-row items-center p-4 mb-3 rounded-[20px] border ${isSelected ? 'border-primary bg-primary/5' : 'border-gray-100 bg-white'}`}
+    >
+      <View className={`h-12 w-12 rounded-full items-center justify-center mr-4 ${isSelected ? 'bg-primary' : 'bg-gray-50'}`}>
+        {getIcon(addr.name, isSelected)}
+      </View>
+      <View className="flex-1">
+        <Text className={`font-bold text-base ${isSelected ? 'text-primary' : 'text-gray-900'}`}>{addr.name}</Text>
+        <Text className="text-xs text-gray-500 mt-1 leading-relaxed" numberOfLines={2}>{addr.address}</Text>
+        
+        {/* Badges */}
+        <View className="flex-row mt-2 space-x-2">
+          {addr.distanceText && (
+            <View className="bg-gray-100 px-2 py-0.5 rounded-md">
+              <Text className="text-[10px] text-gray-600 font-medium">{addr.distanceText}</Text>
+            </View>
+          )}
+          <View className={`px-2 py-0.5 rounded-md ${addr.deliveryFee === 0 ? 'bg-green-100' : 'bg-orange-100'}`}>
+            <Text className={`text-[10px] font-bold ${addr.deliveryFee === 0 ? 'text-green-700' : 'text-orange-700'}`}>
+              {addr.deliveryFee === 0 ? 'FREE' : formatPrice(addr.deliveryFee)}
+            </Text>
+          </View>
+        </View>
+      </View>
+      {isSelected && (
+        <View className="h-6 w-6 rounded-full bg-primary items-center justify-center ml-2">
+          <Check size={14} color="#ffffff" strokeWidth={3} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+// --- Simple Checkbox ---
+const SimpleCheckbox = ({ checked, onPress }: { checked: boolean, onPress: () => void }) => {
+  return (
+    <TouchableOpacity 
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }} 
+      activeOpacity={0.8}
+      className={`h-6 w-6 rounded-md border-2 items-center justify-center ${checked ? 'bg-primary border-primary' : 'bg-white border-gray-400'}`}
+    >
+      {checked && <Check size={14} color="white" strokeWidth={3} />}
+    </TouchableOpacity>
+  );
+};
+
 // --- Main Screen ---
 export function FinalScreen() {
   const router = useRouter();
@@ -295,31 +528,105 @@ export function FinalScreen() {
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
+  const calendarSlideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const addressSlideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
 
-  const calendarSlideAnim = useRef(new Animated.Value(600)).current;
-
-  useEffect(() => {
-    if (isCalendarOpen) {
-      calendarSlideAnim.setValue(600);
-      Animated.timing(calendarSlideAnim, {
-        toValue: 0,
-        duration: 350,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isCalendarOpen]);
+  const openCalendar = () => {
+    setIsCalendarOpen(true);
+    calendarSlideAnim.setValue(Dimensions.get('window').height);
+    Animated.timing(calendarSlideAnim, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.cubic),
+    }).start();
+  };
 
   const closeCalendar = () => {
     Animated.timing(calendarSlideAnim, {
-      toValue: 600,
+      toValue: Dimensions.get('window').height,
       duration: 300,
-      easing: Easing.in(Easing.cubic),
+      easing: Easing.in(Easing.ease),
       useNativeDriver: true,
+    }).start(() => setIsCalendarOpen(false));
+  };
+
+  const openAddressModal = () => {
+    setIsAddressModalOpen(true);
+    addressSlideAnim.setValue(Dimensions.get('window').height);
+    Animated.timing(addressSlideAnim, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.cubic),
+    }).start();
+  };
+
+  const closeAddressModal = () => {
+    Animated.timing(addressSlideAnim, {
+      toValue: Dimensions.get('window').height,
+      duration: 300,
+      useNativeDriver: true,
+      easing: Easing.in(Easing.ease),
     }).start(() => {
-      setIsCalendarOpen(false);
+      setIsAddressModalOpen(false);
+      addressSlideAnim.setValue(Dimensions.get('window').height);
     });
   };
+
+  const toggleAddressSelection = useCallback((id: string) => {
+    setSelectedAddressId(id);
+    closeAddressModal();
+  }, [addressSlideAnim]);
+
+  const handleAddAddress = () => {
+    router.push('/account/addresses');
+  };
+
+  const handleDateSelect = (date: Date) => {
+    setPreferredDate(date);
+    closeCalendar();
+  };
+
+  // --- Glow Animations for Validation ---
+  const addressGlow = useSharedValue(0);
+  const dateGlow = useSharedValue(0);
+  const termsGlow = useSharedValue(0);
+
+  const triggerGlow = (val: any) => {
+    val.value = withSequence(
+      withTiming(1, { duration: 300 }),
+      withTiming(0, { duration: 300 }),
+      withTiming(1, { duration: 300 }),
+      withTiming(0, { duration: 300 })
+    );
+  };
+
+  const createGlowStyle = (val: any, defaultBorder: string) => {
+    return useAnimatedStyle(() => {
+      // Interpolate isn't easily done with string hexes in reanimated v2 without processColor, 
+      // but we can just use opacity of a red border.
+      // Easiest is to add a wrapper or just change background color.
+      // Let's change the background color slightly to red.
+      return {
+        backgroundColor: interpolateColor(
+          val.value,
+          [0, 1],
+          ['#ffffff', '#fee2e2'] // white to light red
+        ),
+        borderColor: interpolateColor(
+          val.value,
+          [0, 1],
+          [defaultBorder, '#ef4444']
+        )
+      };
+    });
+  };
+
+  const addressGlowStyle = createGlowStyle(addressGlow, 'transparent');
+  const dateGlowStyle = createGlowStyle(dateGlow, 'transparent');
+  const termsGlowStyle = createGlowStyle(termsGlow, '#e5e7eb');
 
   const [timeValidationError, setTimeValidationError] = useState<{
     show: boolean;
@@ -381,24 +688,12 @@ export function FinalScreen() {
     }
   }, [isInitialized, user, itemCount, isSuccess]);
 
-  const toggleAddressSelection = (id: string) => {
-    setSelectedAddressId(id);
-  };
-
-  const handleAddAddress = () => {
-    router.push('/account/addresses');
-  };
-
-  const handleDateSelect = (date: Date) => {
-    setPreferredDate(date);
-    closeCalendar();
-  };
-
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (resetSlider?: () => void) => {
     // Validate special offers cutoff times and meal types
     for (const item of items) {
       if (item.isSpecialOffer) {
         if (item.orderCutoffTime && new Date() > new Date(item.orderCutoffTime)) {
+          resetSlider?.();
           showAlert({
             title: "Time Limit Exceeded",
             message: `The order deadline for ${item.name} has passed. Please remove it from your cart.`,
@@ -407,6 +702,7 @@ export function FinalScreen() {
           return;
         }
         if (item.mealType && item.mealType !== 'both' && item.mealType !== mealTime) {
+          resetSlider?.();
           showAlert({
             title: "Invalid Meal Time",
             message: `${item.name} is only available for ${item.mealType}. Please change your meal time selection or remove the item.`,
@@ -418,6 +714,9 @@ export function FinalScreen() {
     }
 
     if (!selectedAddress) {
+      resetSlider?.();
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      setTimeout(() => triggerGlow(addressGlow), 300);
       showAlert({
         title: 'Address Missing',
         message: 'Please select a delivery address.',
@@ -428,6 +727,9 @@ export function FinalScreen() {
     }
 
     if (!preferredDate) {
+      resetSlider?.();
+      scrollViewRef.current?.scrollTo({ y: 150, animated: true });
+      setTimeout(() => triggerGlow(dateGlow), 300);
       showAlert({
         title: 'Date Missing',
         message: 'Please select a preferred date.',
@@ -438,6 +740,9 @@ export function FinalScreen() {
     }
 
     if (!termsAccepted) {
+      resetSlider?.();
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => triggerGlow(termsGlow), 300);
       showAlert({
         title: 'Terms & Conditions',
         message: 'Please agree to the Terms and Conditions.',
@@ -454,6 +759,7 @@ export function FinalScreen() {
 
     if (selectedDateStr === todayStr) {
       if (mealTime === 'lunch' && currentHour >= 9) {
+        resetSlider?.();
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setTimeValidationError({
           show: true,
@@ -463,6 +769,7 @@ export function FinalScreen() {
         return;
       }
       if (mealTime === 'dinner' && currentHour >= 18) {
+        resetSlider?.();
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setTimeValidationError({
           show: true,
@@ -510,15 +817,11 @@ export function FinalScreen() {
       if (!res.ok) throw new Error(data.error || 'Order placement failed');
 
       setIsSuccess(true);
-      // ❗ আগে এখানে clearCart() ছিল, এখন সরানো হয়েছে
 
       const orderNum = data.orderId || '0000';
       const eligibleAmountForCoins = Math.max(0, totalPrice - couponDiscount);
       const earnedCoins = Math.floor((eligibleAmountForCoins * earnRate) / 100);
 
-      // Toasts removed as per user request
-
-      // ✅ success পেজে replace করে নেভিগেট (clearCart সেখানে হবে)
       router.replace({
         pathname: '/(checkout)/success',
         params: {
@@ -552,13 +855,6 @@ export function FinalScreen() {
     return null;
   }
 
-  const getIcon = (name: string, isSelected: boolean) => {
-    const color = isSelected ? '#ffffff' : '#e11d48';
-    const n = name.toLowerCase();
-    if (n.includes('home')) return <Home size={20} color={color} />;
-    return <MapPin size={20} color={color} />;
-  };
-
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       <StatusBar style="dark" backgroundColor="#ffffff" />
@@ -581,189 +877,102 @@ export function FinalScreen() {
       >
 
 
-        {/* Delivery Address Selection (always visible, no toggle) */}
+        {/* Delivery Address Selection (Minimalist UI) */}
         <View className="mb-6">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-lg font-bold text-gray-900">Select Delivery Address</Text>
-            <TouchableOpacity onPress={handleAddAddress} className="flex-row items-center">
-              <Plus size={18} color="#e11d48" />
-              <Text className="text-primary font-bold ml-1">Add New</Text>
-            </TouchableOpacity>
-          </View>
-
-          {addresses.length === 0 ? (
-            <View className="py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-300 items-center">
-              <MapPin size={40} color="#9ca3af" />
-              <Text className="text-gray-500 mt-3">No saved addresses</Text>
-              <TouchableOpacity onPress={handleAddAddress} className="mt-3">
-                <Text className="text-primary font-bold">Add your first address</Text>
+          <Text className="text-lg font-bold text-gray-900 mb-3 px-1">Delivering To</Text>
+          
+          <Reanimated.View style={[addressGlowStyle, { borderRadius: 20 }]}>
+            {addresses.length === 0 ? (
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                onPress={handleAddAddress}
+                className="py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-300 items-center justify-center flex-row space-x-2"
+              >
+                <Plus size={20} color="#e11d48" />
+                <Text className="text-primary font-bold text-base">Add Delivery Address</Text>
               </TouchableOpacity>
-            </View>
-          ) : (
-            <View className="space-y-3">
-              {addresses.map((addr) => (
-                <TouchableOpacity
-                  key={addr.id}
-                  onPress={() => toggleAddressSelection(addr.id)}
-                  activeOpacity={0.7}
-                  className={`border rounded-2xl p-4 ${
-                    selectedAddressId === addr.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-gray-200 bg-white'
-                  }`}
-                >
-                  <View className="flex-row items-start">
-                    <View
-                      className={`h-10 w-10 rounded-xl items-center justify-center mr-3 ${
-                        selectedAddressId === addr.id ? 'bg-primary' : 'bg-primary/10'
-                      }`}
-                    >
-                      {getIcon(addr.name, selectedAddressId === addr.id)}
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row justify-between items-center">
-                        <Text className="font-bold text-gray-900">{addr.name}</Text>
-                        {selectedAddressId === addr.id && (
-                          <View className="h-2 w-2 rounded-full bg-primary" />
-                        )}
-                      </View>
-                      <Text className="text-sm text-gray-500 mt-1" numberOfLines={2}>
-                        {addr.address}
-                      </Text>
-                      <View className="flex-row mt-2 space-x-2">
-                        {addr.distanceText && (
-                          <View className="bg-gray-100 px-2 py-0.5 rounded-md">
-                            <Text className="text-xs text-gray-600">Dist: {addr.distanceText}</Text>
-                          </View>
-                        )}
-                        <View
-                          className={`px-2 py-0.5 rounded-md ${
-                            addr.deliveryFee === 0 ? 'bg-green-100' : 'bg-orange-100'
-                          }`}
-                        >
-                          <Text
-                            className={`text-xs font-bold ${
-                              addr.deliveryFee === 0 ? 'text-green-700' : 'text-orange-700'
-                            }`}
-                          >
-                            Fee: {addr.deliveryFee === 0 ? 'FREE' : formatPrice(addr.deliveryFee)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+            ) : (
+              <CompactAddressCard 
+                addr={selectedAddress} 
+                onPress={openAddressModal} 
+                getIcon={getIcon} 
+              />
+            )}
+          </Reanimated.View>
         </View>
 
-        {/* Preferences */}
+        {/* Preferences (Bento Box) */}
         <View className="mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Preferences</Text>
-
-          <View className="flex-row space-x-4">
-            <View className="flex-1">
-              <Text className="text-xs text-gray-500 ml-1 mb-1">Date</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  if (specialOfferItem && specialOfferItem.deliveryDate) {
+          <Text className="text-lg font-bold text-gray-900 mb-3 px-1">Preferences</Text>
+          <View className="bg-white rounded-[24px] p-1 shadow-sm border border-gray-100">
+            <View className="p-4 flex-row space-x-4">
+              <Reanimated.View style={[dateGlowStyle, { borderRadius: 12, flex: 1, borderWidth: 1 }]}>
+                <Text className="text-xs text-gray-500 ml-1 mb-1 mt-1">Date</Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (specialOfferItem && specialOfferItem.deliveryDate) {
+                      showAlert({
+                        title: "Action Disabled",
+                        message: `Date is fixed to ${format(new Date(specialOfferItem.deliveryDate), 'MMM do')} for ${specialOfferItem.name}`,
+                        cancelText: ""
+                      });
+                    } else {
+                      openCalendar();
+                    }
+                  }}
+                  className={`h-12 rounded-xl px-3 flex-row items-center justify-between ${
+                    specialOfferItem && specialOfferItem.deliveryDate 
+                      ? 'bg-gray-100' 
+                      : 'bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <Text className={preferredDate ? 'text-gray-900 font-medium' : 'text-gray-400'}>
+                    {preferredDate ? format(preferredDate, 'MMM do, yyyy') : 'Pick a date'}
+                  </Text>
+                  <CalendarIcon size={18} color="#9ca3af" />
+                </TouchableOpacity>
+              </Reanimated.View>
+              <View className="flex-1">
+                <Text className="text-xs text-gray-500 ml-1 mb-1 mt-1">Time</Text>
+                <SegmentedControl
+                  value={mealTime}
+                  onChange={(val) => setMealTime(val)}
+                  lunchDisabled={specialOfferItem && specialOfferItem.mealType === 'dinner'}
+                  dinnerDisabled={specialOfferItem && specialOfferItem.mealType === 'lunch'}
+                  onDisabledPress={(type) => {
                     showAlert({
                       title: "Action Disabled",
-                      message: `Date is fixed to ${format(new Date(specialOfferItem.deliveryDate), 'MMM do')} for ${specialOfferItem.name}`,
+                      message: `${specialOfferItem?.name} is a ${type === 'lunch' ? 'dinner' : 'lunch'} special.`,
                       cancelText: ""
                     });
-                  } else {
-                    setIsCalendarOpen(true);
-                  }
-                }}
-                className={`h-12 border rounded-xl px-3 flex-row items-center justify-between ${
-                  specialOfferItem && specialOfferItem.deliveryDate 
-                    ? 'bg-gray-100 border-gray-200' 
-                    : 'bg-white border-gray-300'
-                }`}
-              >
-                <Text className={preferredDate ? 'text-gray-900' : 'text-gray-400'}>
-                  {preferredDate ? format(preferredDate, 'MMM do, yyyy') : 'Pick a date'}
-                </Text>
-                <CalendarIcon size={18} color="#9ca3af" />
-              </TouchableOpacity>
-            </View>
-            <View className="flex-1">
-              <Text className="text-xs text-gray-500 ml-1 mb-1">Time</Text>
-              <View className="flex-row h-12 bg-white border border-gray-300 rounded-xl overflow-hidden">
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    if (specialOfferItem && specialOfferItem.mealType === 'dinner') {
-                      showAlert({
-                        title: "Action Disabled",
-                        message: `${specialOfferItem.name} is a dinner special.`,
-                        cancelText: ""
-                      });
-                    } else {
-                      setMealTime('lunch');
-                    }
                   }}
-                  className={`flex-1 items-center justify-center ${
-                    mealTime === 'lunch' ? 'bg-primary' : ''
-                  } ${specialOfferItem && specialOfferItem.mealType === 'dinner' ? 'bg-gray-100 opacity-50' : ''}`}
-                >
-                  <Text className={mealTime === 'lunch' ? 'text-white font-bold' : 'text-gray-700'}>
-                    Lunch
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    if (specialOfferItem && specialOfferItem.mealType === 'lunch') {
-                      showAlert({
-                        title: "Action Disabled",
-                        message: `${specialOfferItem.name} is a lunch special.`,
-                        cancelText: ""
-                      });
-                    } else {
-                      setMealTime('dinner');
-                    }
-                  }}
-                  className={`flex-1 items-center justify-center ${
-                    mealTime === 'dinner' ? 'bg-primary' : ''
-                  } ${specialOfferItem && specialOfferItem.mealType === 'lunch' ? 'bg-gray-100 opacity-50' : ''}`}
-                >
-                  <Text className={mealTime === 'dinner' ? 'text-white font-bold' : 'text-gray-700'}>
-                    Dinner
-                  </Text>
-                </TouchableOpacity>
+                />
               </View>
             </View>
-          </View>
 
-          <View className="mt-4">
-            <FloatingLabelInput
-              label="Cooking Instructions (Optional)"
-              value={instructions}
-              onChangeText={setInstructions}
-              multiline
-              onFocus={() => {
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollToEnd({ animated: true });
-                }, 250);
-              }}
-            />
+            <View className="p-4 border-t border-gray-100">
+              <FloatingLabelInput
+                label="Cooking Instructions (Optional)"
+                value={instructions}
+                onChangeText={setInstructions}
+                multiline
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 250);
+                }}
+              />
+            </View>
           </View>
         </View>
 
         {/* Terms */}
-        <View className="flex-row items-center p-4 bg-gray-50 rounded-2xl border border-gray-200 mb-6">
-          <TouchableOpacity onPress={() => setTermsAccepted(!termsAccepted)}>
-            <View
-              className={`h-5 w-5 rounded border-2 items-center justify-center ${
-                termsAccepted ? 'bg-primary border-primary' : 'border-gray-400 bg-white'
-              }`}
-            >
-              {termsAccepted && <Check size={14} color="white" />}
-            </View>
-          </TouchableOpacity>
+        <Reanimated.View 
+          className="flex-row items-center p-4 rounded-2xl mb-6" 
+          style={[termsGlowStyle, { borderWidth: 1, backgroundColor: '#f9fafb' }]}
+        >
+          <SimpleCheckbox checked={termsAccepted} onPress={() => setTermsAccepted(!termsAccepted)} />
           <View className="flex-1 ml-4">
             <Text className="text-sm text-gray-600">
               I agree to the{' '}
@@ -775,71 +984,52 @@ export function FinalScreen() {
               </Text>
             </Text>
           </View>
-        </View>
+        </Reanimated.View>
 
-        {/* Place Order Button */}
-        <TouchableOpacity
-          onPress={handlePlaceOrder}
-          disabled={isSubmitting || !selectedAddress}
-          className={`h-14 rounded-2xl flex-row items-center justify-center shadow-lg ${
-            isSubmitting || !selectedAddress ? 'bg-gray-300' : 'bg-primary'
-          }`}
-          style={{
-            shadowColor: '#e11d48',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 6,
-          }}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Lock size={20} color="white" />
-              <Text className="text-white font-bold text-lg ml-2">
-                Place Order — {formatPrice(finalTotal)}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {/* Swipe to Order (Non-floating) */}
+        <View className="bg-white rounded-3xl p-4 mt-2 mb-8 shadow-sm border border-gray-100">
+          <View className="flex-row justify-between mb-4 px-2">
+            <Text className="text-gray-500 font-medium text-lg">Total to pay</Text>
+            <Text className="text-2xl font-extrabold text-gray-900">{formatPrice(finalTotal)}</Text>
+          </View>
+          <SwipeToOrderButton onSwipeComplete={handlePlaceOrder} isSubmitting={isSubmitting} total={finalTotal} />
+        </View>
       </ScrollView>
 
       {/* Premium Calendar Bottom Sheet Modal */}
-      <Modal visible={isCalendarOpen} animationType="fade" transparent>
-        <View className="flex-1 justify-end bg-black/50">
-          <TouchableOpacity 
-            className="absolute inset-0" 
-            activeOpacity={1} 
-            onPress={closeCalendar} 
-          />
+      <Modal visible={isCalendarOpen} animationType="fade" transparent onRequestClose={closeCalendar}>
+        <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-end">
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeCalendar} />
+          
           <Animated.View 
-            style={{ transform: [{ translateY: calendarSlideAnim }] }}
-            className="bg-white w-full rounded-t-[32px] pt-3 pb-8 px-5 shadow-2xl"
+            className="w-full flex-1 justify-end"
+            style={{ transform: [{ translateY: calendarSlideAnim }], maxHeight: Dimensions.get('window').height * 0.88 }}
           >
-            {/* Grab Handle */}
-            <View className="items-center mb-5">
-              <View className="w-12 h-1.5 bg-gray-200 rounded-full" />
-            </View>
-            
-            {/* Title & Close */}
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-xl font-extrabold text-gray-900 font-sans tracking-tight">Delivery Date</Text>
+            {/* Floating Close Button exactly outside the top */}
+            <View className="items-center mb-4">
               <TouchableOpacity 
-                activeOpacity={0.7}
                 onPress={closeCalendar} 
-                className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center"
+                activeOpacity={0.7}
+                style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
+                className="shadow-2xl border-2 border-white/20"
               >
-                <X size={18} color="#6B7280" />
+                <X size={28} color="white" />
               </TouchableOpacity>
             </View>
 
-            <SwipeableCalendar
-              selected={preferredDate || undefined}
-              onSelect={handleDateSelect}
-              viewDate={viewDate}
-              setViewDate={setViewDate}
-              onClose={closeCalendar}
-            />
+            <View className="bg-white rounded-t-[32px] pt-6 shadow-2xl flex-shrink" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+              <View className="mb-4 px-5">
+                <Text className="text-xl font-extrabold text-gray-900 font-sans tracking-tight">Delivery Date</Text>
+              </View>
+
+              <SwipeableCalendar
+                selected={preferredDate || undefined}
+                onSelect={handleDateSelect}
+                viewDate={viewDate}
+                setViewDate={setViewDate}
+                onClose={closeCalendar}
+              />
+            </View>
           </Animated.View>
         </View>
       </Modal>
@@ -860,14 +1050,76 @@ export function FinalScreen() {
                 {timeValidationError.message}
               </Text>
               <TouchableOpacity
-                onPress={() => setTimeValidationError({ show: false, title: '', message: '' })}
-                className="h-12 bg-primary rounded-xl items-center justify-center"
+                onPress={() => setTimeValidationError((prev) => ({ ...prev, show: false }))}
+                className="w-full bg-gray-900 rounded-xl py-4 items-center"
               >
-                <Text className="text-white font-bold">I Understand</Text>
+                <Text className="text-white font-bold text-base">Okay, got it</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
+
+      {/* Premium Address Selector Bottom Sheet */}
+      <Modal visible={isAddressModalOpen} animationType="fade" transparent onRequestClose={closeAddressModal}>
+        <View style={StyleSheet.absoluteFill} className="bg-black/60 justify-end">
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeAddressModal} />
+          
+          <Animated.View 
+            className="w-full flex-1 justify-end"
+            style={{ transform: [{ translateY: addressSlideAnim }], maxHeight: Dimensions.get('window').height * 0.88 }}
+          >
+            {/* Floating Close Button exactly outside the top */}
+            <View className="items-center mb-4">
+              <TouchableOpacity 
+                onPress={closeAddressModal} 
+                activeOpacity={0.7}
+                style={{ backgroundColor: '#000000', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
+                className="shadow-2xl border-2 border-white/20"
+              >
+                <X size={28} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="bg-white rounded-t-[32px] pt-6 shadow-2xl flex-shrink">
+              {/* Title */}
+              <View className="mb-4 px-5">
+                <Text className="text-xl font-extrabold text-gray-900 font-sans tracking-tight">Select Address</Text>
+              </View>
+
+              {/* Address List */}
+            <ScrollView 
+              className="px-5" 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}
+            >
+              {addresses.map((addr) => (
+                <ModalAddressItem
+                  key={addr.id}
+                  addr={addr}
+                  isSelected={selectedAddressId === addr.id}
+                  onPress={toggleAddressSelection}
+                  getIcon={getIcon}
+                />
+              ))}
+
+              {/* Add New Address Button inside Modal */}
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                onPress={() => {
+                  closeAddressModal();
+                  setTimeout(handleAddAddress, 300);
+                }}
+                className="flex-row items-center justify-center p-4 rounded-[20px] border border-dashed border-primary bg-primary/5 mt-2"
+              >
+                <Plus size={20} color="#e11d48" />
+                <Text className="text-primary font-bold text-base ml-2">Add New Address</Text>
+              </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
       </View>
     </View>
   );

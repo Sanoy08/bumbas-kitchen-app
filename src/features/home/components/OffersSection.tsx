@@ -26,7 +26,7 @@ interface Offer {
   mealType?: string;
 }
 
-const OfferImage = memo(({ uri, width }: { uri: string; width: number }) => {
+const OfferImage = memo(({ uri, width }: { uri: string; width: number | string }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
 
   return (
@@ -57,11 +57,10 @@ export const OffersSection = memo(({ offers }: OffersSectionProps) => {
 
   const openModal = (offer: Offer) => {
     setSelectedOffer(offer);
-    Animated.spring(slideAnim, {
+    Animated.timing(slideAnim, {
       toValue: 0,
-      damping: 26,
-      stiffness: 220,
-      mass: 1,
+      duration: 350,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   };
@@ -93,11 +92,10 @@ export const OffersSection = memo(({ offers }: OffersSectionProps) => {
         if (gestureState.dy > 120 || gestureState.vy > 0.5) {
           closeModal();
         } else {
-          Animated.spring(slideAnim, {
+          Animated.timing(slideAnim, {
             toValue: 0,
-            damping: 26,
-            stiffness: 220,
-            mass: 1,
+            duration: 350,
+            easing: Easing.out(Easing.cubic),
             useNativeDriver: true,
           }).start();
         }
@@ -195,7 +193,7 @@ export const OffersSection = memo(({ offers }: OffersSectionProps) => {
               {selectedOffer && (
                 <>
                   <View className="w-full rounded-2xl overflow-hidden bg-gray-100 mb-6 shadow-sm">
-                    <OfferImage uri={selectedOffer.imageUrl} width={width - 48} />
+                    <OfferImage uri={selectedOffer.imageUrl} width="100%" />
                   </View>
                   
                   {selectedOffer.isSpecialOffer && (

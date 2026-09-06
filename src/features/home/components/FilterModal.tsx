@@ -49,7 +49,8 @@ export const FilterModal = ({ visible, onClose, activeFilter, onApplyFilter }: F
   const closeWithAnimation = () => {
     Animated.timing(slideAnim, {
       toValue: height,
-      duration: 250,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
       onClose();
@@ -59,7 +60,8 @@ export const FilterModal = ({ visible, onClose, activeFilter, onApplyFilter }: F
   const handleApply = () => {
     Animated.timing(slideAnim, {
       toValue: height,
-      duration: 250,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
       onApplyFilter(selectedFilter);

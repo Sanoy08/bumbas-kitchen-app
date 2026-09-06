@@ -37,7 +37,9 @@ export const ScratchCard: React.FC<ScratchCardProps> = ({
   scratchThreshold = 50,
 }) => {
   const path = useSharedValue(Skia.Path.Make());
-  const pointsCount = useSharedValue(0);
+  const scratchedDistance = useSharedValue(0);
+  const lastX = useSharedValue(-1);
+  const lastY = useSharedValue(-1);
   const isCompleted = useSharedValue(false);
   const fadeAnim = useSharedValue(1);
   const fallbackOpacity = useSharedValue(1);
@@ -65,6 +67,9 @@ export const ScratchCard: React.FC<ScratchCardProps> = ({
       const newPath = path.value.copy();
       newPath.moveTo(e.x, e.y);
       path.value = newPath;
+
+      lastX.value = e.x;
+      lastY.value = e.y;
     })
     .onChange((e) => {
       if (isCompleted.value) return;
@@ -80,9 +85,15 @@ export const ScratchCard: React.FC<ScratchCardProps> = ({
       
       path.value = newPath;
 
-      pointsCount.value += 1;
+      if (lastX.value !== -1 && lastY.value !== -1) {
+        const dx = e.x - lastX.value;
+        const dy = e.y - lastY.value;
+        scratchedDistance.value += Math.sqrt(dx * dx + dy * dy);
+      }
+      lastX.value = e.x;
+      lastY.value = e.y;
 
-      if (pointsCount.value > scratchThreshold && !isCompleted.value) {
+      if (scratchedDistance.value > scratchThreshold && !isCompleted.value) {
         isCompleted.value = true;
         handleComplete();
       }
