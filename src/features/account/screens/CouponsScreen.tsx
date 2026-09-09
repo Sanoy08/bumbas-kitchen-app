@@ -147,7 +147,7 @@ export function CouponsScreen() {
                 You don't have any active coupons right now. Check back later for exciting offers!
               </Text>
               <TouchableOpacity
-                onPress={() => router.push('/(shop)/explore')}
+                onPress={() => router.push('/(shop)?scrollTo=explore')}
                 className="bg-primary px-8 py-3.5 rounded-2xl shadow-md"
                 activeOpacity={0.9}
               >

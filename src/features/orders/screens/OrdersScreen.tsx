@@ -17,12 +17,12 @@ import {
 } from 'lucide-react-native';
 import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Alert, Modal, ScrollView, Text, TouchableOpacity, View, Animated, Easing, PanResponder, Dimensions, Pressable, StyleSheet } from 'react-native';
+import { Alert, Modal, ScrollView, Text, TouchableOpacity, View, Animated, Easing, PanResponder, Dimensions, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
-import { formatPrice } from '@/shared/utils/utils';
+import { formatPrice, cleanAddress } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';
 
 // ★ নতুন ইনভয়েস জেনারেটর ইমপোর্ট করা হলো
@@ -409,7 +409,7 @@ export function OrdersScreen() {
                       <View className="flex-1">
                         <Text className="font-bold text-sm text-gray-800 font-sans">Address</Text>
                         <Text className="text-xs text-gray-500 font-medium mt-1 font-sans leading-tight">
-                          {selectedOrder.DeliveryAddress || selectedOrder.Address}
+                          {cleanAddress(selectedOrder.DeliveryAddress || selectedOrder.Address || '')}
                         </Text>
                       </View>
                     </View>

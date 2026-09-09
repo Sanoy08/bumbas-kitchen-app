@@ -40,7 +40,9 @@ module.exports = function withCustomGradleProperties(config) {
       }
 
       if (!currentContent.includes('sdk.dir=')) {
-        fs.writeFileSync(localPropertiesPath, currentContent + '\n' + sdkDir + '\n');
+        const prefix = currentContent && !currentContent.endsWith('\n') ? '\n' : '';
+        const newContent = currentContent ? currentContent + prefix + sdkDir + '\n' : sdkDir + '\n';
+        fs.writeFileSync(localPropertiesPath, newContent);
       }
       
       return config;

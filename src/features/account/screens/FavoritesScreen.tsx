@@ -189,7 +189,7 @@ export function FavoritesScreen() {
             You haven't saved any dishes. Explore our menu and tap the heart icon to save your favorites here.
           </Text>
           <TouchableOpacity
-            onPress={() => router.push('/(shop)/explore')}
+            onPress={() => router.push('/(shop)?scrollTo=explore')}
             className="bg-primary px-8 py-3.5 rounded-2xl shadow-md"
             activeOpacity={0.9}
           >

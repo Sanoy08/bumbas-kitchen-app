@@ -1,7 +1,7 @@
 // src/app/(shop)/checkout/final.tsx
 
 import { useAlert, SavingsBanner } from '@/shared/components/ui';
-import { formatPrice } from '@/shared/utils/utils';
+import { formatPrice, cleanAddress } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
 import { format, isSameDay, startOfDay } from 'date-fns';
@@ -421,7 +421,7 @@ const CompactAddressCard = ({ addr, onPress, getIcon }: { addr: any, onPress: ()
         <View className="flex-1 mr-2">
           <Text className="font-bold text-gray-900 text-base">{addr?.name || 'Select Address'}</Text>
           <Text className="text-xs text-gray-600 mt-0.5" numberOfLines={1}>
-            {addr?.address || 'Choose a delivery location'}
+            {addr?.address ? cleanAddress(addr.address) : 'Choose a delivery location'}
           </Text>
         </View>
       </View>
@@ -445,7 +445,7 @@ const ModalAddressItem = ({ addr, isSelected, onPress, getIcon }: { addr: any, i
       </View>
       <View className="flex-1">
         <Text className={`font-bold text-base ${isSelected ? 'text-primary' : 'text-gray-900'}`}>{addr.name}</Text>
-        <Text className="text-xs text-gray-500 mt-1 leading-relaxed" numberOfLines={2}>{addr.address}</Text>
+        <Text className="text-xs text-gray-500 mt-1 leading-relaxed" numberOfLines={2}>{cleanAddress(addr.address)}</Text>
         
         {/* Badges */}
         <View className="flex-row mt-2 space-x-2">

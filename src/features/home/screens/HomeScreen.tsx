@@ -1,24 +1,24 @@
+import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ActivityIndicator, BackHandler, DeviceEventEmitter, Dimensions, LayoutAnimation, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { BackHandler, DeviceEventEmitter, Dimensions, Platform, RefreshControl, Text, UIManager, View } from 'react-native';
 import Animated, {
+  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
+  scrollTo,
+  useAnimatedReaction,
+  useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
-  useAnimatedRef,
-  useAnimatedReaction,
-  scrollTo,
-  Easing,
   withDelay,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
@@ -31,13 +31,14 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 import NotificationPrompt from '@/shared/components/shop/NotificationPrompt';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
-import { useAlert, OrderCancelledModal } from '@/shared/components/ui';
+import { OrderCancelledModal, useAlert } from '@/shared/components/ui';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
+import { useNotificationStore } from '@/shared/store/notificationStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
-import { useNotificationStore } from '@/shared/store/notificationStore';
 
+import { VoiceSearchModal } from '@/shared/components/search/VoiceSearchModal';
 import {
   BestsellerSection,
   CategoryList,
@@ -52,7 +53,6 @@ import {
   OffersSection,
   SectionHeading
 } from '../components';
-import { VoiceSearchModal } from '@/shared/components/search/VoiceSearchModal';
 
 const { width: windowWidth } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
@@ -71,6 +71,7 @@ export function HomeScreen() {
   const setTabBarVisible = useTabBarStore((state) => state.setVisibility);
   const { showAlert } = useAlert();
   const hasOrderedThisSession = useSessionStore((state) => state.hasOrderedThisSession);
+  const params = useLocalSearchParams();
 
   // Exit confirmation — only active when HomeScreen tab is focused
   useFocusEffect(
@@ -153,10 +154,10 @@ export function HomeScreen() {
   const filterButtonWidth = useSharedValue(42);
   const filterButtonOpacity = useSharedValue(1);
   const filterButtonMargin = useSharedValue(12);
-  
+
   // Used to lock header and hide tab bar in Grid Mode
   const isCategoryActive = useSharedValue(false);
-  
+
   const isAtTopShared = useSharedValue(true);
   const programmaticScrollY = useSharedValue(-1);
 
@@ -178,6 +179,19 @@ export function HomeScreen() {
   }, [homeData.heroSlides]);
 
   useEffect(() => {
+    if (params.scrollTo === 'explore') {
+      setTimeout(() => {
+        if (exploreGridYRef.current > 0) {
+          scrollViewRef.current?.scrollToOffset({
+            offset: Math.max(0, exploreGridYRef.current - CATEGORY_LOCK_Y),
+            animated: true
+          });
+        }
+      }, 500); // Give layout a bit of time
+    }
+  }, [params.scrollTo]);
+
+  useEffect(() => {
     isTabBarVisibleShared.value = isTabBarVisibleStore;
   }, [isTabBarVisibleStore]);
 
@@ -189,7 +203,7 @@ export function HomeScreen() {
     isCategoryActive.value = true;
     setActiveCategory(newCat);
     setActiveFilter(newFilt);
-    
+
     // Wait a tiny bit for React to apply Grid Mode padding and remove HeroCarousel
     modeSwitchTimeoutRef.current = setTimeout(() => {
       scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
@@ -204,7 +218,7 @@ export function HomeScreen() {
     }
 
     const isNewGridViewMode = newCategory !== 'All' || newFilter !== 'all';
-    
+
     // Instantly set visual states so text titles update before scroll
     setVisualCategory(newCategory);
     setVisualFilter(newFilter);
@@ -213,7 +227,7 @@ export function HomeScreen() {
       // Transitioning from normal mode to grid mode
       setHideMiddleSections(true);
       setIsSwitchingCategory(true);
-      
+
       const targetY = categoryYRef.current - CATEGORY_LOCK_Y;
 
       // Start search bar animations with a delay so it triggers when Category Bar is 3/4ths to the top
@@ -222,7 +236,7 @@ export function HomeScreen() {
       filterButtonWidth.value = withDelay(350, withTiming(0, { duration: 250 }));
       filterButtonOpacity.value = withDelay(350, withTiming(0, { duration: 250 }));
       filterButtonMargin.value = withDelay(350, withTiming(0, { duration: 250 }));
-      
+
       setTimeout(() => {
         setTabBarVisible(false);
         isTabBarVisibleShared.value = false;
@@ -246,7 +260,7 @@ export function HomeScreen() {
       }, 150);
     } else if (!isNewGridViewMode && isGridViewMode) {
       // Reverting from grid mode back to "All"
-      
+
       // Revert search bar animations instantly
       backButtonWidth.value = withTiming(0, { duration: 300 });
       backButtonOpacity.value = withTiming(0, { duration: 300 });
@@ -255,27 +269,27 @@ export function HomeScreen() {
       filterButtonMargin.value = withTiming(12, { duration: 300 });
       setTabBarVisible(true);
       isTabBarVisibleShared.value = true;
-      
+
       // Swap layout back to Normal Mode (Mounts HeroCarousel and Bestsellers)
       setHideMiddleSections(false);
       setActiveCategory(newCategory);
       setActiveFilter(newFilter);
       setIsSwitchingCategory(true);
-      
+
       const targetY = categoryYRef.current - CATEGORY_LOCK_Y;
-      
+
       // Instantly jump scroll offset so the real category bar is positioned correctly when layout updates.
       // isCategoryActive.value remains TRUE during this time to act as a seamless mask!
       scrollViewRef.current?.scrollToOffset({ offset: Math.max(0, targetY), animated: false });
-      
+
       // Give React ample time (150ms) to paint the expanded layout robustly on Android
       setTimeout(() => {
         // Enforce the offset just in case FlashList auto-adjusted
         scrollViewRef.current?.scrollToOffset({ offset: Math.max(0, targetY), animated: false });
-        
+
         // NOW turn off the sticky mask, revealing the perfectly aligned real Category Bar beneath it!
         isCategoryActive.value = false;
-        
+
         programmaticScrollY.value = Math.max(0, targetY);
         programmaticScrollY.value = withTiming(
           0,
@@ -351,8 +365,8 @@ export function HomeScreen() {
         useNotificationStore.getState().setHasUnread(unreadNotifications.length > 0);
 
         // Check for any unread cancelled order notification
-        const cancelledNotif = unreadNotifications.find((n: any) => 
-          n.type === 'ORDER_CANCELLED' || 
+        const cancelledNotif = unreadNotifications.find((n: any) =>
+          n.type === 'ORDER_CANCELLED' ||
           (n.title && n.title.toLowerCase().includes('cancel')) ||
           (n.message && n.message.toLowerCase().includes('cancel'))
         );
@@ -397,13 +411,13 @@ export function HomeScreen() {
     console.log('🔽 PULL TO REFRESH TRIGGERED (FULL RESET)');
     console.log('=============================================');
     setRefreshing(true);
-    
+
     // Trigger the global splash screen
     DeviceEventEmitter.emit('trigger_refresh_splash');
-    
+
     // Reset category to All
     handleModeSwitch('All', 'all');
-    
+
     // Clear home data cache
     AsyncStorage.removeItem('bumbas_home_data').catch(console.error);
 
@@ -613,7 +627,7 @@ export function HomeScreen() {
     }
     return result;
   }, [categoryFiltered, activeFilter, homeData.bestsellers]);
-  
+
   const dailySpecial = useMemo(() => homeData.allProducts?.find((p: any) => p.isDailySpecial), [homeData.allProducts]);
 
   // =========================================================================
@@ -750,12 +764,12 @@ export function HomeScreen() {
         }}
       >
         <View className="px-4">
-          <SectionHeading 
+          <SectionHeading
             title={
-              visualCategory !== 'All' 
-                ? `Fresh from ${visualCategory}` 
+              visualCategory !== 'All'
+                ? `Fresh from ${visualCategory}`
                 : (visualFilter !== 'all' ? 'Filtered Items' : 'Explore More')
-            } 
+            }
           />
         </View>
       </View>
@@ -867,7 +881,7 @@ export function HomeScreen() {
       <NotificationPrompt />
 
       {/* ★ Voice Recording Modal ★ */}
-      <VoiceSearchModal 
+      <VoiceSearchModal
         visible={isVoiceModalVisible}
         onClose={() => setIsVoiceModalVisible(false)}
         onResult={(transcript) => {
@@ -880,7 +894,7 @@ export function HomeScreen() {
         visible={!!cancelledNotification}
         notification={cancelledNotification}
         onClose={() => {
-          fetch(`${API_URL}/notifications/mark-read`, { method: 'PATCH' }).catch(() => {});
+          fetch(`${API_URL}/notifications/mark-read`, { method: 'PATCH' }).catch(() => { });
           useNotificationStore.getState().setHasUnread(false);
           setCancelledNotification(null);
         }}

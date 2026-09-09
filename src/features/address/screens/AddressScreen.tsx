@@ -1,23 +1,29 @@
 // src/app/(shop)/account/addresses/index.tsx
 
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { AlertCircle, Briefcase, Home, Info, Loader2, MapPin, Pencil, Plus, Search, Trash2, X, LocateFixed, ChevronLeft } from 'lucide-react-native';
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { ActivityIndicator, Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View, BackHandler, Linking } from 'react-native';
+import { Briefcase, ChevronLeft, Home, LocateFixed, MapPin, Pencil, Plus, Search, Trash2, X } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, BackHandler, Dimensions, Easing, KeyboardAvoidingView, Linking, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, UIManager, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from 'sonner-native';
-import * as Location from 'expo-location';
 
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
+
 import * as Crypto from 'expo-crypto';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { useAlert } from '@/shared/components/ui';
-import { formatPrice } from '@/shared/utils/utils';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
+import { cleanAddress, formatPrice } from '@/shared/utils/utils';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
-const PRESET_LABELS = ["Home", "Work", "Office", "Mom's Place", "Other"];
+const PRESET_LABELS = ["Home", "Work", "Office", "Other"];
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -51,7 +57,44 @@ export function AddressScreen() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
+  const searchSlideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
+  const searchInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (isSearchModalOpen) {
+        setIsSearchModalOpen(false);
+        return true;
+      }
+      if (isDialogOpen) {
+        closeDialog();
+        return true;
+      }
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => subscription.remove();
+  }, [isSearchModalOpen, isDialogOpen]);
+
+  useEffect(() => {
+    Animated.timing(searchSlideAnim, {
+      toValue: isSearchModalOpen ? 0 : Dimensions.get('window').width,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
+    if (isSearchModalOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 350);
+    } else {
+      searchInputRef.current?.blur();
+    }
+  }, [isSearchModalOpen]);
 
   useEffect(() => {
     if (isDialogOpen) {
@@ -92,26 +135,62 @@ export function AddressScreen() {
     return () => subscription.remove();
   }, [isDialogOpen]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  
+
   const [isMapReady, setIsMapReady] = useState(false);
   const mapRef = useRef<MapView>(null);
   const [isPanning, setIsPanning] = useState(false);
   // Prevents onRegionDidChange from calling handleLocationSelect during programmatic camera moves
   const isProgrammaticMove = useRef(false);
-  
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    address: '', 
+  const touchCount = useRef(0);
+  const [mapScrollEnabled, setMapScrollEnabled] = useState(true);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    address: '',
     isDefault: false,
     coordinates: null as { lat: number, lng: number } | null,
     distanceText: '',
     deliveryFee: 0
   });
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [outOfRange, setOutOfRange] = useState(false);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+  const [isZoomedOut, setIsZoomedOut] = useState(false);
   const [modalScrollEnabled, setModalScrollEnabled] = useState(true);
+  const [hasLocationError, setHasLocationError] = useState(false);
+
+  // Shimmer and sliding animation
+  const showBottomSection = !isPanning && !isReverseGeocoding;
+  const bottomSlideAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.timing(bottomSlideAnim, {
+      toValue: showBottomSection ? 1 : 0,
+      duration: 350,
+      easing: Easing.out(Easing.exp),
+      useNativeDriver: false,
+    }).start();
+  }, [showBottomSection]);
+
+  const showShimmer = (isPanning || isReverseGeocoding || !formData.address) && !hasLocationError;
+
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (showShimmer) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+          Animated.timing(shimmerAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      shimmerAnim.stopAnimation();
+      shimmerAnim.setValue(0);
+    }
+  }, [showShimmer]);
+  const shimmerOpacity = shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.75] });
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -131,49 +210,57 @@ export function AddressScreen() {
   }, [isInitialized, user?.id]);
 
   useEffect(() => {
+    let isMounted = true;
     if (isDialogOpen) {
-      const timer = setTimeout(() => setIsMapReady(true), 200);
-      
-      // If no coordinates are set (new address), fetch live GPS with best possible accuracy
       if (!formData.coordinates && !editingId) {
+        // Fetch location BEFORE showing the map to prevent panning jumps
         (async () => {
           setIsFetchingLocation(true);
           try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status === 'granted') {
-              // BestForNavigation uses all sensors (GPS + IMU) — max accuracy, takes longer
-              const loc = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.BestForNavigation,
-                maximumAge: 0, // Never use cached location
-              });
-              handleLocationSelect(loc.coords.latitude, loc.coords.longitude);
-              // Move camera to GPS location without triggering the pan loop
-              if (isMapReady) moveCameraTo(loc.coords.latitude, loc.coords.longitude);
+              let loc = await Location.getLastKnownPositionAsync({});
+              if (!loc) {
+                loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+              }
+              if (loc && isMounted) {
+                setFormData(prev => ({ ...prev, coordinates: { lat: loc.coords.latitude, lng: loc.coords.longitude } }));
+              }
             }
           } catch (error) {
             console.log('Location error:', error);
           } finally {
-            setIsFetchingLocation(false);
+            if (isMounted) {
+              setIsFetchingLocation(false);
+              // Small delay to ensure state updates before mounting map
+              setTimeout(() => { if (isMounted) setIsMapReady(true); }, 50);
+            }
           }
         })();
+      } else {
+        const timer = setTimeout(() => { if (isMounted) setIsMapReady(true); }, 200);
+        return () => clearTimeout(timer);
       }
-
-      return () => clearTimeout(timer);
     } else {
       setIsMapReady(false);
       setIsFetchingLocation(false);
     }
+
+    return () => { isMounted = false; };
   }, [isDialogOpen]);
 
-  // Move camera programmatically without triggering the pan→update loop
-  const moveCameraTo = (lat: number, lng: number, zoom = 17) => {
-    isProgrammaticMove.current = true;
+  // Move camera programmatically
+  // If updateAddress is true, it triggers the pan→update loop (useful when jumping to live location)
+  const moveCameraTo = (lat: number, lng: number, zoom = 17, updateAddress = false) => {
+    if (!updateAddress) isProgrammaticMove.current = true;
     mapRef.current?.animateCamera({
       center: { latitude: lat, longitude: lng },
       zoom: zoom,
     }, { duration: 600 });
-    // Reset flag after animation finishes
-    setTimeout(() => { isProgrammaticMove.current = false; }, 800);
+
+    if (!updateAddress) {
+      setTimeout(() => { isProgrammaticMove.current = false; }, 800);
+    }
   };
 
   const fetchAddresses = async () => {
@@ -185,90 +272,110 @@ export function AddressScreen() {
         setAddresses(data.addresses);
         updateUser({ savedAddresses: data.addresses });
       }
-    } catch (error) { 
-      console.log(error); 
-    } finally { 
-      setIsLoading(false); 
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     const fetchLocations = async () => {
-      if (!debouncedSearch || debouncedSearch.length < 3) { 
-        setSuggestions([]); 
-        return; 
+      if (!debouncedSearch || debouncedSearch.length < 3) {
+        setSuggestions([]);
+        return;
       }
       try {
-        const res = await fetch(`${API_URL}/location/search?q=${debouncedSearch}&sessionToken=${sessionToken}`);
+        const queryWithState = debouncedSearch.toLowerCase().includes('west bengal')
+          ? debouncedSearch
+          : `${debouncedSearch} West Bengal`;
+
+        const res = await fetch(`${API_URL}/location/search?q=${queryWithState}&sessionToken=${sessionToken}`);
         if (!res.ok) throw new Error('API failed');
         const data = await res.json();
-        setSuggestions(data.suggestions || []);
+
+        // Strict frontend filter to ensure only West Bengal results
+        const wbSuggestions = data.suggestions?.filter((item: any) => {
+          const desc = item.description.toLowerCase();
+          return desc.includes('west bengal') || desc.includes(', wb');
+        }) || [];
+
+        setSuggestions(wbSuggestions);
         setShowSuggestions(true);
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchLocations();
   }, [debouncedSearch]);
 
   const handleSuggestionSelect = async (placeId: string, description: string) => {
     try {
-      setSearchQuery(description);
+      setSearchQuery('');
       setShowSuggestions(false);
-      
+      setIsFetchingLocation(true);
+
       const res = await fetch(`${API_URL}/location/details?place_id=${placeId}&sessionToken=${sessionToken}`);
+
+      // Reset session token for the next search
+      setSessionToken(Crypto.randomUUID());
       if (!res.ok) throw new Error('API failed');
       const data = await res.json();
-      
+
       if (data.success && data.location) {
         // Drop the pin and move camera
         moveCameraTo(data.location.lat, data.location.lng);
         handleLocationSelect(data.location.lat, data.location.lng, description);
-        // Refresh session token for the next session
-        setSessionToken(Crypto.randomUUID());
       }
     } catch (e) {
       toast.error('Could not fetch place details');
+    } finally {
+      setIsFetchingLocation(false);
     }
   };
 
   const handleLocationSelect = async (lat: number, lng: number, addressStr?: string) => {
     try {
       setOutOfRange(false);
-      
+      setHasLocationError(false);
+      setIsReverseGeocoding(true);
+
       if (!addressStr) {
         const revRes = await fetch(`${API_URL}/location/reverse?lat=${lat}&lon=${lng}`);
         if (!revRes.ok) throw new Error('API failed');
         const revData = await revRes.json();
         addressStr = revData.address;
       }
-      
+
       const res = await fetch(`${API_URL}/location/distance?lat=${lat}&lng=${lng}`);
       if (!res.ok) throw new Error('API failed');
       const data = await res.json();
-      
-      if(data.success) {
+
+      if (data.success) {
         const distKm = data.distanceValue / 1000;
         let fee = 0;
-        
-        if(distKm > 10) {
+
+        if (distKm > 10) {
           setOutOfRange(true);
           setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: 0 }));
           return;
         }
 
-        if(distKm > 2) {
+        if (distKm > 2) {
           const extraKm = Math.ceil(distKm - 2);
           fee = 50 + (extraKm * 10);
         }
-        
+
         setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: fee }));
       }
-    } catch(e) {
+    } catch (e) {
       console.log("Error calculating distance:", e);
+      setHasLocationError(true);
+    } finally {
+      setIsReverseGeocoding(false);
     }
   };
 
   const handleSelectSearchItem = (item: any) => {
-    setSearchQuery(item.main_text); 
+    setSearchQuery(item.main_text);
     setShowSuggestions(false);
 
     const lat = Number(item.lat);
@@ -295,15 +402,16 @@ export function AddressScreen() {
     }
     setSearchQuery("");
     setOutOfRange(false);
+    setIsReverseGeocoding(true); // Prevent down-blink on open
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!formData.name || !formData.address || !formData.coordinates) {
-      toast.error("Label, Address and Map Location are required");
+      toast.error("Label is required");
       return;
     }
-    if(outOfRange) {
+    if (outOfRange) {
       showAlert({
         title: "Out of Delivery Area",
         message: "Sorry, we currently do not deliver to this location as it is outside our 50km radius.",
@@ -318,11 +426,11 @@ export function AddressScreen() {
       const body = editingId ? { ...formData, id: editingId } : formData;
 
       const res = await fetch(`${API_URL}/user/addresses`, {
-        method: method, 
-        headers: { 'Content-Type': 'application/json' }, 
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      
+
       if (res.ok) {
         toast.success(editingId ? "Address updated!" : "Address saved!");
         closeDialog();
@@ -331,11 +439,39 @@ export function AddressScreen() {
         const data = await res.json();
         toast.error(data.error || "Failed to save address");
       }
-    } catch (error) { 
-      toast.error("Error saving address"); 
-    } finally { 
-      setIsSaving(false); 
+    } catch (error) {
+      toast.error("Error saving address");
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const confirmSetDefault = (addr: any) => {
+    if (addr.isDefault) return;
+    showAlert({
+      title: "Set as Default?",
+      message: `Do you want to set "${addr.name}" as your default delivery address?`,
+      confirmText: "Set Default",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          const body = { ...addr, id: addr.id || addr._id, isDefault: true };
+          const res = await fetch(`${API_URL}/user/addresses`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (res.ok) {
+            toast.success("Default address updated!");
+            fetchAddresses();
+          } else {
+            toast.error("Failed to update");
+          }
+        } catch (error) {
+          toast.error("Network error");
+        }
+      }
+    });
   };
 
   const confirmDelete = (id: string) => {
@@ -348,14 +484,14 @@ export function AddressScreen() {
       onConfirm: async () => {
         try {
           const res = await fetch(`${API_URL}/user/addresses?id=${id}`, { method: 'DELETE' });
-          if (res.ok) { 
-            toast.success("Address deleted"); 
-            fetchAddresses(); 
+          if (res.ok) {
+            toast.success("Address deleted");
+            fetchAddresses();
           } else {
             toast.error("Failed to delete");
           }
-        } catch (error) { 
-          toast.error("Network error"); 
+        } catch (error) {
+          toast.error("Network error");
         }
       }
     });
@@ -368,7 +504,6 @@ export function AddressScreen() {
     return <MapPin size={20} color="#e11d48" />;
   };
 
-
   const defaultLat = formData.coordinates?.lat || 22.717958;
   const defaultLng = formData.coordinates?.lng || 88.260207;
 
@@ -377,16 +512,30 @@ export function AddressScreen() {
 
   const onRegionDidChange = async (region: any) => {
     setIsPanning(false);
+
+    // Ignore region changes if we are programmatically moving the map
     if (isProgrammaticMove.current) return;
-    
+
+    // Start shimmer immediately during the debounce gap to prevent flashing
+    setIsReverseGeocoding(true);
+
     if (regionChangeTimer.current) clearTimeout(regionChangeTimer.current);
     regionChangeTimer.current = setTimeout(() => {
       try {
         if (region) {
+          // Check if zoomed out (latitudeDelta > 0.008 is roughly zoom level 16/17)
+          if (region.latitudeDelta > 0.008) {
+            setIsZoomedOut(true);
+          } else {
+            setIsZoomedOut(false);
+          }
           handleLocationSelect(region.latitude, region.longitude);
+        } else {
+          setIsReverseGeocoding(false);
         }
       } catch (e) {
         console.log('Region change error:', e);
+        setIsReverseGeocoding(false);
       }
     }, 600);
   };
@@ -409,6 +558,7 @@ export function AddressScreen() {
   const relocateToMyLocation = async () => {
     setIsRelocating(true);
     setIsFetchingLocation(true);
+    setIsReverseGeocoding(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
@@ -416,7 +566,7 @@ export function AddressScreen() {
           accuracy: Location.Accuracy.BestForNavigation,
           maximumAge: 0,
         });
-        handleLocationSelect(loc.coords.latitude, loc.coords.longitude);
+        moveCameraTo(loc.coords.latitude, loc.coords.longitude, 18, true);
       } else {
         showAlert({
           title: "Location Permission Required",
@@ -444,384 +594,439 @@ export function AddressScreen() {
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       <View className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
-        <Text className="text-2xl font-bold text-gray-900 font-sans mb-1">My Addresses</Text>
-        <Text className="text-sm text-gray-500 font-medium font-sans mb-6">Manage delivery locations & check delivery fees.</Text>
+        <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 180 }}>
+          <Text className="text-2xl font-bold text-gray-900 font-sans mb-1">My Addresses</Text>
+          <Text className="text-sm text-gray-500 font-medium font-sans mb-6">Manage delivery locations & check delivery fees.</Text>
 
-        {addresses.length === 0 ? (
-          <View className="items-center justify-center py-16 bg-white rounded-3xl border border-dashed border-gray-300">
-            <MapPin size={48} color="#d1d5db" className="mb-4" />
-            <Text className="text-gray-500 font-medium font-sans">No saved addresses found.</Text>
-            <TouchableOpacity onPress={() => handleOpenDialog()} className="mt-4">
-              <Text className="text-primary font-bold font-sans">Add your first address</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View className="gap-y-4">
-            {addresses.map(addr => {
-              const addrId = addr.id || addr._id;
-              return (
-                <View key={addrId} className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
-                  <View className="flex-row justify-between items-start">
-                    <View className="flex-row flex-1 mr-4">
-                      <View className="h-12 w-12 rounded-2xl bg-primary/10 items-center justify-center mr-4 mt-1">
-                        {getIcon(addr.name)}
-                      </View>
-                      <View className="flex-1">
-                        <View className="flex-row items-center gap-2 mb-1 flex-wrap">
-                          <Text className="font-bold text-lg text-gray-900 font-sans">{addr.name}</Text>
-                          {addr.isDefault && (
-                            <View className="bg-green-100 px-2 py-0.5 rounded border border-green-200">
-                              <Text className="text-[10px] font-bold text-green-700 uppercase font-sans">Default</Text>
-                            </View>
-                          )}
+          {addresses.length === 0 ? (
+            <View className="items-center justify-center py-16 bg-white rounded-3xl border border-dashed border-gray-300">
+              <MapPin size={48} color="#d1d5db" className="mb-4" />
+              <Text className="text-gray-500 font-medium font-sans">No saved addresses found.</Text>
+              <TouchableOpacity onPress={() => handleOpenDialog()} className="mt-4">
+                <Text className="text-primary font-bold font-sans">Add your first address</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View className="gap-y-4">
+              {addresses.map(addr => {
+                const addrId = addr.id || addr._id;
+                return (
+                  <TouchableOpacity
+                    key={addrId}
+                    activeOpacity={0.9}
+                    onLongPress={() => confirmSetDefault(addr)}
+                    className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm"
+                  >
+                    <View className="flex-row justify-between items-start">
+                      <View className="flex-row flex-1 mr-4">
+                        <View className="h-12 w-12 rounded-2xl bg-primary/10 items-center justify-center mr-4 mt-1">
+                          {getIcon(addr.name)}
                         </View>
-                        <Text className="text-sm text-gray-500 font-medium leading-5 font-sans mb-3">{addr.address}</Text>
-                        
-                        <View className="flex-row items-center gap-2 flex-wrap">
-                          {addr.distanceText && (
-                            <View className="bg-gray-100 px-2 py-1 rounded-md">
-                              <Text className="text-xs font-semibold text-gray-600 font-sans">{addr.distanceText}</Text>
+                        <View className="flex-1">
+                          <View className="flex-row items-center gap-2 mb-1 flex-wrap">
+                            <Text className="font-bold text-lg text-gray-900 font-sans">{addr.name}</Text>
+                            {addr.isDefault && (
+                              <View className="bg-green-100 px-2 py-0.5 rounded border border-green-200">
+                                <Text className="text-[10px] font-bold text-green-700 uppercase font-sans">Default</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text className="text-sm text-gray-500 font-medium leading-5 font-sans mb-3">{cleanAddress(addr.address)}</Text>
+
+                          <View className="flex-row items-center gap-2 flex-wrap">
+                            {addr.distanceText && (
+                              <View className="bg-gray-100 px-2 py-1 rounded-md">
+                                <Text className="text-xs font-semibold text-gray-600 font-sans">{addr.distanceText}</Text>
+                              </View>
+                            )}
+                            <View className={`px-2 py-1 rounded-md ${addr.deliveryFee === 0 ? 'bg-green-50' : 'bg-orange-50'}`}>
+                              <Text className={`text-xs font-bold font-sans ${addr.deliveryFee === 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                                {addr.deliveryFee === 0 ? 'Free Delivery' : `Delivery: ${formatPrice(addr.deliveryFee || 0)}`}
+                              </Text>
                             </View>
-                          )}
-                          <View className={`px-2 py-1 rounded-md ${addr.deliveryFee === 0 ? 'bg-green-50' : 'bg-orange-50'}`}>
-                            <Text className={`text-xs font-bold font-sans ${addr.deliveryFee === 0 ? 'text-green-600' : 'text-orange-600'}`}>
-                              {addr.deliveryFee === 0 ? 'Free Delivery' : `Delivery: ${formatPrice(addr.deliveryFee || 0)}`}
-                            </Text>
                           </View>
                         </View>
                       </View>
-                    </View>
 
-                    <View className="flex-col gap-2">
-                      <TouchableOpacity onPress={() => handleOpenDialog(addr)} className="p-2.5 bg-gray-50 rounded-xl">
-                        <Pencil size={18} color="#4b5563" />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => addrId && confirmDelete(addrId)} className="p-2.5 bg-red-50 rounded-xl">
-                        <Trash2 size={18} color="#dc2626" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
-
-      <View className="absolute bottom-6 right-6">
-  <TouchableOpacity 
-    onPress={() => handleOpenDialog()} 
-    activeOpacity={0.8}
-    className="h-16 w-16 bg-primary rounded-full items-center justify-center shadow-lg"
-    style={{ 
-      position: 'absolute', 
-      bottom: 80, 
-      right: 24,  
-      shadowColor: '#e11d48', 
-      shadowOffset: { width: 0, height: 4 }, 
-      shadowOpacity: 0.4, 
-      shadowRadius: 8, 
-      elevation: 8 
-    }}
-  >
-    <Plus size={28} color="#ffffff" />
-  </TouchableOpacity>
-</View>
-
-      {/* --- ADD / EDIT PAGE (Sliding Screen) --- */}
-      <Animated.View 
-        pointerEvents={isDialogOpen ? 'auto' : 'none'}
-        style={{ 
-          position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-          transform: [{ translateX: slideAnim }], 
-          backgroundColor: '#f9fafb',
-          zIndex: 100 
-        }}
-      >
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-
-          {/* ── Header ── */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', zIndex: 10 }}>
-                <TouchableOpacity onPress={closeDialog} style={{ padding: 8, marginRight: 12, backgroundColor: '#f3f4f6', borderRadius: 50 }}>
-                  <ChevronLeft size={20} color="#374151" />
-                </TouchableOpacity>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>{editingId ? 'Edit Address' : 'Add New Address'}</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Pan the map to place your pin</Text>
-                </View>
-              </View>
-
-              {/* ── STICKY MAP (does not scroll) ── */}
-              <View
-                style={{ height: 260, width: '100%', backgroundColor: '#e5e7eb', position: 'relative' }}
-                onTouchStart={() => setModalScrollEnabled(false)}
-                onTouchEnd={() => setModalScrollEnabled(true)}
-                onTouchCancel={() => setModalScrollEnabled(true)}
-              >
-                {!isMapReady ? (
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
-                    <ActivityIndicator size="large" color="#e11d48" />
-                  </View>
-                ) : (
-                  <MapView
-                    ref={mapRef}
-                    provider={PROVIDER_GOOGLE}
-                    style={{ flex: 1, width: '100%' }}
-                    onPress={onMapPress}
-                    onPanDrag={() => setIsPanning(true)}
-                    onRegionChangeComplete={onRegionDidChange}
-                    showsCompass={false}
-                    showsUserLocation={false}
-                    initialCamera={{
-                      center: { latitude: defaultLat, longitude: defaultLng },
-                      pitch: 0,
-                      heading: 0,
-                      altitude: 1000,
-                      zoom: 17
-                    }}
-                  />
-                )}
-
-                {/* ── Premium 3D crosshair pin (always at visual center) ── */}
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', pointerEvents: 'none' }}>
-                  {/* Outer pulsing ring */}
-                  <View style={{
-                    position: 'absolute',
-                    width: 60, height: 60, borderRadius: 30,
-                    borderWidth: 2, borderColor: 'rgba(225,29,72,0.25)',
-                    backgroundColor: 'rgba(225,29,72,0.08)',
-                    transform: [{ translateY: -38 }],
-                  }} />
-                  {/* Pin body — teardrop shape */}
-                  <View style={{ transform: [{ translateY: -38 }], alignItems: 'center' }}>
-                    {/* Head: gradient-style layered 3D circles */}
-                    <View style={{
-                      width: 36, height: 36, borderRadius: 18,
-                      backgroundColor: '#e11d48',
-                      justifyContent: 'center', alignItems: 'center',
-                      shadowColor: '#e11d48', shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: isPanning ? 0.8 : 0.5, shadowRadius: isPanning ? 12 : 8,
-                      elevation: isPanning ? 14 : 10,
-                      borderWidth: 2.5, borderColor: '#fff',
-                      transform: [{ scale: isPanning ? 1.15 : 1 }],
-                      overflow: 'hidden'
-                    }}>
-                      {/* 3D Highlight top */}
-                      <View style={{
-                        position: 'absolute', top: 2, left: 6,
-                        width: 14, height: 6, borderRadius: 6,
-                        backgroundColor: 'rgba(255,255,255,0.4)',
-                        transform: [{ rotate: '-35deg' }]
-                      }} />
-                      {/* 3D Shadow bottom right */}
-                      <View style={{
-                        position: 'absolute', bottom: -5, right: -5,
-                        width: 24, height: 24, borderRadius: 12,
-                        backgroundColor: 'rgba(0,0,0,0.15)'
-                      }} />
-                      {/* Inner crosshair */}
-                      <View style={{ width: 10, height: 1.5, backgroundColor: '#fff', position: 'absolute' }} />
-                      <View style={{ width: 1.5, height: 10, backgroundColor: '#fff', position: 'absolute' }} />
-                    </View>
-                    {/* Sharp tail */}
-                    <View style={{
-                      width: 0, height: 0,
-                      borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 12,
-                      borderLeftColor: 'transparent', borderRightColor: 'transparent',
-                      borderTopColor: '#e11d48',
-                      marginTop: -1,
-                    }} />
-                    {/* Ground shadow */}
-                    <View style={{
-                      width: isPanning ? 6 : 14, height: isPanning ? 3 : 5,
-                      borderRadius: 10,
-                      backgroundColor: 'rgba(0,0,0,0.22)',
-                      marginTop: isPanning ? 8 : 3,
-                    }} />
-                  </View>
-                </View>
-
-                {/* GPS loading overlay */}
-                {isFetchingLocation ? (
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', zIndex: 20 }}>
-                    <View style={{ backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 20, alignItems: 'center', elevation: 10 }}>
-                      <ActivityIndicator size="large" color="#e11d48" />
-                      <Text style={{ marginTop: 10, fontSize: 13, fontWeight: '700', color: '#111' }}>Getting your location…</Text>
-                      <Text style={{ marginTop: 3, fontSize: 11, color: '#6b7280' }}>GPS + all sensors active</Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={{ position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: isPanning ? 'rgba(0,0,0,0.75)' : 'rgba(225,29,72,0.9)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 }}>
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>
-                      {isPanning ? '🗺️  Move map to reposition' : '📍  Pan the map to change location'}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Distance badge top-right */}
-                {formData.distanceText !== '' && !isFetchingLocation && (
-                  <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: outOfRange ? '#ef4444' : '#16a34a', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, zIndex: 10 }}>
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
-                      {outOfRange ? `❌ ${formData.distanceText}` : `📍 ${formData.distanceText}`}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Relocate to my location button */}
-                <TouchableOpacity
-                  onPress={relocateToMyLocation}
-                  disabled={isRelocating || isFetchingLocation}
-                  style={{
-                    position: 'absolute', bottom: 12, right: 12,
-                    backgroundColor: '#fff',
-                    width: 44, height: 44, borderRadius: 22,
-                    justifyContent: 'center', alignItems: 'center',
-                    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.2, shadowRadius: 6,
-                    elevation: 8,
-                    borderWidth: 1, borderColor: '#e5e7eb',
-                  }}
-                >
-                  {isRelocating || isFetchingLocation
-                    ? <ActivityIndicator size={20} color="#3b82f6" />
-                    : <LocateFixed size={22} color="#3b82f6" />}
-                </TouchableOpacity>
-              </View>
-
-
-              {/* ── SCROLLABLE FORM ── */}
-              <ScrollView
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
-                scrollEnabled={modalScrollEnabled}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
-              >
-
-                {/* Address Label */}
-                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Address Label</Text>
-                  <TextInput
-                    value={formData.name}
-                    onChangeText={(t) => setFormData({...formData, name: t})}
-                    placeholder="e.g. Home, Office"
-                    placeholderTextColor="#9ca3af"
-                    style={{ backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontWeight: '500', color: '#111827', marginBottom: 12 }}
-                  />
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {PRESET_LABELS.map((label) => (
-                      <TouchableOpacity
-                        key={label}
-                        onPress={() => setFormData({...formData, name: label})}
-                        style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 50, borderWidth: 1.5, borderColor: formData.name === label ? '#e11d48' : '#e5e7eb', backgroundColor: formData.name === label ? '#e11d48' : '#fff' }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: formData.name === label ? '#fff' : '#6b7280' }}>{label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Search */}
-                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2, zIndex: 20 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Search Location</Text>
-                  <View style={{ position: 'relative' }}>
-                    <View style={{ position: 'absolute', left: 12, top: 13, zIndex: 1 }}><Search size={16} color="#9ca3af" /></View>
-                    <TextInput
-                      placeholder="Search area, landmark..."
-                      value={searchQuery}
-                      onChangeText={(t) => { setSearchQuery(t); if (t.length === 0) setShowSuggestions(false); }}
-                      placeholderTextColor="#9ca3af"
-                      style={{ paddingLeft: 38, paddingRight: 14, height: 44, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, fontSize: 14, fontWeight: '500', color: '#111827' }}
-                    />
-                    {showSuggestions && suggestions.length > 0 && (
-                      <View style={{ position: 'absolute', top: 50, left: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', maxHeight: 200, overflow: 'hidden', zIndex: 50, elevation: 16, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10 }}>
-                        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled={true}>
-                          {suggestions.map((item: any, index: number) => (
-                            <TouchableOpacity 
-                              key={index} 
-                              onPress={() => handleSuggestionSelect(item.place_id, item.description)}
-                              style={{ 
-                                padding: 12, 
-                                borderBottomWidth: 1, 
-                                borderBottomColor: '#f3f4f6',
-                                flexDirection: 'row',
-                                alignItems: 'flex-start'
-                              }}
-                            >
-                              <MapPin size={15} color="#e11d48" style={{ marginTop: 1, marginRight: 10, flexShrink: 0 }} />
-                              <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }} numberOfLines={1}>{item.main_text}</Text>
-                                <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }} numberOfLines={1}>{item.secondary_text}</Text>
-                              </View>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
+                      <View className="flex-col gap-2">
+                        <TouchableOpacity onPress={() => handleOpenDialog(addr)} className="p-2.5 bg-gray-50 rounded-xl">
+                          <Pencil size={18} color="#4b5563" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => addrId && confirmDelete(addrId)} className="p-2.5 bg-red-50 rounded-xl">
+                          <Trash2 size={18} color="#dc2626" />
+                        </TouchableOpacity>
                       </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </ScrollView>
+
+        <View className="absolute bottom-6 right-6">
+          <TouchableOpacity
+            onPress={() => {
+              if (addresses.length >= 4) {
+                showAlert({
+                  title: "Maximum Limit Reached",
+                  message: "You can only save up to 4 addresses. Please delete an existing one to add more.",
+                  confirmText: "Okay"
+                });
+              } else {
+                handleOpenDialog();
+              }
+            }}
+            activeOpacity={0.8}
+            className="h-16 w-16 bg-primary rounded-full items-center justify-center shadow-lg"
+            style={{
+              position: 'absolute',
+              bottom: 80,
+              right: 24,
+              shadowColor: '#e11d48',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: addresses.length >= 4 ? 0.2 : 0.4,
+              shadowRadius: 8,
+              elevation: 8,
+              opacity: addresses.length >= 4 ? 0.7 : 1
+            }}
+          >
+            <Plus size={28} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* --- ADD / EDIT PAGE (Sliding Screen) --- */}
+        <Animated.View
+          pointerEvents={isDialogOpen ? 'auto' : 'none'}
+          style={{
+            position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+            transform: [{ translateX: slideAnim }],
+            backgroundColor: '#f9fafb',
+            zIndex: 100
+          }}
+        >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+
+            {/* ── STICKY MAP (does not scroll) ── */}
+            <View
+              style={{ flex: 1, width: '100%', backgroundColor: '#e5e7eb', position: 'relative' }}
+              onTouchStart={(e) => {
+                touchCount.current = e.nativeEvent.touches.length;
+                if (touchCount.current >= 2) setMapScrollEnabled(false);
+                setModalScrollEnabled(false);
+              }}
+              onTouchEnd={(e) => {
+                touchCount.current = e.nativeEvent.touches.length;
+                if (touchCount.current < 2) setMapScrollEnabled(true);
+                setModalScrollEnabled(true);
+              }}
+              onTouchCancel={() => {
+                touchCount.current = 0;
+                setMapScrollEnabled(true);
+                setModalScrollEnabled(true);
+              }}
+            >
+              {!isMapReady ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
+                  <ActivityIndicator size="large" color="#e11d48" />
+                  {isFetchingLocation && (
+                    <Text style={{ marginTop: 12, color: '#4b5563', fontWeight: '600', fontSize: 14 }}>
+                      Getting your exact location...
+                    </Text>
+                  )}
+                </View>
+              ) : (
+                <MapView
+                  ref={mapRef}
+                  provider={PROVIDER_GOOGLE}
+                  style={{ flex: 1, width: '100%' }}
+                  onPress={onMapPress}
+                  onPanDrag={() => setIsPanning(true)}
+                  onRegionChangeComplete={onRegionDidChange}
+                  scrollEnabled={mapScrollEnabled}
+                  showsCompass={false}
+                  showsUserLocation={false}
+                  scrollDuringRotateOrZoomEnabled={false}
+                  minZoomLevel={17}
+                  initialCamera={{
+                    center: {
+                      latitude: formData.coordinates?.lat ?? defaultLat,
+                      longitude: formData.coordinates?.lng ?? defaultLng
+                    },
+                    pitch: 0,
+                    heading: 0,
+                    altitude: 1000,
+                    zoom: formData.coordinates ? 18 : 17
+                  }}
+                />
+              )}
+
+              {/* FLOATING HEADER & SEARCH */}
+              <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 10 : 10, left: 16, right: 16, zIndex: 30, flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                {/* Floating Back Button */}
+                <TouchableOpacity onPress={closeDialog} style={{ width: 42, height: 42, backgroundColor: '#fff', borderRadius: 21, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 8 }}>
+                  <ChevronLeft size={22} color="#111827" />
+                </TouchableOpacity>
+
+                {/* Floating Search Bar (Button) */}
+                <TouchableOpacity
+                  onPress={() => setIsSearchModalOpen(true)}
+                  activeOpacity={0.9}
+                  style={{ flex: 1, backgroundColor: '#fff', borderRadius: 21, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, elevation: 8, zIndex: 40, height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 14 }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#6b7280' }}>Search an area or address</Text>
+                  <Search size={18} color="#4b5563" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Premium 3D crosshair pin -> Swiggy-style pin in App's Primary Color */}
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', pointerEvents: 'none' }}>
+                <View style={{ position: 'absolute', width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderColor: 'rgba(225,29,72,0.25)', backgroundColor: 'rgba(225,29,72,0.08)', transform: [{ translateY: -38 }] }} />
+                <View style={{ transform: [{ translateY: -38 }], alignItems: 'center' }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#e11d48', justifyContent: 'center', alignItems: 'center', shadowColor: '#e11d48', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isPanning ? 0.8 : 0.5, shadowRadius: isPanning ? 12 : 8, elevation: isPanning ? 14 : 10, transform: [{ scale: isPanning ? 1.15 : 1 }] }}>
+                    {/* White circle in the center */}
+                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff' }} />
+                    {/* Subtle 3D reflections */}
+                    <View style={{ position: 'absolute', top: 2, left: 6, width: 14, height: 6, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.3)', transform: [{ rotate: '-35deg' }] }} />
+                  </View>
+                  {/* Pin tail */}
+                  <View style={{ width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 10, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#e11d48', marginTop: -1 }} />
+                  {/* Small blue dot at the very bottom of the tail */}
+                  <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#2563eb', marginTop: -2 }} />
+                  {/* Ground shadow */}
+                  <View style={{ width: isPanning ? 6 : 14, height: isPanning ? 3 : 5, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.22)', marginTop: isPanning ? 8 : 2 }} />
+                </View>
+              </View>
+
+              {/* Distance & Delivery badge top-right */}
+              {formData.distanceText !== '' && !isFetchingLocation && (
+                <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 120 : 110, right: 16, backgroundColor: outOfRange ? '#ef4444' : '#16a34a', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, zIndex: 10, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, elevation: 5, alignItems: 'flex-end' }}>
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800', marginBottom: 2 }}>
+                    {outOfRange ? `❌ ${formData.distanceText}` : `📍 ${formData.distanceText}`}
+                  </Text>
+                  {!outOfRange && (
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', opacity: 0.9 }}>
+                      Delivery: {formData.deliveryFee === 0 ? 'FREE' : formatPrice(formData.deliveryFee)}
+                    </Text>
+                  )}
+                  {outOfRange && (
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', opacity: 0.9 }}>Out of range</Text>
+                  )}
+                </View>
+              )}
+
+              {/* Relocate Button */}
+              <TouchableOpacity
+                onPress={relocateToMyLocation}
+                disabled={isRelocating || isFetchingLocation}
+                style={{ position: 'absolute', bottom: 38, alignSelf: 'center', flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 8, borderWidth: 1, borderColor: '#f3f4f6' }}
+              >
+                {isRelocating || isFetchingLocation ? <ActivityIndicator size={16} color="#e11d48" style={{ marginRight: 6 }} /> : <LocateFixed size={16} color="#e11d48" style={{ marginRight: 6 }} />}
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151' }}>Current location</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ── BOTTOM SHEET FORM ── */}
+            <View style={{ backgroundColor: '#fff', marginTop: -20, borderTopLeftRadius: 20, borderTopRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 15, overflow: 'hidden', paddingBottom: Platform.OS === 'ios' ? 20 : 12 }}>
+              <View style={{ backgroundColor: '#f9fafb', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#6b7280' }}>Order will be delivered here</Text>
+              </View>
+              <View style={{ padding: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 }}>
+                  <View style={{ marginTop: 2, marginRight: 12 }}>
+                    <MapPin size={24} color={showShimmer ? '#d1d5db' : '#e11d48'} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    {showShimmer ? (
+                      <>
+                        {/* Shimmer skeleton for main address line */}
+                        <Animated.View style={{ opacity: shimmerOpacity, height: 20, borderRadius: 6, backgroundColor: '#e5e7eb', width: '65%', marginBottom: 8 }} />
+                        {/* Shimmer skeleton for sub address line */}
+                        <Animated.View style={{ opacity: shimmerOpacity, height: 14, borderRadius: 6, backgroundColor: '#f3f4f6', width: '85%' }} />
+                      </>
+                    ) : (
+                      <>
+                        <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 2 }}>
+                          {hasLocationError ? 'Unknown Location' : (formData.address ? cleanAddress(formData.address).split(',')[0].trim() : '')}
+                        </Text>
+                        <Text style={{ fontSize: 13, color: '#6b7280', lineHeight: 18 }} numberOfLines={2}>
+                          {hasLocationError ? 'Could not fetch address details' : (formData.address ? cleanAddress(formData.address).split(',').slice(1).join(', ').trim() : '')}
+                        </Text>
+                      </>
                     )}
                   </View>
                 </View>
 
-                {/* Detailed Address */}
-                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Detailed Address</Text>
-                  <TextInput
-                    value={formData.address}
-                    onChangeText={(t) => setFormData({...formData, address: t})}
-                    placeholder="House no., street, landmark..."
-                    placeholderTextColor="#9ca3af"
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                    style={{ backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontWeight: '500', color: '#111827', minHeight: 90 }}
-                  />
-                </View>
-
-                {/* Delivery info */}
-                {formData.distanceText !== '' && (
-                  <View style={{ backgroundColor: outOfRange ? '#fef2f2' : '#f0fdf4', borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: outOfRange ? '#fecaca' : '#bbf7d0', flexDirection: 'row', alignItems: 'center' }}>
-                    <AlertCircle size={18} color={outOfRange ? '#dc2626' : '#16a34a'} style={{ marginRight: 10 }} />
+                {/* Validation Tooltip or Save Button (Smooth Sliding) */}
+                <Animated.View style={{
+                  overflow: 'hidden',
+                  opacity: bottomSlideAnim,
+                  maxHeight: bottomSlideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 250] }),
+                  marginTop: bottomSlideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }),
+                  transform: [{ translateY: bottomSlideAnim.interpolate({ inputRange: [0, 1], outputRange: [15, 0] }) }]
+                }}>
+                  {isZoomedOut ? (
                     <View>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: outOfRange ? '#b91c1c' : '#15803d' }}>
-                        Delivery Fee: {outOfRange ? 'Out of range' : formData.deliveryFee === 0 ? 'FREE 🎉' : formatPrice(formData.deliveryFee)}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: outOfRange ? '#ef4444' : '#16a34a', marginTop: 2 }}>
-                        {outOfRange ? `${formData.distanceText} — outside 10km range` : `Distance: ${formData.distanceText}`}
-                      </Text>
+                      {/* Tooltip Arrow */}
+                      <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 10, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fee2e2', marginLeft: 24 }} />
+                      {/* Tooltip Body */}
+                      <View style={{ backgroundColor: '#fee2e2', padding: 14, borderRadius: 12 }}>
+                        <Text style={{ color: '#e11d48', fontSize: 14, fontWeight: '700', lineHeight: 20 }}>
+                          Zoom in to place the pin at exact delivery location
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                )}
-
-                {/* Set as Default */}
-                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#f0f0f0', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Set as Default</Text>
-                    <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Auto-selected at checkout</Text>
-                  </View>
-                  <Switch
-                    value={formData.isDefault}
-                    onValueChange={(c) => setFormData({...formData, isDefault: c})}
-                    trackColor={{ false: '#e5e7eb', true: '#e11d48' }}
-                    thumbColor="#fff"
-                  />
-                </View>
-
-                {/* Save Button */}
-                <TouchableOpacity
-                  onPress={handleSave}
-                  disabled={isSaving || outOfRange || !formData.coordinates}
-                  style={{ height: 54, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: isSaving || outOfRange || !formData.coordinates ? '#d1d5db' : '#e11d48', shadowColor: '#e11d48', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isSaving || outOfRange || !formData.coordinates ? 0 : 0.35, shadowRadius: 10, elevation: isSaving || outOfRange || !formData.coordinates ? 0 : 6 }}
-                >
-                  {isSaving ? (
-                    <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{editingId ? '✓ Update Address' : '✓ Save Address'}</Text>
-                  )}
-                </TouchableOpacity>
+                    <View>
+                      {/* Label Chips */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                        {PRESET_LABELS.map(label => {
+                          const otherLabels = PRESET_LABELS.filter(l => l !== 'Other');
+                          const isSelected = formData.name === label || (label === 'Other' && !otherLabels.includes(formData.name) && formData.name !== '');
 
-              </ScrollView>
-        </KeyboardAvoidingView>
-      </Animated.View>
+                          let isUsed = false;
+                          if (!isSelected) {
+                            if (label === 'Other') {
+                              isUsed = addresses.some(a => !otherLabels.includes(a.name) && (a.id || a._id) !== editingId);
+                            } else {
+                              isUsed = addresses.some(a => a.name === label && (a.id || a._id) !== editingId);
+                            }
+                          }
+
+                          return (
+                            <TouchableOpacity
+                              key={label}
+                              disabled={isUsed}
+                              onPress={() => setFormData(prev => ({ ...prev, name: label === 'Other' ? 'Delivery Address' : label }))}
+                              style={{
+                                paddingHorizontal: 16,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor: isSelected ? '#e11d48' : (isUsed ? '#f3f4f6' : '#d1d5db'),
+                                backgroundColor: isSelected ? '#fff1f2' : (isUsed ? '#f9fafb' : '#ffffff'),
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                opacity: isUsed ? 0.5 : 1
+                              }}
+                            >
+                              <Text style={{
+                                color: isSelected ? '#e11d48' : (isUsed ? '#9ca3af' : '#4b5563'),
+                                fontWeight: isSelected ? '700' : '500',
+                                fontSize: 13
+                              }}>
+                                {label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: 4 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#4b5563' }}>Set as default address</Text>
+                        <Switch
+                          value={formData.isDefault}
+                          onValueChange={(val) => setFormData(prev => ({ ...prev, isDefault: val }))}
+                          trackColor={{ false: '#e5e7eb', true: '#fecdd3' }}
+                          thumbColor={formData.isDefault ? '#e11d48' : '#ffffff'}
+                          ios_backgroundColor="#e5e7eb"
+                        />
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => {
+                          handleSave();
+                        }}
+                        disabled={isSaving || outOfRange || !formData.coordinates || formData.address?.toLowerCase().includes('custom location')}
+                        style={{ height: 48, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: isSaving || outOfRange || !formData.coordinates || formData.address?.toLowerCase().includes('custom location') ? '#d1d5db' : '#e11d48' }}
+                      >
+                        {isSaving ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Confirm & proceed</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </Animated.View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Animated.View>
+
+        {/* --- FULL SCREEN SEARCH MODAL (SLIDING) --- */}
+        <Animated.View
+          pointerEvents={isSearchModalOpen ? 'auto' : 'none'}
+          style={{
+            position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+            transform: [{ translateX: searchSlideAnim }],
+            backgroundColor: '#fff',
+            zIndex: 200
+          }}
+        >
+          <View style={{ flex: 1, backgroundColor: '#fff' }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 10 : 10, paddingBottom: 10, gap: 10 }}>
+              <TouchableOpacity onPress={() => setIsSearchModalOpen(false)} style={{ width: 42, height: 42, backgroundColor: '#f9fafb', borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#f3f4f6' }}>
+                <ChevronLeft size={22} color="#111827" />
+              </TouchableOpacity>
+
+              <View style={{ flex: 1, backgroundColor: '#f9fafb', borderRadius: 21, borderWidth: 1, borderColor: '#f3f4f6' }}>
+                <View style={{ position: 'relative', justifyContent: 'center' }}>
+                  <View style={{ position: 'absolute', left: 14, zIndex: 1 }}><Search size={16} color="#9ca3af" /></View>
+                  <TextInput
+                    ref={searchInputRef}
+                    placeholder="Search area, landmark..."
+                    value={searchQuery}
+                    onChangeText={(t) => { setSearchQuery(t); if (t.length === 0) setShowSuggestions(false); }}
+                    placeholderTextColor="#9ca3af"
+                    style={{ paddingLeft: 40, paddingRight: 40, height: 42, backgroundColor: 'transparent', borderRadius: 21, fontSize: 14, fontWeight: '500', color: '#111827' }}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSearchQuery('');
+                        setShowSuggestions(false);
+                        searchInputRef.current?.focus();
+                      }}
+                      style={{ position: 'absolute', right: 10, zIndex: 1, padding: 4 }}
+                    >
+                      <X size={16} color="#9ca3af" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {/* Suggestions List */}
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {showSuggestions && suggestions.length > 0 ? (
+                suggestions.map((item: any, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      setIsSearchModalOpen(false);
+                      handleSuggestionSelect(item.place_id, item.description);
+                    }}
+                    style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', flexDirection: 'row', alignItems: 'flex-start' }}
+                  >
+                    <MapPin size={18} color="#e11d48" style={{ marginTop: 2, marginRight: 12, flexShrink: 0 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }} numberOfLines={1}>{item.main_text}</Text>
+                      <Text style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }} numberOfLines={1}>{item.secondary_text}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Search size={40} color="#e5e7eb" style={{ marginBottom: 16 }} />
+                  <Text style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>Type above to search for an area</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </Animated.View>
+
       </View>
     </View>
   );

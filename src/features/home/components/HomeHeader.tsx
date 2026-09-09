@@ -5,6 +5,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import Animated, { AnimatedStyle } from 'react-native-reanimated';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useNotificationStore } from '@/shared/store/notificationStore';
+import { cleanAddress } from '@/shared/utils/utils';
 import { AnimatedSearchText } from './AnimatedSearchText';
 
 import { FilterOption } from './FilterModal';
@@ -22,13 +23,17 @@ interface HomeHeaderProps {
   paddingTop: number;
 }
 
-const getDisplayAddress = (user: any) => {
+const getDisplayAddress = (user: any): { main: string; sub: string } => {
   if (!user || !user.savedAddresses || user.savedAddresses.length === 0) {
-    return "Select Location";
+    return { main: 'Select Location', sub: 'Tap to add address' };
   }
   const defaultAddr = user.savedAddresses.find((a: any) => a.isDefault) || user.savedAddresses[0];
-  const parts = defaultAddr.address.split(',');
-  return parts.slice(0, 2).join(',').trim();
+  const cleaned = cleanAddress(defaultAddr.address);
+  const parts = cleaned.split(',').map((p: string) => p.trim()).filter(Boolean);
+  return {
+    main: parts[0] || 'Select Location',
+    sub: parts.slice(1).join(', ').trim(),
+  };
 };
 
 const getUserInitial = (user: any) => {
@@ -81,10 +86,19 @@ export const HomeHeader = ({
             className="flex-row items-center max-w-full"
             onPress={() => user ? router.push('/addressModal') : router.push('/(auth)/login')}
           >
-            <Text className="text-lg font-bold text-gray-900 font-sans flex-shrink" numberOfLines={1} ellipsizeMode="tail">
-              {getDisplayAddress(user)}
-            </Text>
-            <ChevronDown size={18} color="#374151" className="ml-1 flex-shrink-0" />
+            <View className="flex-col">
+              <View className="flex-row items-center">
+                <Text className="text-xl font-black text-gray-900 font-sans flex-shrink" numberOfLines={1} ellipsizeMode="tail">
+                  {getDisplayAddress(user).main}
+                </Text>
+                <ChevronDown size={18} color="#374151" style={{ marginLeft: 4 }} />
+              </View>
+              {getDisplayAddress(user).sub ? (
+                <Text className="text-sm text-gray-500 font-sans" numberOfLines={1} ellipsizeMode="tail">
+                  {getDisplayAddress(user).sub}
+                </Text>
+              ) : null}
+            </View>
           </TouchableOpacity>
         </View>
         <View className="flex-row items-center gap-3">

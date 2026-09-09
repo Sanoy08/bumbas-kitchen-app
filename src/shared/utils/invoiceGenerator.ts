@@ -5,11 +5,32 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { Asset } from 'expo-asset';
+import { cleanAddress } from '@/shared/utils/utils';
 
 const formatRs = (amount: number) => `Rs. ${Number(amount).toFixed(2)}`;
 
 export const generateInvoice = async (order: any) => {
   try {
+    const signatureAsset = Asset.fromModule(require('../../../assets/images/signature.png'));
+    await signatureAsset.downloadAsync();
+    const signatureLocalUri = signatureAsset.localUri || signatureAsset.uri;
+    
+    // Read the image as base64 to ensure it renders correctly in the PDF WebView
+    const signatureBase64 = await FileSystem.readAsStringAsync(signatureLocalUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const signatureUri = `data:image/png;base64,${signatureBase64}`;
+
+    // Load LOGO.png
+    const logoAsset = Asset.fromModule(require('../../../assets/images/LOGO.png'));
+    await logoAsset.downloadAsync();
+    const logoLocalUri = logoAsset.localUri || logoAsset.uri;
+    const logoBase64 = await FileSystem.readAsStringAsync(logoLocalUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const logoUri = `data:image/png;base64,${logoBase64}`;
+
     const paymentMode = order.OrderType?.toLowerCase() === 'online' || order.OrderType?.toLowerCase() === 'prepaid'
       ? 'Paid Online'
       : 'Cash on Delivery';
@@ -25,16 +46,11 @@ export const generateInvoice = async (order: any) => {
       </tr>
     `).join('');
 
-    // Fill empty rows if items are less than 6
-    const emptyRowsNeeded = Math.max(0, 6 - order.Items.length);
+    // Fill empty rows if items are less than 3 to save space
+    const emptyRowsNeeded = Math.max(0, 3 - order.Items.length);
     const emptyRowsHtml = Array(emptyRowsNeeded).fill(`
       <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
     `).join('');
-
-    // Dynamic QR code using public API
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-      `https://www.bumbaskitchen.app/account/orders?id=${order.OrderNumber}`
-    )}`;
 
     const html = `
       <!DOCTYPE html>
@@ -42,14 +58,16 @@ export const generateInvoice = async (order: any) => {
       <head>
         <meta charset="utf-8">
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 0; }
-          .page { padding: 40px; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
+          .page { padding: 40px; display: flex; flex-direction: column; flex: 1; box-sizing: border-box; }
+          .bottom-content { margin-top: auto; }
           .top-bar { background-color: #C3CD49; color: #fff; padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; margin: -40px -40px 30px -40px; }
           .top-bar h1 { margin: 0; font-size: 16px; letter-spacing: 1px; }
           .original-box { border: 1px solid #fff; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; }
-          .header { display: flex; align-items: center; margin-bottom: 30px; }
+          .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
           .header-text h2 { color: #4A5D23; margin: 0 0 5px 0; font-size: 28px; }
           .header-text p { margin: 0; font-size: 14px; }
+          .header-logo img { max-height: 70px; object-fit: contain; }
           .details-bar { background-color: #EAEAEA; padding: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; border-top: 2px solid #4A5D23; border-bottom: 1px solid #ccc; }
           .details-col { display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
           .details-row { display: flex; }
@@ -68,17 +86,13 @@ export const generateInvoice = async (order: any) => {
           .terms { width: 45%; font-size: 11px; color: #555; }
           .terms h4 { color: #111; font-size: 13px; margin: 0 0 10px 0; text-transform: uppercase; }
           .terms p { margin: 0 0 5px 0; }
-          .qr-box { margin-top: 20px; }
-          .qr-box img { width: 80px; height: 80px; }
-          .qr-box p { font-size: 10px; color: #777; margin-top: 5px; }
           .totals { width: 45%; font-size: 14px; }
           .totals-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
           .grand-total { display: flex; justify-content: space-between; background-color: #4A5D23; color: #fff; padding: 15px; font-size: 16px; font-weight: bold; margin-top: 15px; border-radius: 4px; }
-          .footer { margin-top: 80px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid; }
+          .footer { margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid; }
           .footer-left h2 { font-family: 'Times New Roman', Times, serif; font-style: italic; margin: 0 0 15px 0; font-size: 26px; color: #000; }
           .footer-left p { margin: 0; font-size: 12px; font-weight: bold; color: #333; }
           .signature { text-align: right; }
-          .signature h3 { font-family: 'Times New Roman', Times, serif; font-style: italic; font-size: 32px; color: #333; margin: 0 0 20px 0; font-weight: normal; }
           .signature-text { font-size: 11px; font-weight: bold; color: #000; margin: 0 0 5px 0; }
           .signature-sub { font-size: 11px; color: #333; margin: 0; }
         </style>
@@ -94,6 +108,9 @@ export const generateInvoice = async (order: any) => {
             <div class="header-text">
               <h2>BUMBA'S KITCHEN</h2>
               <p>Mobile: +91 8240690254</p>
+            </div>
+            <div class="header-logo">
+              <img src="${logoUri}" alt="Bumba's Kitchen Logo" />
             </div>
           </div>
 
@@ -111,7 +128,7 @@ export const generateInvoice = async (order: any) => {
           <div class="bill-to">
             <h3>Bill to</h3>
             <div class="bill-to-row"><strong>Name</strong> : ${order.Name || 'Guest'}</div>
-            <div class="bill-to-row"><strong>Address</strong> : ${order.DeliveryAddress || order.Address || 'N/A'}</div>
+            <div class="bill-to-row"><strong>Address</strong> : ${cleanAddress(order.DeliveryAddress || order.Address || 'N/A')}</div>
           </div>
 
           <table>
@@ -130,46 +147,44 @@ export const generateInvoice = async (order: any) => {
             </tbody>
           </table>
 
-          <div class="summary-section">
-            <div class="terms">
-              <h4>Terms and Conditions</h4>
-              <p>1. Goods once sold will not be taken back or exchanged.</p>
-              <p>2. All disputes are subject to jurisdiction only.</p>
-              <div class="qr-box">
-                <img src="${qrUrl}" alt="QR Code" />
-                <p>Scan to view order</p>
+          <div class="bottom-content">
+            <div class="summary-section">
+              <div class="terms">
+                <h4>Terms and Conditions</h4>
+                <p>1. Goods once sold will not be taken back or exchanged.</p>
+                <p>2. All disputes are subject to jurisdiction only.</p>
+              </div>
+              <div class="totals">
+                <div class="totals-row">
+                  <span>Sub Total</span>
+                  <span>${formatRs(order.Subtotal || order.FinalPrice)}</span>
+                </div>
+                <div class="totals-row">
+                  <span>Discount</span>
+                  <span>- ${formatRs(order.Discount || 0)}</span>
+                </div>
+                <div class="totals-row">
+                  <span>Received Amount</span>
+                  <span>${formatRs(order.ReceivedAmount || 0)}</span>
+                </div>
+                <div class="grand-total">
+                  <span>Grand Total</span>
+                  <span>${formatRs(order.FinalPrice || 0)}</span>
+                </div>
               </div>
             </div>
-            <div class="totals">
-              <div class="totals-row">
-                <span>Sub Total</span>
-                <span>${formatRs(order.Subtotal || order.FinalPrice)}</span>
-              </div>
-              <div class="totals-row">
-                <span>Discount</span>
-                <span>- ${formatRs(order.Discount || 0)}</span>
-              </div>
-              <div class="totals-row">
-                <span>Received Amount</span>
-                <span>${formatRs(order.ReceivedAmount || 0)}</span>
-              </div>
-              <div class="grand-total">
-                <span>Grand Total</span>
-                <span>${formatRs(order.FinalPrice || 0)}</span>
-              </div>
-            </div>
-          </div>
 
-          <div class="footer">
-            <div class="footer-left">
-              <h2>Thank You & Order Again</h2>
-              <p>HEALTHY FOOD RESTAURANT</p>
-              <p style="margin-top: 15px;"><span style="background: #4A5D23; color: #fff; border-radius: 50%; padding: 2px 6px; font-family: serif; margin-right: 5px;">f</span> Bumba's Kitchen</p>
-            </div>
-            <div class="signature">
-              <h3>Bumba</h3>
-              <p class="signature-text">AUTHORISED SIGNATORY FOR</p>
-              <p class="signature-sub">Bumba's Kitchen</p>
+            <div class="footer">
+              <div class="footer-left">
+                <h2>Thank You & Order Again</h2>
+                <p>HEALTHY FOOD RESTAURANT</p>
+                <p style="margin-top: 15px;"><span style="background: #4A5D23; color: #fff; border-radius: 50%; padding: 2px 6px; font-family: serif; margin-right: 5px;">f</span> Bumba's Kitchen</p>
+              </div>
+              <div class="signature">
+                <img src="${signatureUri}" alt="Signature" style="height: 60px; margin-bottom: 10px;" />
+                <p class="signature-text">AUTHORISED SIGNATORY FOR</p>
+                <p class="signature-sub">Bumba's Kitchen</p>
+              </div>
             </div>
           </div>
         </div>

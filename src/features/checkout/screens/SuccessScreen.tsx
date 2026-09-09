@@ -322,7 +322,7 @@ export function SuccessScreen() {
                   {isScratched ? "Congratulations! 🎉" : "You got a surprise! 🎁"}
                 </Text>
                 <Text className="text-base font-bold text-gray-300 text-center">
-                  {isScratched ? "Your coins have been added to your wallet." : "Scratch the card below to reveal your reward"}
+                  {isScratched ? "Your coins will be added to your wallet after delivery." : "Scratch the card below to reveal your reward"}
                 </Text>
               </View>
 
@@ -336,13 +336,37 @@ export function SuccessScreen() {
                   scratchThreshold={400}
                   onScratchComplete={() => setIsScratched(true)}
                 >
-                  <View className="flex-1 bg-white items-center justify-center rounded-[32px] overflow-hidden p-6 border-4 border-yellow-400 shadow-xl">
-                    <View style={styles.coinsIconWrap} className="mb-4 w-24 h-24 rounded-full bg-rose-50 border-4 border-rose-100 shadow-md">
-                      <Sparkles size={48} color="#e11d48" />
+                  <View className="w-full h-full rounded-[32px] overflow-hidden border-2 shadow-2xl relative items-center justify-center p-6" style={{ backgroundColor: '#ffffff', borderColor: '#f1f5f9' }}>
+                    <LinearGradient
+                      colors={['#ffffff', '#f8fafc', '#f1f5f9']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                    
+                    {/* Soft glowing aura */}
+                    <View className="absolute w-40 h-40 rounded-full" style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', top: '10%' }} />
+                    
+                    <View className="mb-2 items-center justify-center">
+                      <LottieView
+                        source={require('../../../../assets/animations/Wallet animation.json')}
+                        autoPlay
+                        loop
+                        style={{ width: 140, height: 140 }}
+                      />
                     </View>
-                    <Text className="text-2xl font-bold text-gray-500 mb-2">You Won!</Text>
-                    <Text className="text-6xl font-black text-primary">+{coins}</Text>
-                    <Text className="text-lg font-bold text-gray-400 mt-2 uppercase tracking-widest">BK Coins</Text>
+                    
+                    <Text className="text-sm font-black mb-1 uppercase tracking-widest" style={{ color: '#64748b' }}>You Won! 🎉</Text>
+                    
+                    <View className="flex-row items-end justify-center mb-0">
+                      <Text className="text-4xl font-black mb-3 mr-1" style={{ color: '#d97706' }}>+</Text>
+                      <Text className="font-black" style={{ color: '#0f172a', fontSize: 72, textShadowColor: 'rgba(0, 0, 0, 0.05)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 8 }}>
+                        {coins}
+                      </Text>
+                    </View>
+                    
+                    <Text className="text-lg font-black uppercase" style={{ color: '#d97706', letterSpacing: 3 }}>BK Coins</Text>
+
                   </View>
                 </ScratchCard>
               </View>

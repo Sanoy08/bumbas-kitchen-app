@@ -2,13 +2,14 @@
   "expo": {
     "name": "Bumba's Kitchen",
     "slug": "bumbas-kitchen",
-    "version": "1.0.55",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-logo.png",
     "scheme": "bumbaskitchenapp",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/app-logo.png",
+      "buildNumber": "1",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
@@ -16,6 +17,7 @@
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
+      "versionCode": 1,
       "permissions": [
         "REQUEST_INSTALL_PACKAGES",
         "RECORD_AUDIO",
