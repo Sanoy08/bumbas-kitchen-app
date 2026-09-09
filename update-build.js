@@ -12,7 +12,7 @@ const rl = readline.createInterface({
 });
 
 const gradlePath = path.join(__dirname, 'android/app/build.gradle');
-const sourceApk = path.join(__dirname, 'android/app/build/outputs/apk/release/app-release.apk');
+const sourceAab = path.join(__dirname, 'android/app/build/outputs/bundle/release/app-release.aab');
 const appJsonPath = path.join(__dirname, 'app.json');
 const packageJsonPath = path.join(__dirname, 'package.json');
 
@@ -78,68 +78,29 @@ const runBuildProcess = async (commitMsg) => {
             console.log(`📦 Updated package.json version to ${newName}`);
         }
 
-        // ৩. ডাইনামিক ফাইল নেম তৈরি করা
-        const apkFileName = `bumbas-kitchen-v${newName}.apk`;
-        const destApk = path.join(backendRepoPath, `public/${apkFileName}`); 
-        const publicDir = path.join(backendRepoPath, 'public');
-
-        if (!fs.existsSync(publicDir)) {
-            fs.mkdirSync(publicDir, { recursive: true });
-        }
-
-        // ৪. পুরনো সব APK ফাইল public ফোল্ডার থেকে ডিলিট করে দেওয়া
-        console.log("🗑️  Removing old APKs from backend public folder...");
-        fs.readdirSync(publicDir).forEach(file => {
-            if (file.startsWith('bumbas-kitchen') && file.endsWith('.apk')) {
-                fs.unlinkSync(path.join(publicDir, file));
-            }
-        });
-
-        // ৪.৫ Backend-এর Next.js Web Page-এ URL আপডেট করা
-        const webPagePath = path.join(backendRepoPath, 'src/app/web/page.tsx');
-        if (fs.existsSync(webPagePath)) {
-            let webPageContent = fs.readFileSync(webPagePath, 'utf8');
-            // Find href="/bumbas-kitchen...apk" and replace it
-            webPageContent = webPageContent.replace(/href="\/bumbas-kitchen[^"]*\.apk"/, `href="/${apkFileName}"`);
-            fs.writeFileSync(webPagePath, webPageContent);
-            console.log(`🔗 Updated download link in site/src/app/web/page.tsx to /${apkFileName}`);
-        }
-
-        // ৫. MongoDB তে ভার্সন এবং নতুন URL আপডেট করা
-        console.log("\n💾 Updating version & URL in MongoDB...");
-        await updateVersionInDB(newName, `/${apkFileName}`);
-
-        // ৬. APK বিল্ড করা 
-        console.log("\n🔨 Building APK natively (Please wait...)...");
+        // ৩. AAB বিল্ড করা (Play Store এর জন্য)
+        console.log("\n🔨 Building AAB natively (Please wait...)...");
         const isWindows = process.platform === "win32";
-        const buildCmd = isWindows ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease';
+        const buildCmd = isWindows ? 'cd android && gradlew.bat bundleRelease' : 'cd android && ./gradlew bundleRelease';
         execSync(buildCmd, { stdio: 'inherit' });
 
-        // ৭. APK ফাইল Backend এ মুভ করা
-        if (fs.existsSync(sourceApk)) {
-            fs.copyFileSync(sourceApk, destApk);
-            console.log(`✅ New APK copied to: ${destApk}`);
+        // ৪. AAB ফাইলটা রুট ডিরেক্টরিতে মুভ করা (যাতে সহজে পাওয়া যায়)
+        const aabFileName = `bumbas-kitchen-v${newName}.aab`;
+        const destAab = path.join(__dirname, aabFileName);
+        if (fs.existsSync(sourceAab)) {
+            fs.copyFileSync(sourceAab, destAab);
+            console.log(`✅ New signed AAB generated successfully at: ${destAab}`);
         } else {
-            throw new Error("APK generation failed!");
+            throw new Error("AAB generation failed!");
         }
 
-        // ৮. App প্রজেক্ট গিটহাবে পুশ করা
+        // ৫. App প্রজেক্ট গিটহাবে পুশ করা
         console.log("\n☁️  Pushing App to GitHub...");
         execSync('git add .', { stdio: 'inherit' });
         execSync(`git commit -m "${commitMsg} (v${newName})"`, { stdio: 'inherit' });
         execSync('git push', { stdio: 'inherit' });
 
-        // ৯. Backend (site) প্রজেক্ট গিটহাবে পুশ করা
-        console.log("\n🚀 Pushing Backend (site) to GitHub to deploy new APK...");
-        const cdCommand = isWindows ? `cd /d "${backendRepoPath}"` : `cd "${backendRepoPath}"`;
-        
-        execSync(`${cdCommand} && git add public/${apkFileName}`, { stdio: 'inherit' });
-        execSync(`${cdCommand} && git add -u public/`, { stdio: 'inherit' }); 
-        execSync(`${cdCommand} && git add src/app/web/page.tsx`, { stdio: 'inherit' }); // Add the modified page.tsx
-        execSync(`${cdCommand} && git commit -m "Auto-update APK to v${newName}"`, { stdio: 'inherit' });
-        execSync(`${cdCommand} && git push`, { stdio: 'inherit' });
-
-        console.log("\n🎉 SUCCESS! App Updated, DB Synced, and New APK pushed to Backend Vercel/Hostinger!");
+        console.log("\n🎉 SUCCESS! Version Updated, Signed AAB Generated, and Code Pushed to GitHub!");
         process.exit(0);
 
     } catch (error) {
@@ -148,7 +109,7 @@ const runBuildProcess = async (commitMsg) => {
     }
 };
 
-async function updateVersionInDB(newVersion, newApkUrl) {
+async function updateVersionInDB(newVersion) {
     let client;
     try {
         const uri = process.env.MONGODB_URI;
@@ -162,10 +123,10 @@ async function updateVersionInDB(newVersion, newApkUrl) {
 
         await settingsCollection.updateOne(
             { type: "general" }, 
-            { $set: { androidVersion: newVersion, apkUrl: newApkUrl } }
+            { $set: { androidVersion: newVersion } }
         );
 
-        console.log(`✅ MongoDB Updated: androidVersion = ${newVersion}, apkUrl = ${newApkUrl}`);
+        console.log(`✅ MongoDB Updated: androidVersion = ${newVersion}`);
 
     } catch (error) {
         console.error("❌ DB Update Failed:", error.message);

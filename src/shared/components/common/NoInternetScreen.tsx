@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { RefreshCw } from 'lucide-react-native';
 import { useState } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface NoInternetScreenProps {
@@ -26,9 +26,9 @@ export const NoInternetScreen = ({ onRetry }: NoInternetScreenProps) => {
 
   return (
     <View className="flex-1 bg-rose-50">
-      <View style={{ width: '100%', aspectRatio: 3/6 }}>
-        <Image 
-          source={require('../../../../assets/images/offline.avif')}
+      <View style={{ width: '100%', aspectRatio: 3 / 6 }}>
+        <Image
+          source={require('../../../../assets/images/offline.webp')}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
         />
@@ -43,15 +43,15 @@ export const NoInternetScreen = ({ onRetry }: NoInternetScreenProps) => {
           right: 0,
           alignItems: 'center',
         }}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleRetry}
             disabled={isChecking}
             activeOpacity={0.7}
-            style={{ 
+            style={{
               backgroundColor: '#e11d48', // Primary color
-              width: '56.92%', 
-              aspectRatio: 222 / 64, 
-            }} 
+              width: '56.92%',
+              aspectRatio: 222 / 64,
+            }}
             className={`rounded-2xl flex-row items-center justify-center ${isChecking ? 'opacity-80' : ''}`}
           >
             {isChecking ? (

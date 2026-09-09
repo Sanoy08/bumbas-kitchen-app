@@ -1,29 +1,28 @@
 // src/app/(auth)/login.tsx
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAlert } from '@/shared/components/ui/CustomAlert';
 import { useAuthStore } from '@/shared/store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { isAvailableAsync, showPhoneNumberHintAsync } from 'expo-phone-number-hint';
-import { Link, useRouter, useFocusEffect } from 'expo-router';
-import { AlertOctagon, ArrowLeft, Clock, RefreshCw, ShieldAlert } from 'lucide-react-native';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { Link, useFocusEffect, useRouter } from 'expo-router';
+import { ArrowLeft, RefreshCw, ShieldAlert } from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Keyboard,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    DeviceEventEmitter,
-    View
+  ActivityIndicator,
+  Animated,
+  DeviceEventEmitter,
+  Dimensions,
+  Keyboard,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Image } from 'expo-image';
-import { useAlert } from '@/shared/components/ui/CustomAlert';
 import RNOtpVerify from 'react-native-otp-verify';
 import { toast } from 'sonner-native';
 import * as z from 'zod';
@@ -54,9 +53,9 @@ export default function LoginScreen() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [limitData, setLimitData] = useState({ ipLeft: 5, phoneLeft: 3, isBlocked: false, resetTime: '', reason: '' });
-  
+
   const getDefaultBottom = (currentStep: 'phone' | 'otp') => {
-    return currentStep === 'phone' ? 20 : 52; 
+    return currentStep === 'phone' ? 20 : 52;
   };
 
   const animatedBottom = useRef(new Animated.Value(getDefaultBottom(step))).current;
@@ -107,8 +106,8 @@ export default function LoginScreen() {
         setTimeout(initHint, 500); // Small delay after fade out
       });
 
-      return () => { 
-        isMounted = false; 
+      return () => {
+        isMounted = false;
         sub.remove();
       };
     }, [step, setValue])
@@ -184,12 +183,12 @@ export default function LoginScreen() {
             RNOtpVerify.addListener((message: string) => {
               try {
                 if (message) {
-                  const match = message.match(/(\d{6})/); 
+                  const match = message.match(/(\d{6})/);
                   if (match && match[0]) {
                     const otpCode = match[0];
-                    setOtp(otpCode.split('')); 
+                    setOtp(otpCode.split(''));
                     Keyboard.dismiss();
-                    verifyOtpLogic(otpCode); 
+                    verifyOtpLogic(otpCode);
                     RNOtpVerify.removeListener();
                   }
                 }
@@ -226,7 +225,7 @@ export default function LoginScreen() {
       const data = await res.json();
       if (data.success) {
         await login(data.user, data.token);
-        toast.success("Welcome back! 🎉"); 
+        toast.success("Welcome back! 🎉");
         router.replace('/(shop)');
       } else {
         toast.error(data.error || 'Invalid OTP');
@@ -308,7 +307,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={require('../../../../assets/images/login.avif')} style={styles.heroImage} contentFit="cover" />
+        <Image source={require('../../../../assets/images/login.webp')} style={styles.heroImage} contentFit="cover" />
         <View style={styles.overlay} />
       </View>
 
@@ -341,12 +340,12 @@ export default function LoginScreen() {
                         </View>
                         <TextInput
                           className="flex-1 px-4 text-base text-gray-900 h-full font-medium tracking-widest"
-                          keyboardType="phone-pad" 
+                          keyboardType="phone-pad"
                           maxLength={10}
                           placeholder="Enter Phone Number"
                           placeholderTextColor="#9ca3af"
-                          autoComplete="tel" 
-                          textContentType="telephoneNumber" 
+                          autoComplete="tel"
+                          textContentType="telephoneNumber"
                           importantForAutofill="yes"
                           onBlur={onBlur}
                           onChangeText={(text) => onChange(text.replace(/\D/g, ''))}
@@ -412,7 +411,7 @@ export default function LoginScreen() {
                     keyboardType="numeric"
                     maxLength={1}
                     value={digit}
-                    textContentType="oneTimeCode" 
+                    textContentType="oneTimeCode"
                     onChangeText={(val) => handleOtpChange(index, val)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
                     editable={!isLoading}

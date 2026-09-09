@@ -1,29 +1,28 @@
 // src/app/(auth)/register.tsx
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAlert } from '@/shared/components/ui/CustomAlert';
 import { useAuthStore } from '@/shared/store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { isAvailableAsync, showPhoneNumberHintAsync } from 'expo-phone-number-hint';
-import { Link, useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { AlertOctagon, ArrowLeft, ArrowRight, Clock, RefreshCw, ShieldAlert, User } from 'lucide-react-native';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { Link, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, ArrowRight, RefreshCw, ShieldAlert, User } from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Keyboard,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    DeviceEventEmitter,
-    View,
+  ActivityIndicator,
+  Animated,
+  DeviceEventEmitter,
+  Dimensions,
+  Keyboard,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Image } from 'expo-image';
-import { useAlert } from '@/shared/components/ui/CustomAlert';
 import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
 import { toast } from 'sonner-native';
 import * as z from 'zod';
@@ -113,8 +112,8 @@ export default function RegisterScreen() {
         setTimeout(initHint, 500); // Small delay after fade out
       });
 
-      return () => { 
-        isMounted = false; 
+      return () => {
+        isMounted = false;
         sub.remove();
       };
     }, [step, setValue])
@@ -201,7 +200,7 @@ export default function RegisterScreen() {
                   const match = message.match(/(\d{6})/); // ৬ ডিজিটের OTP খুঁজবে
                   if (match && match[0]) {
                     const otpCode = match[0];
-                    setOtp(otpCode.split('')); 
+                    setOtp(otpCode.split(''));
                     Keyboard.dismiss();
                     verifyRegisterLogic(otpCode); // অটোমেটিক ভেরিফাই
                     RNOtpVerify.removeListener();
@@ -313,7 +312,7 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={require('../../../../assets/images/login.avif')} style={styles.heroImage} contentFit="cover" />
+        <Image source={require('../../../../assets/images/login.webp')} style={styles.heroImage} contentFit="cover" />
         <View style={styles.overlay} />
       </View>
 
