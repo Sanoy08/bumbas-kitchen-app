@@ -634,7 +634,7 @@ export function FinalScreen() {
     message: string;
   }>({ show: false, title: '', message: '' });
 
-  const [earnRate, setEarnRate] = useState(2);
+  const [baseTotalSpent, setBaseTotalSpent] = useState(0);
 
   const totalPrice = getTotalPrice();
   const itemCount = getItemCount();
@@ -642,6 +642,12 @@ export function FinalScreen() {
   const currentDeliveryFee = selectedAddress?.deliveryFee || 0;
   const coinDiscountAmount = useCoins ? savedCoinDiscount || 0 : 0;
   const finalTotal = Math.max(0, totalPrice + currentDeliveryFee - couponDiscount - coinDiscountAmount);
+
+  // Dynamically calculate earnRate including current order amount (Matches backend logic)
+  const currentTotalSpent = baseTotalSpent + finalTotal;
+  let earnRate = 2;
+  if (currentTotalSpent >= 15000) earnRate = 6;
+  else if (currentTotalSpent >= 5000) earnRate = 4;
 
   // Fetch addresses and wallet
   useEffect(() => {
@@ -660,10 +666,7 @@ export function FinalScreen() {
         const resWallet = await fetch(`${API_URL}/wallet`);
         const dataWallet = await resWallet.json();
         if (dataWallet.success && dataWallet.wallet) {
-          const totalSpent = dataWallet.wallet.totalSpent || 0;
-          if (totalSpent >= 15000) setEarnRate(6);
-          else if (totalSpent >= 5000) setEarnRate(4);
-          else setEarnRate(2);
+          setBaseTotalSpent(dataWallet.wallet.totalSpent || 0);
         }
       } catch (error) {
         console.log('Fetch error', error);

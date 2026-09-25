@@ -5,30 +5,14 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
-import { Asset } from 'expo-asset';
+import { logoBase64, signatureBase64 } from './invoiceAssets';
 import { cleanAddress } from '@/shared/utils/utils';
 
 const formatRs = (amount: number) => `Rs. ${Number(amount).toFixed(2)}`;
 
 export const generateInvoice = async (order: any) => {
   try {
-    const signatureAsset = Asset.fromModule(require('../../../assets/images/signature.png'));
-    await signatureAsset.downloadAsync();
-    const signatureLocalUri = signatureAsset.localUri || signatureAsset.uri;
-    
-    // Read the image as base64 to ensure it renders correctly in the PDF WebView
-    const signatureBase64 = await FileSystem.readAsStringAsync(signatureLocalUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
     const signatureUri = `data:image/png;base64,${signatureBase64}`;
-
-    // Load LOGO.png
-    const logoAsset = Asset.fromModule(require('../../../assets/images/LOGO.png'));
-    await logoAsset.downloadAsync();
-    const logoLocalUri = logoAsset.localUri || logoAsset.uri;
-    const logoBase64 = await FileSystem.readAsStringAsync(logoLocalUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
     const logoUri = `data:image/png;base64,${logoBase64}`;
 
     const paymentMode = order.OrderType?.toLowerCase() === 'online' || order.OrderType?.toLowerCase() === 'prepaid'

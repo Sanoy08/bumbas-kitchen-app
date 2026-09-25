@@ -16,6 +16,7 @@ if (Platform.OS === 'android') {
 
 import * as Crypto from 'expo-crypto';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAlert } from '@/shared/components/ui';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -161,6 +162,31 @@ export function AddressScreen() {
   const [modalScrollEnabled, setModalScrollEnabled] = useState(true);
   const [hasLocationError, setHasLocationError] = useState(false);
 
+  const locationCache = useRef<Record<string, { addressStr: string, distanceText: string, distanceValue: number, timestamp: number }>>({});
+  
+  useEffect(() => {
+    const loadCache = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('bumbas_location_cache');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const now = Date.now();
+          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+          const validCache: Record<string, { addressStr: string, distanceText: string, distanceValue: number, timestamp: number }> = {};
+          
+          Object.keys(parsed).forEach(key => {
+            if (now - parsed[key].timestamp < thirtyDays) {
+              validCache[key] = parsed[key];
+            }
+          });
+          
+          locationCache.current = validCache;
+          AsyncStorage.setItem('bumbas_location_cache', JSON.stringify(validCache));
+        }
+      } catch (e) { console.log('Cache load error:', e); }
+    };
+    loadCache();
+  }, []);
   // Shimmer and sliding animation
   const showBottomSection = !isPanning && !isReverseGeocoding;
   const bottomSlideAnim = useRef(new Animated.Value(1)).current;
@@ -281,7 +307,7 @@ export function AddressScreen() {
 
   useEffect(() => {
     const fetchLocations = async () => {
-      if (!debouncedSearch || debouncedSearch.length < 3) {
+      if (!debouncedSearch || debouncedSearch.length < 4) {
         setSuggestions([]);
         return;
       }
@@ -336,6 +362,30 @@ export function AddressScreen() {
     try {
       setOutOfRange(false);
       setHasLocationError(false);
+
+      const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+
+      if (locationCache.current[cacheKey] && !addressStr) {
+        const cached = locationCache.current[cacheKey];
+        
+        // Recalculate fee dynamically
+        const distKm = cached.distanceValue / 1000;
+        let fee = 0;
+        if (distKm > 2) {
+          const extraKm = Math.ceil(distKm - 2);
+          fee = 50 + (extraKm * 10);
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          coordinates: { lat, lng },
+          address: cached.addressStr,
+          distanceText: cached.distanceText,
+          deliveryFee: fee
+        }));
+        return;
+      }
+
       setIsReverseGeocoding(true);
 
       if (!addressStr) {
@@ -353,11 +403,7 @@ export function AddressScreen() {
         const distKm = data.distanceValue / 1000;
         let fee = 0;
 
-        if (distKm > 10) {
-          setOutOfRange(true);
-          setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: 0 }));
-          return;
-        }
+        // Remove 10km limit: delivery is allowed everywhere.
 
         if (distKm > 2) {
           const extraKm = Math.ceil(distKm - 2);
@@ -365,6 +411,11 @@ export function AddressScreen() {
         }
 
         setFormData(prev => ({ ...prev, coordinates: { lat, lng }, address: addressStr as string, distanceText: data.distanceText, deliveryFee: fee }));
+        
+        locationCache.current[cacheKey] = {
+          addressStr: addressStr as string, distanceText: data.distanceText, distanceValue: data.distanceValue, timestamp: Date.now()
+        };
+        AsyncStorage.setItem('bumbas_location_cache', JSON.stringify(locationCache.current));
       }
     } catch (e) {
       console.log("Error calculating distance:", e);
@@ -411,14 +462,7 @@ export function AddressScreen() {
       toast.error("Label is required");
       return;
     }
-    if (outOfRange) {
-      showAlert({
-        title: "Out of Delivery Area",
-        message: "Sorry, we currently do not deliver to this location as it is outside our 50km radius.",
-        confirmText: "Understood"
-      });
-      return;
-    }
+
 
     setIsSaving(true);
     try {
@@ -537,7 +581,7 @@ export function AddressScreen() {
         console.log('Region change error:', e);
         setIsReverseGeocoding(false);
       }
-    }, 600);
+    }, 1000);
   };
 
   // Tap on a spot to jump camera there (onRegionDidChange will then update address)

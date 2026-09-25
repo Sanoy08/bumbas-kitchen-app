@@ -3,8 +3,6 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const path = require('path');
 const readline = require('readline');
-require('dotenv').config(); 
-const { MongoClient } = require('mongodb');
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -12,7 +10,7 @@ const rl = readline.createInterface({
 });
 
 const gradlePath = path.join(__dirname, 'android/app/build.gradle');
-const sourceAab = path.join(__dirname, 'android/app/build/outputs/bundle/release/app-release.aab');
+
 const appJsonPath = path.join(__dirname, 'app.json');
 const packageJsonPath = path.join(__dirname, 'package.json');
 
@@ -84,15 +82,7 @@ const runBuildProcess = async (commitMsg) => {
         const buildCmd = isWindows ? 'cd android && gradlew.bat bundleRelease' : 'cd android && ./gradlew bundleRelease';
         execSync(buildCmd, { stdio: 'inherit' });
 
-        // ৪. AAB ফাইলটা রুট ডিরেক্টরিতে মুভ করা (যাতে সহজে পাওয়া যায়)
-        const aabFileName = `bumbas-kitchen-v${newName}.aab`;
-        const destAab = path.join(__dirname, aabFileName);
-        if (fs.existsSync(sourceAab)) {
-            fs.copyFileSync(sourceAab, destAab);
-            console.log(`✅ New signed AAB generated successfully at: ${destAab}`);
-        } else {
-            throw new Error("AAB generation failed!");
-        }
+
 
         // ৫. App প্রজেক্ট গিটহাবে পুশ করা
         console.log("\n☁️  Pushing App to GitHub...");
@@ -109,30 +99,5 @@ const runBuildProcess = async (commitMsg) => {
     }
 };
 
-async function updateVersionInDB(newVersion) {
-    let client;
-    try {
-        const uri = process.env.MONGODB_URI;
-        if (!uri) throw new Error("MONGODB_URI is missing in .env");
-
-        client = new MongoClient(uri);
-        await client.connect();
-        
-        const db = client.db('BumbasKitchenDB'); 
-        const settingsCollection = db.collection('settings');
-
-        await settingsCollection.updateOne(
-            { type: "general" }, 
-            { $set: { androidVersion: newVersion } }
-        );
-
-        console.log(`✅ MongoDB Updated: androidVersion = ${newVersion}`);
-
-    } catch (error) {
-        console.error("❌ DB Update Failed:", error.message);
-    } finally {
-        if (client) await client.close();
-    }
-}
 
 startProcess();

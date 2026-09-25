@@ -628,7 +628,7 @@ export function HomeScreen() {
     return result;
   }, [categoryFiltered, activeFilter, homeData.bestsellers]);
 
-  const dailySpecial = useMemo(() => homeData.allProducts?.find((p: any) => p.isDailySpecial), [homeData.allProducts]);
+  const dailySpecials = useMemo(() => homeData.allProducts?.filter((p: any) => p.isDailySpecial && p.stock > 0), [homeData.allProducts]);
 
   // =========================================================================
   // Date Popup Handlers
@@ -754,7 +754,7 @@ export function HomeScreen() {
           <OffersSection offers={homeData.offers} />
           <FeaturesSection />
           <MiddleSlider slides={homeData.sliderImages} />
-          <DailySpecialSection product={dailySpecial} />
+          <DailySpecialSection products={dailySpecials} />
         </>
       )}
       <View
@@ -774,7 +774,7 @@ export function HomeScreen() {
         </View>
       </View>
     </View>
-  ), [isGridViewMode, homeData, visualCategory, visualFilter, dailySpecial, handleCategorySelect]);
+  ), [isGridViewMode, homeData, visualCategory, visualFilter, dailySpecials, handleCategorySelect]);
 
   const renderListEmpty = useCallback(() => {
     if (isSwitchingCategory) return null;

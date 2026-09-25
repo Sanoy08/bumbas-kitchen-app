@@ -278,6 +278,25 @@ export default function RegisterScreen() {
     }
     setIsLoading(true);
     try {
+      // Check if user already exists
+      const checkRes = await fetch(`${API_URL}/auth/phone/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: data.phone, checkOnly: true }),
+      });
+      const checkData = await checkRes.json();
+      
+      if (checkData.success && checkData.exists) {
+        setIsLoading(false);
+        showAlert({
+          title: 'Account Exists',
+          message: 'An account with this phone number already exists. Redirecting you to login.',
+          confirmText: 'Go to Login',
+          onConfirm: () => router.replace({ pathname: '/(auth)/login', params: { phone: data.phone } }),
+        });
+        return;
+      }
+
       const res = await fetch(`${API_URL}/auth/phone/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
