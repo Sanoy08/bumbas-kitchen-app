@@ -511,7 +511,7 @@ export function FinalScreen() {
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const [mealTime, setMealTime] = useState<'lunch' | 'dinner'>('lunch');
   const [instructions, setInstructions] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(true);
 
   const specialOfferItem = items.find((item) => item.isSpecialOffer);
 
@@ -636,12 +636,13 @@ export function FinalScreen() {
 
   const [baseTotalSpent, setBaseTotalSpent] = useState(0);
 
-  const totalPrice = getTotalPrice();
+  const totalPrice = Math.floor(getTotalPrice());
   const itemCount = getItemCount();
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
-  const currentDeliveryFee = selectedAddress?.deliveryFee || 0;
-  const coinDiscountAmount = useCoins ? savedCoinDiscount || 0 : 0;
-  const finalTotal = Math.max(0, totalPrice + currentDeliveryFee - couponDiscount - coinDiscountAmount);
+  const currentDeliveryFee = Math.floor(selectedAddress?.deliveryFee || 0);
+  const couponDiscountAmount = Math.floor(couponDiscount);
+  const coinDiscountAmount = useCoins ? Math.floor(savedCoinDiscount || 0) : 0;
+  const finalTotal = Math.max(0, Math.floor(totalPrice + currentDeliveryFee - couponDiscountAmount - coinDiscountAmount));
 
   // Dynamically calculate earnRate including current order amount (Matches backend logic)
   const currentTotalSpent = baseTotalSpent + finalTotal;
@@ -879,6 +880,46 @@ export function FinalScreen() {
         contentContainerStyle={{ paddingBottom: 120 }}
       >
 
+        {/* Order Summary (Simple) */}
+        <View className="mb-6">
+          <Text className="text-lg font-bold text-gray-900 mb-3 px-1">Order Summary</Text>
+          <View className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 space-y-3">
+            <View className="flex-row justify-between items-center">
+              <Text className="text-gray-500 font-medium">Item Total</Text>
+              <Text className="text-gray-900 font-medium">{formatPrice(totalPrice)}</Text>
+            </View>
+            
+            {couponDiscountAmount > 0 && (
+              <View className="flex-row justify-between items-center">
+                <Text className="text-primary font-medium">Coupon Discount</Text>
+                <Text className="text-primary font-bold">-{formatPrice(couponDiscountAmount)}</Text>
+              </View>
+            )}
+
+            {coinDiscountAmount > 0 && (
+              <View className="flex-row justify-between items-center">
+                <Text className="text-primary font-medium">Coin Discount</Text>
+                <Text className="text-primary font-bold">-{formatPrice(coinDiscountAmount)}</Text>
+              </View>
+            )}
+
+            <View className="flex-row justify-between items-center">
+              <Text className="text-gray-500 font-medium">Delivery Fee</Text>
+              {currentDeliveryFee > 0 ? (
+                <Text className="text-gray-900 font-medium">+{formatPrice(currentDeliveryFee)}</Text>
+              ) : (
+                <Text className="text-green-600 font-bold">FREE</Text>
+              )}
+            </View>
+            
+            <View className="h-[1px] bg-gray-100 my-1" />
+            
+            <View className="flex-row justify-between items-center">
+              <Text className="text-gray-900 font-bold text-base whitespace-nowrap">Total</Text>
+              <Text className="text-gray-900 font-extrabold text-lg">{formatPrice(finalTotal)}</Text>
+            </View>
+          </View>
+        </View>
 
         {/* Delivery Address Selection (Minimalist UI) */}
         <View className="mb-6">

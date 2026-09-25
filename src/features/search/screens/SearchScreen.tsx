@@ -229,13 +229,10 @@ export function SearchScreen() {
 
           <TextInput
             ref={inputRef}
-            className="flex-1 ml-2.5 text-base text-gray-900 font-sans"
+            className="flex-1 ml-2.5 text-base text-gray-900 font-sans h-full"
             style={{
-              paddingVertical: 0,
-              marginVertical: 0,
               includeFontPadding: false,
               textAlignVertical: 'center',
-              lineHeight: 20,
             }}
             placeholder="Search for biryani, fish, veg..."
             placeholderTextColor="#9ca3af"

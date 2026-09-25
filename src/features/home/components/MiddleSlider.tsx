@@ -44,11 +44,11 @@ export const MiddleSlider = memo(({ slides }: MiddleSliderProps) => {
 
   if (!slides || slides.length === 0) return null;
 
-  const cardWidth = windowWidth - 32; // 16px margin on each side
+  const cardWidth = windowWidth;
   const cardHeight = cardWidth / 3; // 3:1 aspect ratio
 
   return (
-    <View className="bg-white pt-4 pb-6 relative">
+    <View className="bg-white pt-2 pb-6 relative">
       <Carousel
         loop
         width={windowWidth}
@@ -63,10 +63,10 @@ export const MiddleSlider = memo(({ slides }: MiddleSliderProps) => {
         renderItem={({ item }) => (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View 
-              style={{ width: cardWidth, height: cardHeight, backgroundColor: '#f9fafb', borderRadius: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+              style={{ width: cardWidth, height: cardHeight, backgroundColor: '#f9fafb' }}
             >
               <Link href={item.clickUrl || '/menus'} asChild>
-                <TouchableOpacity activeOpacity={0.95} style={{ width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden' }}>
+                <TouchableOpacity activeOpacity={0.95} style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                   <Image
                     source={{ uri: optimizeImageUrl(item.imageUrl) }}
                     style={{ width: '100%', height: '100%' }}

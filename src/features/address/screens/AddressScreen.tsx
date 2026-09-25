@@ -449,7 +449,8 @@ export function AddressScreen() {
       });
     } else {
       setEditingId(null);
-      setFormData({ name: '', address: '', isDefault: addresses.length === 0, coordinates: null, distanceText: '', deliveryFee: 0 });
+      const defaultName = PRESET_LABELS[addresses.length] || "Other";
+      setFormData({ name: defaultName, address: '', isDefault: addresses.length === 0, coordinates: null, distanceText: '', deliveryFee: 0 });
     }
     setSearchQuery("");
     setOutOfRange(false);

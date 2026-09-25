@@ -486,9 +486,7 @@ export function ProductDetailsScreen() {
       : [{ id: 'fallback', isPlaceholder: true }];
 
   const isOutOfStock = product.stock <= 0 || product.stock === 0;
-  const isNonVeg = ['Chicken', 'Mutton', 'Egg', 'Fish'].includes(
-    product.category?.name || product.category || ''
-  );
+  const isNonVeg = product.type === 'non-veg';
 
   // Description
   const rawDescription = (

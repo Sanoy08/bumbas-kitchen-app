@@ -291,7 +291,7 @@ export function SummaryScreen() {
   }));
   // ★ Calculate total directly to ensure 100% reactivity
   const totalPrice = useMemo(() => {
-    return items.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0);
+    return Math.floor(items.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0));
   }, [items]);
 
   const itemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
@@ -403,16 +403,17 @@ export function SummaryScreen() {
 
 
 
-  const maxCoinDiscount = totalPrice * 0.5;
-  const coinDiscountAmount = useCoins ? Math.min(walletBalance, Math.floor(maxCoinDiscount)) : 0;
-  const finalTotal = Math.max(0, totalPrice - couponDiscount - coinDiscountAmount);
+  const maxCoinDiscount = Math.floor(totalPrice * 0.5);
+  const coinDiscountAmount = useCoins ? Math.floor(Math.min(walletBalance, maxCoinDiscount)) : 0;
+  const couponDiscountAmount = Math.floor(couponDiscount);
+  const finalTotal = Math.max(0, totalPrice - couponDiscountAmount - coinDiscountAmount);
 
   // 3. Checkout Data (Next.js er moto coinDiscount pathano holo)
   const handleProceed = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCheckoutData({
-      couponCode: couponDiscount > 0 ? couponCode : '',
-      couponDiscount,
+      couponCode: couponDiscountAmount > 0 ? couponCode : '',
+      couponDiscount: couponDiscountAmount,
       useCoins,
       coinDiscount: coinDiscountAmount // ★ Added missing property
     });
@@ -675,28 +676,21 @@ export function SummaryScreen() {
               <Text className="text-gray-600 text-sm">Item Total</Text>
               <Text className="font-medium text-gray-900">{formatPrice(totalPrice)}</Text>
             </View>
-            <View className="flex-row justify-between items-center">
-              <Text className="text-gray-600 text-sm">Delivery Fee</Text>
-              <View className="flex-row items-center gap-1 bg-orange-50 px-2 py-2 rounded-md">
-                <Text className="text-orange-600 font-bold text-xs">Next Step</Text>
-                <MapPin size={12} color="#ea580c" />
-              </View>
-            </View>
 
-            {(couponDiscount > 0 || (useCoins && coinDiscountAmount > 0)) && (
+            {(couponDiscountAmount > 0 || coinDiscountAmount > 0) && (
               <View className="bg-green-50 rounded-xl p-4 space-y-3 border border-green-100 mt-2">
-                {couponDiscount > 0 && (
+                {couponDiscountAmount > 0 && (
                   <View className="flex-row justify-between items-center">
                     <View className="flex-row items-center gap-1.5">
                       <Ticket size={16} color="#16a34a" />
                       <Text className="text-green-700 text-sm font-medium">Coupon Savings</Text>
                     </View>
                     <Text className="text-green-700 text-sm font-medium">
-                      - {formatPrice(couponDiscount)}
+                      - {formatPrice(couponDiscountAmount)}
                     </Text>
                   </View>
                 )}
-                {useCoins && coinDiscountAmount > 0 && (
+                {coinDiscountAmount > 0 && (
                   <View className="flex-row justify-between items-center">
                     <View className="flex-row items-center gap-1.5">
                       <Coins size={16} color="#d97706" />
@@ -709,6 +703,14 @@ export function SummaryScreen() {
                 )}
               </View>
             )}
+
+            <View className="flex-row justify-between items-center">
+              <Text className="text-gray-600 text-sm">Delivery Fee</Text>
+              <View className="flex-row items-center gap-1 bg-orange-50 px-2 py-2 rounded-md">
+                <Text className="text-orange-600 font-bold text-xs">Next Step</Text>
+                <MapPin size={12} color="#ea580c" />
+              </View>
+            </View>
 
             <View style={{ borderTopWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed', marginTop: 8, marginBottom: 4 }} />
 
@@ -740,7 +742,7 @@ export function SummaryScreen() {
           className="bg-primary h-14 rounded-2xl flex-row items-center justify-center gap-4 mb-2 shadow-xl"
           activeOpacity={0.9}
         >
-          <Text className="text-white font-bold text-lg">Select Address & Pay</Text>
+          <Text className="text-white font-bold text-lg">Select Address & Checkout</Text>
           <ArrowRight size={20} color="#fff" />
         </TouchableOpacity>
 

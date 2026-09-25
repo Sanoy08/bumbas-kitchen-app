@@ -73,36 +73,7 @@ export function HomeScreen() {
   const hasOrderedThisSession = useSessionStore((state) => state.hasOrderedThisSession);
   const params = useLocalSearchParams();
 
-  // Exit confirmation — only active when HomeScreen tab is focused
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        if (hasOrderedThisSession) {
-          showAlert({
-            title: 'Thanks for ordering!',
-            message: 'Your food is being prepared with love. See you next time!',
-            confirmText: 'Exit App',
-            cancelText: 'Stay',
-            lottieSource: require('@/../assets/animations/order.json'),
-            onConfirm: () => BackHandler.exitApp(),
-          });
-        } else {
-          showAlert({
-            title: 'You haven\'t ordered yet!',
-            message: 'Bumba\'s Kitchen has some amazing dishes waiting for you. Sure you want to leave?',
-            confirmText: 'Leave Anyway',
-            cancelText: 'Let me check!',
-            lottieSource: require('@/../assets/animations/notorder.json'),
-            onConfirm: () => BackHandler.exitApp(),
-          });
-        }
-        return true;
-      };
 
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
-    }, [hasOrderedThisSession, showAlert])
-  );
 
   // --- Data State ---
   const [homeData, setHomeData] = useState({
@@ -244,19 +215,14 @@ export function HomeScreen() {
 
       // Give React enough time to render Skeletons and remove Bestsellers without blocking UI thread
       setTimeout(() => {
-        const startY = scrollY.value;
         const targetYPos = Math.max(0, targetY);
-        programmaticScrollY.value = startY;
-
-        programmaticScrollY.value = withTiming(
-          targetYPos,
-          { duration: 500, easing: Easing.out(Easing.cubic) },
-          (finished) => {
-            // Always run state updates even if animation is interrupted
-            programmaticScrollY.value = -1; // reset reaction
-            runOnJS(finalizeGridMode)(newCategory, newFilter);
-          }
-        );
+        
+        // Use native smooth scrolling instead of Reanimated tick for better performance
+        scrollViewRef.current?.scrollToOffset({ offset: targetYPos, animated: true });
+        
+        setTimeout(() => {
+          finalizeGridMode(newCategory, newFilter);
+        }, 350); // wait for native scroll animation to complete
       }, 150);
     } else if (!isNewGridViewMode && isGridViewMode) {
       // Reverting from grid mode back to "All"
@@ -290,16 +256,12 @@ export function HomeScreen() {
         // NOW turn off the sticky mask, revealing the perfectly aligned real Category Bar beneath it!
         isCategoryActive.value = false;
 
-        programmaticScrollY.value = Math.max(0, targetY);
-        programmaticScrollY.value = withTiming(
-          0,
-          { duration: 500, easing: Easing.out(Easing.cubic) },
-          (finished) => {
-            // Always reset even if interrupted
-            programmaticScrollY.value = -1;
-            runOnJS(setIsSwitchingCategory)(false);
-          }
-        );
+        // Smooth native scroll to the top
+        scrollViewRef.current?.scrollToOffset({ offset: 0, animated: true });
+        
+        setTimeout(() => {
+          setIsSwitchingCategory(false);
+        }, 350);
       }, 150);
     } else {
       // Switching categories within Grid mode, OR edge case where both are false
@@ -604,16 +566,10 @@ export function HomeScreen() {
     let result = [...categoryFiltered];
     switch (activeFilter) {
       case 'veg':
-        result = result.filter(p => {
-          const cat = p.category?.name?.toLowerCase() || '';
-          return cat === 'veg' || cat === 'paneer' || cat === 'chapati';
-        });
+        result = result.filter(p => p.type === 'veg');
         break;
       case 'non-veg':
-        result = result.filter(p => {
-          const cat = p.category?.name?.toLowerCase() || '';
-          return cat !== 'veg' && cat !== 'paneer' && cat !== 'chapati';
-        });
+        result = result.filter(p => p.type === 'non-veg');
         break;
       case 'price-low':
         result.sort((a, b) => (a.price || 0) - (b.price || 0));
@@ -775,6 +731,42 @@ export function HomeScreen() {
       </View>
     </View>
   ), [isGridViewMode, homeData, visualCategory, visualFilter, dailySpecials, handleCategorySelect]);
+
+  // Exit confirmation — only active when HomeScreen tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (visualCategory !== 'All' || visualFilter !== 'all') {
+          handleModeSwitch('All', 'all');
+          return true;
+        }
+
+        if (hasOrderedThisSession) {
+          showAlert({
+            title: 'Thanks for ordering!',
+            message: 'Your food is being prepared with love. See you next time!',
+            confirmText: 'Exit App',
+            cancelText: 'Stay',
+            lottieSource: require('@/../assets/animations/order.json'),
+            onConfirm: () => BackHandler.exitApp(),
+          });
+        } else {
+          showAlert({
+            title: 'You haven\'t ordered yet!',
+            message: 'Bumba\'s Kitchen has some amazing dishes waiting for you. Sure you want to leave?',
+            confirmText: 'Leave Anyway',
+            cancelText: 'Let me check!',
+            lottieSource: require('@/../assets/animations/notorder.json'),
+            onConfirm: () => BackHandler.exitApp(),
+          });
+        }
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [hasOrderedThisSession, showAlert, visualCategory, visualFilter, activeCategory, activeFilter])
+  );
 
   const renderListEmpty = useCallback(() => {
     if (isSwitchingCategory) return null;
