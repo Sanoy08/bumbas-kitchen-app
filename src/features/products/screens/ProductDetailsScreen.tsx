@@ -725,16 +725,23 @@ export function ProductDetailsScreen() {
             />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={handleShare}
+            onPress={toggleFavorite}
             className="h-10 w-10 rounded-full items-center justify-center bg-gray-100 active:scale-95"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ShareIcon size={19} color="#374151" />
+            <LottieView
+              ref={favAnimRef}
+              source={require('../../../../assets/animations/fav.json')}
+              autoPlay={false}
+              loop={false}
+              renderMode="SOFTWARE"
+              style={{ width: 44, height: 44 }}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Floating Favorite Button directly under Share Button */}
+      {/* Floating Share Button directly under Favorite Button */}
       <Animated.View
         style={{
           position: 'absolute',
@@ -750,18 +757,11 @@ export function ProductDetailsScreen() {
         pointerEvents={favInteractive ? 'auto' : 'none'}
       >
         <TouchableOpacity
-          onPress={toggleFavorite}
-          className="h-10 w-10 rounded-full items-center justify-center bg-gray-100 active:scale-95"
+          onPress={handleShare}
+          className="h-10 w-10 rounded-full items-center justify-center bg-gray-100 active:scale-95 shadow-sm"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <LottieView
-            ref={favAnimRef}
-            source={require('../../../../assets/animations/fav.json')}
-            autoPlay={false}
-            loop={false}
-            renderMode="SOFTWARE"
-            style={{ width: 44, height: 44 }}
-          />
+          <ShareIcon size={19} color="#374151" />
         </TouchableOpacity>
       </Animated.View>
 
