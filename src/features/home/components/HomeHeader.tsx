@@ -1,0 +1,167 @@
+// src/features/home/components/HomeHeader.tsx
+import { useRouter } from 'expo-router';
+import { Bell, ChevronDown, ChevronLeft, Mic, Search, User, SlidersHorizontal } from 'lucide-react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+import Animated, { AnimatedStyle } from 'react-native-reanimated';
+import { useAuthStore } from '@/shared/store/authStore';
+import { useNotificationStore } from '@/shared/store/notificationStore';
+import { cleanAddress } from '@/shared/utils/utils';
+import { AnimatedSearchText } from './AnimatedSearchText';
+
+import { FilterOption } from './FilterModal';
+
+interface HomeHeaderProps {
+  headerAnimatedStyle: AnimatedStyle<any>;
+  locationRowStyle: AnimatedStyle<any>;
+  backButtonStyle: AnimatedStyle<any>;
+  filterButtonStyle: AnimatedStyle<any>;
+  activeCategory: string;
+  activeFilter: FilterOption;
+  onOpenFilter: () => void;
+  onClearCategory: () => void;
+  onMicPress?: () => void;
+  paddingTop: number;
+}
+
+const getDisplayAddress = (user: any): { main: string; sub: string } => {
+  if (!user || !user.savedAddresses || user.savedAddresses.length === 0) {
+    return { main: 'Select Location', sub: 'Tap to add address' };
+  }
+  const defaultAddr = user.savedAddresses.find((a: any) => a.isDefault) || user.savedAddresses[0];
+  const cleaned = cleanAddress(defaultAddr.address);
+  const parts = cleaned.split(',').map((p: string) => p.trim()).filter(Boolean);
+  return {
+    main: parts[0] || 'Select Location',
+    sub: parts.slice(1).join(', ').trim(),
+  };
+};
+
+const getUserInitial = (user: any) => {
+  if (!user) return null;
+  const name = user.name || user.firstName;
+  if (name && typeof name === 'string' && name.trim().length > 0) {
+    return name.trim().charAt(0).toUpperCase();
+  }
+  return null;
+};
+
+export const HomeHeader = ({
+  headerAnimatedStyle,
+  locationRowStyle,
+  backButtonStyle,
+  filterButtonStyle,
+  activeCategory,
+  activeFilter,
+  onOpenFilter,
+  onClearCategory,
+  onMicPress,
+  paddingTop,
+}: HomeHeaderProps) => {
+  const { user } = useAuthStore();
+  const { hasUnread } = useNotificationStore();
+  const router = useRouter();
+
+  const userInitial = getUserInitial(user);
+
+  return (
+    <Animated.View
+      style={[
+        headerAnimatedStyle,
+        {
+          paddingTop,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+        },
+      ]}
+      className="px-4 pb-3"
+      pointerEvents="box-none"
+    >
+      {/* Location Row */}
+      <Animated.View style={locationRowStyle} className="flex-row justify-between items-center">
+        <View className="flex-row items-center flex-1 pr-4">
+          <TouchableOpacity 
+            className="flex-row items-center max-w-full"
+            onPress={() => user ? router.push('/addressModal') : router.push('/(auth)/login')}
+          >
+            <View className="flex-col">
+              <View className="flex-row items-center">
+                <Text className="text-xl font-black text-gray-900 font-sans flex-shrink" numberOfLines={1} ellipsizeMode="tail">
+                  {getDisplayAddress(user).main}
+                </Text>
+                <ChevronDown size={18} color="#374151" style={{ marginLeft: 4 }} />
+              </View>
+              {getDisplayAddress(user).sub ? (
+                <Text className="text-sm text-gray-500 font-sans" numberOfLines={1} ellipsizeMode="tail">
+                  {getDisplayAddress(user).sub}
+                </Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        </View>
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity
+            onPress={() => router.push('/notifications')}
+            className="h-10 w-10 bg-white/90 rounded-full items-center justify-center border border-gray-100 shadow-sm relative"
+          >
+            <Bell size={20} color="#e11d48" />
+            {hasUnread && (
+              <View className="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full border-2 border-white" />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => user ? router.push('/(shop)/account') : router.push('/(auth)/login')}
+            className="h-10 w-10 bg-white/90 rounded-full items-center justify-center border border-gray-100 shadow-sm"
+          >
+            {userInitial ? (
+              <Text className="text-primary font-black text-lg">{userInitial}</Text>
+            ) : (
+              <User size={20} color="#e11d48" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* Search Row */}
+      <View className="flex-row items-center gap-3">
+        <Animated.View style={backButtonStyle}>
+          <TouchableOpacity onPress={onClearCategory} className="h-10 w-10 items-center justify-center">
+            <ChevronLeft size={24} color="#e11d48" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/search')}
+          className="flex-1 flex-row items-center bg-white border border-gray-200/80 rounded-2xl pl-3 pr-1 py-1"
+        >
+          <Search size={20} color="#e11d48" />
+          <View className="flex-1 py-1.5 ml-1">
+            <AnimatedSearchText />
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onMicPress}
+            className="border-l border-gray-300 pl-3 pr-2 py-1.5"
+          >
+            <Mic size={20} color="#e11d48" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+
+        <Animated.View style={filterButtonStyle}>
+          <TouchableOpacity
+            onPress={onOpenFilter}
+            className={`h-[42px] items-center justify-center rounded-2xl border ${
+              activeFilter !== 'all' ? 'bg-primary border-primary' : 'bg-white border-gray-200'
+            }`}
+            activeOpacity={0.7}
+          >
+            <SlidersHorizontal size={20} color={activeFilter !== 'all' ? '#ffffff' : '#e11d48'} />
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Animated.View>
+  );
+};

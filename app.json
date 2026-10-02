@@ -1,0 +1,108 @@
+{
+  "expo": {
+    "name": "Bumba's Kitchen",
+    "slug": "bumbas-kitchen",
+    "version": "1.0.4",
+    "orientation": "portrait",
+    "icon": "./assets/images/app-logo.png",
+    "scheme": "bumbaskitchenapp",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/images/app-logo.png",
+      "associatedDomains": [
+        "applinks:www.bumbaskitchen.app",
+        "applinks:bumbaskitchen.app"
+      ],
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
+      }
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "resize",
+      "versionCode": 1,
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "backgroundColor": "#ffffff",
+      "package": "com.bumbaskitchen.app",
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBfriPVHUwuIgq3qpoHlNqD0_GHCQHn7E4"
+        }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.bumbaskitchen.app",
+              "pathPrefix": "/menus"
+            },
+            {
+              "scheme": "https",
+              "host": "bumbaskitchen.app",
+              "pathPrefix": "/menus"
+            },
+            {
+              "scheme": "https",
+              "host": "www.bumbaskitchen.app",
+              "pathPrefix": "/refer"
+            },
+            {
+              "scheme": "https",
+              "host": "bumbaskitchen.app",
+              "pathPrefix": "/refer"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/app-logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#e11d48",
+          "image": "./assets/images/LOGO.png"
+        }
+      ],
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-image",
+      "expo-font",
+      "@react-native-community/datetimepicker",
+      "expo-notifications",
+      "expo-speech-recognition",
+      "expo-sharing",
+      "expo-web-browser",
+      "expo-audio",
+      "./withGradleProperties.js"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "40acdafb-c0f4-4185-a987-1f04ce8c59d8"
+      }
+    },
+    "owner": "sanoy08"
+  }
+}
