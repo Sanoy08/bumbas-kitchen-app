@@ -4,6 +4,7 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { usePushNotification } from '@/shared/hooks/usePushNotification';
 import { zodResolver } from '@hookform/resolvers/zod';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { isAvailableAsync, showPhoneNumberHintAsync } from 'expo-phone-number-hint';
 import { Link, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -261,6 +262,28 @@ export default function RegisterScreen() {
         try {
           await subscribeToPush();
         } catch (e) {}
+
+        // --- NEW LOCATION CAPTURE LOGIC ---
+        try {
+          let { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            let location = await Location.getCurrentPositionAsync({});
+            await fetch(`${API_URL}/user/login-address`, {
+              method: 'PATCH',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`
+              },
+              body: JSON.stringify({ 
+                lat: location.coords.latitude, 
+                lng: location.coords.longitude 
+              }),
+            });
+          }
+        } catch (err) {
+          console.log('Location capture failed:', err);
+        }
+        // ------------------------------------
 
         router.replace('/');
       } else {
