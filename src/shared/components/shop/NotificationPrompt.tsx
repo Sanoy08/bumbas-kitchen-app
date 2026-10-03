@@ -78,7 +78,7 @@ export default function NotificationPrompt() {
       setIsOpen(false);
     } else if (!canAskAgain) {
       // User has permanently denied, redirect to settings
-      Linking.openSettings();
+      Linking.openSettings().catch(console.error);
     }
   };
 

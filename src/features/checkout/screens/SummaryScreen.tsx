@@ -722,7 +722,7 @@ export function SummaryScreen() {
               <Text className="text-2xl font-extrabold text-primary">{formatPrice(finalTotal)}</Text>
             </View>
             <Text className="text-[11px] text-right text-gray-400 font-medium mt-1">
-              *Delivery charges will be added at checkout
+              *Delivery charges will be added later
             </Text>
           </View>
         </View>

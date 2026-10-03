@@ -261,7 +261,7 @@ export default function RegisterScreen() {
             title: 'Location Required',
             message: 'Location is mandatory for new users. Please enable it in Settings.',
             confirmText: 'Open Settings',
-            onConfirm: () => Linking.openSettings(),
+            onConfirm: () => Linking.openSettings().catch(console.error),
           });
         } else {
           showAlert({

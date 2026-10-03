@@ -159,7 +159,7 @@ export function OrderCancelledModal({ visible, notification, onClose }: OrderCan
             {/* Actions */}
             <View className="flex-row gap-4">
               <Pressable 
-                onPress={() => Linking.openURL('tel:8240690254')} 
+                onPress={() => Linking.openURL('tel:8240690254').catch(console.error)}
                 style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
                 className="flex-[1] py-4 rounded-[18px] bg-white items-center justify-center border-2 border-gray-100 flex-row shadow-sm shadow-gray-100"
               >

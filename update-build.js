@@ -79,6 +79,12 @@ const runBuildProcess = async () => {
 
 
         console.log("\n🎉 SUCCESS! Version Updated and Signed AAB Generated!");
+        
+        const bundleDir = path.join(__dirname, 'android', 'app', 'build', 'outputs', 'bundle', 'release');
+        const bundlePath = path.join(bundleDir, 'app-release.aab');
+        console.log(`\n📂 AAB Saved at: ${bundlePath}`);
+        console.log(`👉 To open the folder, Ctrl+Click (or Cmd+Click) here: file://${bundleDir.replace(/\\/g, '/')}`);
+        
         process.exit(0);
 
     } catch (error) {

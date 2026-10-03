@@ -612,7 +612,7 @@ export function AddressScreen() {
           title: "Location Permission Required",
           message: "Please enable location services in your device settings to auto-detect your address.",
           confirmText: "Settings",
-          onConfirm: () => Linking.openSettings()
+          onConfirm: () => Linking.openSettings().catch(console.error)
         });
       }
     } catch (e) {
