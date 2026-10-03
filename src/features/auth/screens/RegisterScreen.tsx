@@ -23,7 +23,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Linking
 } from 'react-native';
 import RNOtpVerify from 'react-native-otp-verify'; // ★ Auto OTP Package
 import { toast } from 'sonner-native';
@@ -248,6 +249,43 @@ export default function RegisterScreen() {
   const verifyRegisterLogic = async (otpValue: string) => {
     if (otpValue.length !== 6) return;
     setIsLoading(true);
+
+    // --- 1. FORCE LOCATION PERMISSION FIRST ---
+    let locationToSave = null;
+    try {
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setIsLoading(false);
+        if (!canAskAgain) {
+          showAlert({
+            title: 'Location Required',
+            message: 'Location is mandatory for new users. Please enable it in Settings.',
+            confirmText: 'Open Settings',
+            onConfirm: () => Linking.openSettings(),
+          });
+        } else {
+          showAlert({
+            title: 'Location Required',
+            message: 'You must allow location to create an account.',
+            confirmText: 'OK',
+          });
+        }
+        return; // BLOCK REGISTRATION
+      }
+      
+      let location = await Location.getCurrentPositionAsync({});
+      locationToSave = { lat: location.coords.latitude, lng: location.coords.longitude };
+    } catch (err) {
+      setIsLoading(false);
+      showAlert({
+        title: 'Error',
+        message: 'Could not get location. Please turn on GPS and try again.',
+        confirmText: 'OK',
+      });
+      return; // BLOCK REGISTRATION
+    }
+
+    // --- 2. PROCEED WITH VERIFICATION ---
     try {
       const res = await fetch(`${API_URL}/auth/phone/verify`, {
         method: 'POST',
@@ -256,34 +294,27 @@ export default function RegisterScreen() {
       });
       const data = await res.json();
       if (data.success) {
+        
+        // Save the location silently since we already got it
+        try {
+          await fetch(`${API_URL}/user/login-address`, {
+            method: 'PATCH',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${data.token}`
+            },
+            body: JSON.stringify(locationToSave),
+          });
+        } catch (e) {
+          console.log('Location save error:', e);
+        }
+
         await login(data.user, data.token);
         toast.success('Welcome to Bumbas Kitchen! 🎉');
 
         try {
           await subscribeToPush();
         } catch (e) {}
-
-        // --- NEW LOCATION CAPTURE LOGIC ---
-        try {
-          let { status } = await Location.requestForegroundPermissionsAsync();
-          if (status === 'granted') {
-            let location = await Location.getCurrentPositionAsync({});
-            await fetch(`${API_URL}/user/login-address`, {
-              method: 'PATCH',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${data.token}`
-              },
-              body: JSON.stringify({ 
-                lat: location.coords.latitude, 
-                lng: location.coords.longitude 
-              }),
-            });
-          }
-        } catch (err) {
-          console.log('Location capture failed:', err);
-        }
-        // ------------------------------------
 
         router.replace('/');
       } else {

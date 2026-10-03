@@ -64,7 +64,7 @@ const HERO_CAROUSEL_HEIGHT = windowWidth + 8;
 
 export function HomeScreen() {
   const router = useRouter();
-  const { user, login } = useAuthStore();
+  const { user, login, hasSkippedDatePopup, setHasSkippedDatePopup } = useAuthStore();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useAnimatedRef<FlashList<any>>();
   const isTabBarVisibleStore = useTabBarStore((state) => state.isVisible);
@@ -96,7 +96,6 @@ export function HomeScreen() {
   const [visualFilter, setVisualFilter] = useState<FilterOption>('all');
   const [isSwitchingCategory, setIsSwitchingCategory] = useState(false);
   const [hideMiddleSections, setHideMiddleSections] = useState(false);
-  const [hasSkippedSession, setHasSkippedSession] = useState(false);
   const [activeDatePicker, setActiveDatePicker] = useState<'dob' | 'anniversary' | null>(null);
   const [tempDate, setTempDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
@@ -460,12 +459,12 @@ export function HomeScreen() {
     if (user) {
       const missingDob = !user.dob || user.dob === '';
       const missingAnniversary = !user.anniversary || user.anniversary === '';
-      if ((missingDob || missingAnniversary) && !hasSkippedSession) {
+      if ((missingDob || missingAnniversary) && !hasSkippedDatePopup) {
         const timer = setTimeout(() => setShowDatePopup(true), 2000);
         return () => clearTimeout(timer);
       }
     }
-  }, [user, hasSkippedSession]);
+  }, [user, hasSkippedDatePopup]);
 
 
   // =========================================================================
@@ -633,12 +632,12 @@ export function HomeScreen() {
       }
       const response = await fetch(`${API_URL}/auth/update-profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ` },
         body: JSON.stringify({ firstName, lastName, dob: dob || user?.dob, anniversary: anniversary || user?.anniversary }),
       });
       const data = await response.json();
       if (response.ok) {
-        setHasSkippedSession(true);
+        setHasSkippedDatePopup(true);
         setShowDatePopup(false);
         toast.success('Special dates saved successfully! 🎉');
         await login(data.user);
@@ -884,7 +883,7 @@ export function HomeScreen() {
         activeDatePicker={activeDatePicker}
         tempDate={tempDate}
         onSave={handleSaveDates}
-        onSkip={() => { setHasSkippedSession(true); setShowDatePopup(false); }}
+        onSkip={() => { setHasSkippedDatePopup(true); setShowDatePopup(false); }}
         onOpenDatePicker={openDatePicker}
         onCloseDatePicker={() => setActiveDatePicker(null)}
         onDateSelected={onDateSelected}

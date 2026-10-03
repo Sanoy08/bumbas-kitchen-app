@@ -26,10 +26,12 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isInitialized: boolean;
+  hasSkippedDatePopup: boolean;
   login: (userData: User, token?: string) => Promise<void>;
   logout: () => Promise<void>;
   initAuth: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
+  setHasSkippedDatePopup: (skipped: boolean) => void;
 }
 
 const TOKEN_KEY = 'auth_token';
@@ -40,6 +42,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isInitialized: false,
+      hasSkippedDatePopup: false,
 
       // লগইন: ইউজার ডেটা Zustand-এ এবং টোকেন Secure Store-এ সেভ হবে
       login: async (userData, token) => {
@@ -107,6 +110,10 @@ export const useAuthStore = create<AuthState>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...data } : null,
         }));
+      },
+
+      setHasSkippedDatePopup: (skipped: boolean) => {
+        set({ hasSkippedDatePopup: skipped });
       },
     }),
     {
