@@ -8,7 +8,7 @@ module.exports = function withCustomGradleProperties(config) {
     const propertiesToUpdate = {
       'org.gradle.jvmargs': '-Xmx4096m -XX:MaxMetaspaceSize=1024m',
       'kotlin.daemon.jvm.options': '-Xmx2048m',
-      'reactNativeArchitectures': 'arm64-v8a',
+      'reactNativeArchitectures': 'armeabi-v7a,arm64-v8a',
     };
 
     for (const [key, value] of Object.entries(propertiesToUpdate)) {

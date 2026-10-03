@@ -18,23 +18,17 @@ const backendRepoPath = path.join(__dirname, '../site');
 
 const startProcess = async () => {
     try {
-        rl.question('📝 Enter Commit Message: ', (commitMsg) => {
-            if (!commitMsg.trim()) {
-                console.error("❌ Commit message is required!");
-                process.exit(1);
-            }
-            rl.close();
-            runBuildProcess(commitMsg);
-        });
+        rl.close();
+        runBuildProcess();
     } catch (error) {
         console.error("\n❌ Error:", error.message);
         process.exit(1);
     }
 };
 
-const runBuildProcess = async (commitMsg) => {
+const runBuildProcess = async () => {
     try {
-        console.log("\n🚀 Starting Fast Auto-Build & Dual-Push Process...");
+        console.log("\n🚀 Starting Fast Auto-Build Process...");
 
         // ১. Gradle ফাইল থেকে ভার্সন বের করা
         let gradleContent = fs.readFileSync(gradlePath, 'utf8');
@@ -84,13 +78,7 @@ const runBuildProcess = async (commitMsg) => {
 
 
 
-        // ৫. App প্রজেক্ট গিটহাবে পুশ করা
-        console.log("\n☁️  Pushing App to GitHub...");
-        execSync('git add .', { stdio: 'inherit' });
-        execSync(`git commit -m "${commitMsg} (v${newName})"`, { stdio: 'inherit' });
-        execSync('git push', { stdio: 'inherit' });
-
-        console.log("\n🎉 SUCCESS! Version Updated, Signed AAB Generated, and Code Pushed to GitHub!");
+        console.log("\n🎉 SUCCESS! Version Updated and Signed AAB Generated!");
         process.exit(0);
 
     } catch (error) {
