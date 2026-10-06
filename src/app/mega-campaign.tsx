@@ -242,9 +242,9 @@ export default function MegaCampaignScreen() {
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: STICKY_TOP + 20, // 👈 explicit
+                    height: STICKY_TOP + 20,
                     opacity: stickyBgOpacity,
-                    backgroundColor: 'rgba(255,255,255,0.97)',
+                    backgroundColor: '#ffffff',
                   }}
                 />
                 <Animated.View
@@ -402,7 +402,7 @@ export default function MegaCampaignScreen() {
               </View>
             </Animated.ScrollView>
 
-            {/* Top white strip (safe area) */}
+            {/* Top white strip (safe area) — now solid */}
             <Animated.View
               pointerEvents="none"
               style={{
@@ -411,7 +411,7 @@ export default function MegaCampaignScreen() {
                 left: 0,
                 right: 0,
                 height: STICKY_TOP,
-                backgroundColor: 'rgba(255,255,255,0.97)',
+                backgroundColor: '#ffffff',
                 opacity: stickyBgOpacity,
                 zIndex: 5,
               }}
