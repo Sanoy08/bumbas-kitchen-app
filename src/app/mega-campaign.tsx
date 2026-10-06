@@ -2,13 +2,20 @@ import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import LottieView from 'lottie-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import LottieView from 'lottie-react-native';
 import { Minus, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Animated,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 
 const { width } = Dimensions.get('window');
 const CARD_H_PADDING = 16;
@@ -32,6 +39,11 @@ export default function MegaCampaignScreen() {
   const STICKY_TOP = insets.top + 8;
   const STICKY_THRESHOLD = Math.max(0, HEADING_HEIGHT - CATEGORY_OVERLAP - STICKY_TOP);
   const AUTOSCROLL_Y = Math.max(0, STICKY_THRESHOLD - AUTOSCROLL_OFFSET);
+
+  // ─── Cart capsule bottom offset ──────────────────────────────────
+  // insets.bottom থাকলে সেটার সাথে ছোট gap, না থাকলে safe minimum
+  const CART_CAPSULE_BOTTOM = insets.bottom > 0 ? Math.max(insets.bottom - 8, 12) : 12;
+const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
 
   const [selectedCategoryIdx, setSelectedCategoryIdx] = useState(0);
   const [isContentReady, setIsContentReady] = useState(false);
@@ -123,38 +135,47 @@ export default function MegaCampaignScreen() {
     };
   }, [campaign, allImageUrls]);
 
-  const handleImageLoad = useCallback((url?: string, source?: { width?: number; height?: number }) => {
-    if (!url) return;
-    if (source?.width && source?.height) {
-      const ratio = source.width / source.height;
-      setImageRatios((prev) => (prev[url] === ratio ? prev : { ...prev, [url]: ratio }));
-    }
-    loadedImagesRef.current.add(url);
-    const total = totalImagesRef.current.size;
-    if (total > 0 && loadedImagesRef.current.size >= total) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setIsContentReady(true));
-      });
-    }
-  }, []);
-
-  // Handle item image load: save ratio, mark loaded, and (for first category) feed into initial-load tracker
-  const handleItemImageLoad = useCallback((
-    url: string,
-    source: { width?: number; height?: number } | undefined,
-    trackInitialLoad: boolean
-  ) => {
-    if (source?.width && source?.height) {
-      const ratio = source.width / source.height;
-      setImageRatios((prev) => (prev[url] === ratio ? prev : { ...prev, [url]: ratio }));
-    }
-    setLoadedItemImages((prev) => (prev[url] ? prev : { ...prev, [url]: true }));
-    if (trackInitialLoad) {
-      handleImageLoad(url, source);
-    } else {
+  const handleImageLoad = useCallback(
+    (url?: string, source?: { width?: number; height?: number }) => {
+      if (!url) return;
+      if (source?.width && source?.height) {
+        const ratio = source.width / source.height;
+        setImageRatios((prev) =>
+          prev[url] === ratio ? prev : { ...prev, [url]: ratio }
+        );
+      }
       loadedImagesRef.current.add(url);
-    }
-  }, [handleImageLoad]);
+      const total = totalImagesRef.current.size;
+      if (total > 0 && loadedImagesRef.current.size >= total) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => setIsContentReady(true));
+        });
+      }
+    },
+    []
+  );
+
+  const handleItemImageLoad = useCallback(
+    (
+      url: string,
+      source: { width?: number; height?: number } | undefined,
+      trackInitialLoad: boolean
+    ) => {
+      if (source?.width && source?.height) {
+        const ratio = source.width / source.height;
+        setImageRatios((prev) =>
+          prev[url] === ratio ? prev : { ...prev, [url]: ratio }
+        );
+      }
+      setLoadedItemImages((prev) => (prev[url] ? prev : { ...prev, [url]: true }));
+      if (trackInitialLoad) {
+        handleImageLoad(url, source);
+      } else {
+        loadedImagesRef.current.add(url);
+      }
+    },
+    [handleImageLoad]
+  );
 
   useEffect(() => {
     if (prefetchDone && totalImagesRef.current.size === 0) {
@@ -162,12 +183,15 @@ export default function MegaCampaignScreen() {
     }
   }, [prefetchDone]);
 
-  const handleSelectCategory = useCallback((idx: number) => {
-    setSelectedCategoryIdx(idx);
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: AUTOSCROLL_Y, animated: true });
-    });
-  }, [AUTOSCROLL_Y]);
+  const handleSelectCategory = useCallback(
+    (idx: number) => {
+      setSelectedCategoryIdx(idx);
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ y: AUTOSCROLL_Y, animated: true });
+      });
+    },
+    [AUTOSCROLL_Y]
+  );
 
   const addItem = useCartStore((state) => state.addItem);
   const cartItems = useCartStore((state) => state.items);
@@ -196,7 +220,7 @@ export default function MegaCampaignScreen() {
       isSpecialOffer: true,
       deliveryDate: item.deliveryDate,
       orderCutoffTime: item.orderCutoffTime,
-      mealType: item.mealType ? item.mealType.toLowerCase() : undefined
+      mealType: item.mealType ? item.mealType.toLowerCase() : undefined,
     };
 
     addItem(product as any);
@@ -208,17 +232,24 @@ export default function MegaCampaignScreen() {
     return cartItem ? cartItem.quantity : 0;
   };
 
-  const totalQuantity = cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0);
+  const totalQuantity = cartItems.reduce(
+    (acc: any, item: any) => acc + item.quantity,
+    0
+  );
   const prevQuantity = useRef(totalQuantity);
 
   useEffect(() => {
     if (totalQuantity > prevQuantity.current) {
-      setAnimationKey(prev => prev + 1);
+      setAnimationKey((prev) => prev + 1);
     }
     prevQuantity.current = totalQuantity;
   }, [totalQuantity]);
 
-  const handleUpdateQuantity = (itemName: string, itemPrice: number, change: number) => {
+  const handleUpdateQuantity = (
+    itemName: string,
+    itemPrice: number,
+    change: number
+  ) => {
     const id = `mega_${itemName.replace(/\s+/g, '_')}_${itemPrice}`;
     const currentQty = getQuantity(itemName, itemPrice);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -229,148 +260,164 @@ export default function MegaCampaignScreen() {
   const hasCategories = !!(campaign?.categories && campaign.categories.length > 0);
 
   return (
-      <View style={{ flex: 1, backgroundColor: '#fff' }}>
-        {prefetchDone && campaign && (
-          <View style={StyleSheet.absoluteFill}>
-            {campaign.pageBgImage && (
-              <Image
-                source={{ uri: campaign.pageBgImage }}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-                contentPosition="bottom center"
-              />
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      {prefetchDone && campaign && (
+        <View style={StyleSheet.absoluteFill}>
+          {campaign.pageBgImage && (
+            <Image
+              source={{ uri: campaign.pageBgImage }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              contentPosition="bottom center"
+            />
+          )}
+          <Animated.ScrollView
+            ref={scrollRef}
+            contentContainerStyle={{ paddingBottom: SCROLL_BOTTOM_PADDING }}
+            showsVerticalScrollIndicator={false}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
             )}
-            <Animated.ScrollView
-              ref={scrollRef}
-              contentContainerStyle={{ paddingBottom: 100 }}
-              showsVerticalScrollIndicator={false}
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                { useNativeDriver: true }
+            scrollEventThrottle={16}
+            stickyHeaderIndices={hasCategories ? [1] : undefined}
+          >
+            {/* Child 0: heading */}
+            <View style={{ marginBottom: -(CATEGORY_OVERLAP + STICKY_TOP) }}>
+              {campaign.headingImage && (
+                <Image
+                  source={{ uri: campaign.headingImage }}
+                  style={{ width: '100%', height: HEADING_HEIGHT }}
+                  contentFit="cover"
+                  onLoad={() => handleImageLoad(campaign.headingImage)}
+                />
               )}
-              scrollEventThrottle={16}
-              stickyHeaderIndices={hasCategories ? [1] : undefined}
+            </View>
+
+            {/* Child 1: sticky category row */}
+            <View
+              pointerEvents="box-none"
+              style={{
+                paddingTop: STICKY_TOP,
+                paddingBottom: CATEGORY_BOTTOM_PADDING,
+              }}
             >
-              {/* Child 0: heading */}
-              <View style={{ marginBottom: -(CATEGORY_OVERLAP + STICKY_TOP) }}>
-                {campaign.headingImage && (
-                  <Image
-                    source={{ uri: campaign.headingImage }}
-                    style={{ width: '100%', height: HEADING_HEIGHT }}
-                    contentFit="cover"
-                    onLoad={() => handleImageLoad(campaign.headingImage)}
-                  />
-                )}
-              </View>
-
-              {/* Child 1: sticky category row */}
-              <View
-                pointerEvents="box-none"
+              <Animated.View
+                pointerEvents="none"
                 style={{
-                  paddingTop: STICKY_TOP,
-                  paddingBottom: CATEGORY_BOTTOM_PADDING,
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: STICKY_TOP + 20,
+                  opacity: stickyBgOpacity,
+                  backgroundColor: '#ffffff',
                 }}
-              >
-                <Animated.View
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: STICKY_TOP + 20,
-                    opacity: stickyBgOpacity,
-                    backgroundColor: '#ffffff',
-                  }}
-                />
-                <Animated.View
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: StyleSheet.hairlineWidth,
-                    backgroundColor: 'rgba(0,0,0,0.08)',
-                    opacity: stickyBorderOpacity,
-                  }}
-                />
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: StyleSheet.hairlineWidth,
+                  backgroundColor: 'rgba(0,0,0,0.08)',
+                  opacity: stickyBorderOpacity,
+                }}
+              />
 
-                {hasCategories && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{
-                      paddingHorizontal: 16,
-                      gap: 8,
-                      alignItems: 'center',
-                      paddingVertical: 4,
-                    }}
-                  >
-                    {campaign.categories.map((cat: any, cIdx: number) => {
-                      const isSelected = selectedCategoryIdx === cIdx;
-                      return (
-                        <TouchableOpacity
-                          key={cIdx}
-                          onPress={() => handleSelectCategory(cIdx)}
-                          activeOpacity={0.85}
+              {hasCategories && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
+                    paddingHorizontal: 16,
+                    gap: 8,
+                    alignItems: 'center',
+                    paddingVertical: 4,
+                  }}
+                >
+                  {campaign.categories.map((cat: any, cIdx: number) => {
+                    const isSelected = selectedCategoryIdx === cIdx;
+                    return (
+                      <TouchableOpacity
+                        key={cIdx}
+                        onPress={() => handleSelectCategory(cIdx)}
+                        activeOpacity={0.85}
+                        style={{
+                          width: CATEGORY_TILE_SIZE,
+                          height: CATEGORY_TILE_SIZE,
+                          borderRadius: 14,
+                          opacity: isSelected ? 1 : UNSELECTED_OPACITY,
+                          transform: [{ scale: isSelected ? SELECTED_SCALE : 1 }],
+                          shadowColor: isSelected ? '#e11d48' : '#000',
+                          shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
+                          shadowOpacity: isSelected ? 0.35 : 0.12,
+                          shadowRadius: isSelected ? 8 : 4,
+                          elevation: isSelected ? 10 : 2,
+                        }}
+                      >
+                        <View
                           style={{
-                            width: CATEGORY_TILE_SIZE,
-                            height: CATEGORY_TILE_SIZE,
+                            flex: 1,
                             borderRadius: 14,
-                            opacity: isSelected ? 1 : UNSELECTED_OPACITY,
-                            transform: [{ scale: isSelected ? SELECTED_SCALE : 1 }],
-                            shadowColor: isSelected ? '#e11d48' : '#000',
-                            shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
-                            shadowOpacity: isSelected ? 0.35 : 0.12,
-                            shadowRadius: isSelected ? 8 : 4,
-                            elevation: isSelected ? 10 : 2,
+                            borderWidth: isSelected ? 2.5 : 0,
+                            borderColor: isSelected ? '#e11d48' : 'transparent',
+                            padding: isSelected ? 2 : 0,
+                            backgroundColor: isSelected ? '#ffffff' : 'transparent',
                           }}
                         >
                           <View
                             style={{
                               flex: 1,
-                              borderRadius: 14,
-                              borderWidth: isSelected ? 2.5 : 0,
-                              borderColor: isSelected ? '#e11d48' : 'transparent',
-                              padding: isSelected ? 2 : 0,
-                              backgroundColor: isSelected ? '#ffffff' : 'transparent',
+                              borderRadius: isSelected ? 10 : 14,
+                              overflow: 'hidden',
+                              backgroundColor: '#fff',
                             }}
                           >
-                            <View
-                              style={{
-                                flex: 1,
-                                borderRadius: isSelected ? 10 : 14,
-                                overflow: 'hidden',
-                                backgroundColor: '#fff',
-                              }}
-                            >
-                              {cat.image ? (
-                                <Image
-                                  source={{ uri: cat.image }}
-                                  style={{ width: '100%', height: '100%' }}
-                                  contentFit="cover"
-                                  onLoad={() => handleImageLoad(cat.image)}
-                                />
-                              ) : (
-                                <View style={{ flex: 1, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
-                                  <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Category</Text>
-                                </View>
-                              )}
-                            </View>
+                            {cat.image ? (
+                              <Image
+                                source={{ uri: cat.image }}
+                                style={{ width: '100%', height: '100%' }}
+                                contentFit="cover"
+                                onLoad={() => handleImageLoad(cat.image)}
+                              />
+                            ) : (
+                              <View
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: '#f3f4f6',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Text style={{ fontSize: 12, fontWeight: 'bold' }}>
+                                  Category
+                                </Text>
+                              </View>
+                            )}
                           </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
 
-              {/* Child 2: items */}
-              <View>
-                {campaign.categories && campaign.categories[selectedCategoryIdx] && (
-                  <View style={{ paddingHorizontal: CARD_H_PADDING, marginTop: 20, gap: 20 }}>
-                    {campaign.categories[selectedCategoryIdx].items?.map((item: any, iIdx: number) => {
+            {/* Child 2: items */}
+            <View>
+              {campaign.categories && campaign.categories[selectedCategoryIdx] && (
+                <View
+                  style={{
+                    paddingHorizontal: CARD_H_PADDING,
+                    marginTop: 20,
+                    gap: 20,
+                  }}
+                >
+                  {campaign.categories[selectedCategoryIdx].items?.map(
+                    (item: any, iIdx: number) => {
                       const qty = getQuantity(item.name, item.price);
                       let isExpired = false;
                       if (item.orderCutoffTime) {
@@ -378,9 +425,10 @@ export default function MegaCampaignScreen() {
                       }
                       const trackInitialLoad = selectedCategoryIdx === 0;
                       const ratio = item.image ? imageRatios[item.image] : undefined;
-                      // Start square (1:1) until ratio is known; then adjust to natural aspect
                       const imageHeight = ratio ? CARD_WIDTH / ratio : CARD_WIDTH;
-                      const itemImageLoaded = item.image ? !!loadedItemImages[item.image] : true;
+                      const itemImageLoaded = item.image
+                        ? !!loadedItemImages[item.image]
+                        : true;
 
                       return (
                         <View
@@ -397,7 +445,13 @@ export default function MegaCampaignScreen() {
                           }}
                         >
                           {item.image && (
-                            <View style={{ width: CARD_WIDTH, height: imageHeight, backgroundColor: '#f3f4f6' }}>
+                            <View
+                              style={{
+                                width: CARD_WIDTH,
+                                height: imageHeight,
+                                backgroundColor: '#f3f4f6',
+                              }}
+                            >
                               <Image
                                 source={{ uri: item.image }}
                                 style={{ width: '100%', height: '100%' }}
@@ -406,7 +460,9 @@ export default function MegaCampaignScreen() {
                                   const src = e?.source;
                                   handleItemImageLoad(
                                     item.image,
-                                    src ? { width: src.width, height: src.height } : undefined,
+                                    src
+                                      ? { width: src.width, height: src.height }
+                                      : undefined,
                                     trackInitialLoad
                                   );
                                 }}
@@ -428,87 +484,218 @@ export default function MegaCampaignScreen() {
                             </Text>
 
                             {item.deliveryDate && (
-                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                                <View style={{ backgroundColor: '#fdf2f8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
-                                  <Text style={{ fontSize: 12, color: '#e11d48', fontWeight: '700' }}>
-                                    Delivers: {new Date(item.deliveryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                              <View
+                                style={{
+                                  flexDirection: 'row',
+                                  flexWrap: 'wrap',
+                                  gap: 8,
+                                }}
+                              >
+                                <View
+                                  style={{
+                                    backgroundColor: '#fdf2f8',
+                                    paddingHorizontal: 10,
+                                    paddingVertical: 4,
+                                    borderRadius: 6,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      color: '#e11d48',
+                                      fontWeight: '700',
+                                    }}
+                                  >
+                                    Delivers:{' '}
+                                    {new Date(item.deliveryDate).toLocaleDateString(
+                                      'en-GB',
+                                      { day: 'numeric', month: 'short' }
+                                    )}
                                   </Text>
                                 </View>
                               </View>
                             )}
 
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                              <Text style={{ fontSize: 22, fontWeight: '800', color: '#e11d48' }}>₹{item.price}</Text>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginTop: 8,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 22,
+                                  fontWeight: '800',
+                                  color: '#e11d48',
+                                }}
+                              >
+                                ₹{item.price}
+                              </Text>
 
                               {isExpired ? (
-                                <View style={{ backgroundColor: '#f3f4f6', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24 }}>
-                                  <Text style={{ fontSize: 13, color: '#9ca3af', fontWeight: '700' }}>Closed</Text>
+                                <View
+                                  style={{
+                                    backgroundColor: '#f3f4f6',
+                                    paddingHorizontal: 16,
+                                    paddingVertical: 10,
+                                    borderRadius: 24,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      color: '#9ca3af',
+                                      fontWeight: '700',
+                                    }}
+                                  >
+                                    Closed
+                                  </Text>
                                 </View>
                               ) : qty > 0 ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e11d48', borderRadius: 24 }}>
-                                  <TouchableOpacity onPress={() => handleUpdateQuantity(item.name, item.price, -1)} style={{ padding: 10 }}>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    backgroundColor: '#e11d48',
+                                    borderRadius: 24,
+                                  }}
+                                >
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      handleUpdateQuantity(item.name, item.price, -1)
+                                    }
+                                    style={{ padding: 10 }}
+                                  >
                                     <Minus size={18} color="white" />
                                   </TouchableOpacity>
-                                  <Text style={{ color: 'white', fontWeight: '800', marginHorizontal: 10, fontSize: 16 }}>{qty}</Text>
-                                  <TouchableOpacity onPress={() => handleUpdateQuantity(item.name, item.price, 1)} style={{ padding: 10 }}>
+                                  <Text
+                                    style={{
+                                      color: 'white',
+                                      fontWeight: '800',
+                                      marginHorizontal: 10,
+                                      fontSize: 16,
+                                    }}
+                                  >
+                                    {qty}
+                                  </Text>
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      handleUpdateQuantity(item.name, item.price, 1)
+                                    }
+                                    style={{ padding: 10 }}
+                                  >
                                     <Plus size={18} color="white" />
                                   </TouchableOpacity>
                                 </View>
                               ) : (
                                 <TouchableOpacity
                                   onPress={() => handleAddToCart(item)}
-                                  style={{ backgroundColor: '#e11d48', paddingHorizontal: 28, paddingVertical: 10, borderRadius: 24 }}
+                                  style={{
+                                    backgroundColor: '#e11d48',
+                                    paddingHorizontal: 28,
+                                    paddingVertical: 10,
+                                    borderRadius: 24,
+                                  }}
                                 >
-                                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>ADD</Text>
+                                  <Text
+                                    style={{
+                                      color: '#fff',
+                                      fontWeight: '800',
+                                      fontSize: 15,
+                                    }}
+                                  >
+                                    ADD
+                                  </Text>
                                 </TouchableOpacity>
                               )}
                             </View>
                           </View>
                         </View>
                       );
-                    })}
-                  </View>
-                )}
-              </View>
-            </Animated.ScrollView>
+                    }
+                  )}
+                </View>
+              )}
+            </View>
+          </Animated.ScrollView>
 
-            {/* Top white strip */}
-            <Animated.View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: STICKY_TOP,
-                backgroundColor: '#ffffff',
-                opacity: stickyBgOpacity,
-                zIndex: 5,
-              }}
-            />
-          </View>
-        )}
+          {/* Top white strip */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: STICKY_TOP,
+              backgroundColor: '#ffffff',
+              opacity: stickyBgOpacity,
+              zIndex: 5,
+            }}
+          />
+        </View>
+      )}
 
       {showSkeleton && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff' }]}>
           <ShimmerSkeleton width="100%" height={HEADING_HEIGHT} borderRadius={0} />
 
-          <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, zIndex: 10, marginTop: -CATEGORY_OVERLAP }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              paddingHorizontal: 16,
+              gap: 8,
+              zIndex: 10,
+              marginTop: -CATEGORY_OVERLAP,
+            }}
+          >
             {[...Array(5)].map((_, i) => (
-              <ShimmerSkeleton key={i} width={CATEGORY_TILE_SIZE} height={CATEGORY_TILE_SIZE} borderRadius={12} />
+              <ShimmerSkeleton
+                key={i}
+                width={CATEGORY_TILE_SIZE}
+                height={CATEGORY_TILE_SIZE}
+                borderRadius={12}
+              />
             ))}
           </View>
 
-          <View style={{ paddingHorizontal: CARD_H_PADDING, marginTop: 20, gap: 20 }}>
+          <View
+            style={{
+              paddingHorizontal: CARD_H_PADDING,
+              marginTop: 20,
+              gap: 20,
+            }}
+          >
             {[...Array(2)].map((_, i) => (
-              <View key={i} style={{ backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 6 }}>
+              <View
+                key={i}
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 24,
+                  overflow: 'hidden',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 14,
+                  elevation: 6,
+                }}
+              >
                 <ShimmerSkeleton width="100%" height={CARD_WIDTH} borderRadius={0} />
                 <View style={{ padding: 16, gap: 10 }}>
                   <ShimmerSkeleton width="80%" height={22} borderRadius={4} />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <ShimmerSkeleton width={90} height={22} borderRadius={6} />
                   </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: 6,
+                    }}
+                  >
                     <ShimmerSkeleton width={70} height={24} borderRadius={4} />
                     <ShimmerSkeleton width={90} height={40} borderRadius={24} />
                   </View>
@@ -522,36 +709,55 @@ export default function MegaCampaignScreen() {
       {!campaign && prefetchDone && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text>Error loading campaign data.</Text>
-          <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20, padding: 10, backgroundColor: '#e11d48', borderRadius: 8 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              marginTop: 20,
+              padding: 10,
+              backgroundColor: '#e11d48',
+              borderRadius: 8,
+            }}
+          >
             <Text style={{ color: 'white' }}>Go Back</Text>
           </TouchableOpacity>
         </View>
       )}
 
+      {/* ─── CART CAPSULE ───────────────────────────────────────────── */}
       {cartItems && cartItems.length > 0 && (
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => router.push('/cart')}
           style={{
             position: 'absolute',
-            bottom: insets.bottom > 0 ? insets.bottom + 10 : 24,
+            bottom: CART_CAPSULE_BOTTOM,
             alignSelf: 'center',
-            backgroundColor: '#cb202d', // Zomato Crimson Red
-            borderRadius: 999, // Pill shape
+            backgroundColor: '#cb202d',
+            borderRadius: 999,
             paddingVertical: 12,
             paddingLeft: 12,
             paddingRight: 20,
             flexDirection: 'row',
             alignItems: 'center',
+            elevation: 8,
             shadowColor: '#cb202d',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.4,
-            shadowRadius: 12,
-            elevation: 10,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.35,
+            shadowRadius: 10,
           }}
         >
           {/* Lottie Icon Container */}
-          <View style={{ width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: 22,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginRight: 12,
+            }}
+          >
             <LottieView
               ref={cartLottieRef}
               key={`cart-anim-${animationKey}`}
@@ -566,17 +772,45 @@ export default function MegaCampaignScreen() {
           {/* Item Count & Price */}
           <View style={{ flexDirection: 'column', marginRight: 16 }}>
             <Text style={{ color: 'white', fontWeight: '800', fontSize: 14 }}>
-              {cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0)} Items
+              {cartItems.reduce(
+                (acc: any, item: any) => acc + item.quantity,
+                0
+              )}{' '}
+              Items
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.9)', fontWeight: '700', fontSize: 13 }}>
-              ₹{cartItems.reduce((acc: any, item: any) => acc + (item.price * item.quantity), 0)}
+            <Text
+              style={{
+                color: 'rgba(255,255,255,0.9)',
+                fontWeight: '700',
+                fontSize: 13,
+              }}
+            >
+              ₹
+              {cartItems.reduce(
+                (acc: any, item: any) => acc + item.price * item.quantity,
+                0
+              )}
             </Text>
           </View>
 
-          <View style={{ width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', marginRight: 16 }} />
+          <View
+            style={{
+              width: 1,
+              height: 28,
+              backgroundColor: 'rgba(255,255,255,0.3)',
+              marginRight: 16,
+            }}
+          />
 
           {/* Action Text */}
-          <Text style={{ color: 'white', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 }}>
+          <Text
+            style={{
+              color: 'white',
+              fontWeight: '800',
+              fontSize: 16,
+              letterSpacing: 0.5,
+            }}
+          >
             View Cart
           </Text>
         </TouchableOpacity>
