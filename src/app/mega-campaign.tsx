@@ -236,17 +236,17 @@ export default function MegaCampaignScreen() {
                 }}
               >
                 <Animated.View
-  pointerEvents="none"
-  style={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: STICKY_TOP + CATEGORY_TILE_SIZE , // 👈 explicit
-    opacity: stickyBgOpacity,
-    backgroundColor: 'rgba(255,255,255,0.97)',
-  }}
-/>
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: STICKY_TOP + 20, // 👈 explicit
+                    opacity: stickyBgOpacity,
+                    backgroundColor: 'rgba(255,255,255,0.97)',
+                  }}
+                />
                 <Animated.View
                   pointerEvents="none"
                   style={{
