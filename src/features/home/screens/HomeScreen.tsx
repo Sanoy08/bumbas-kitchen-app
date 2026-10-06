@@ -5,7 +5,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { FlashList } from '@shopify/flash-list';
-import { BackHandler, DeviceEventEmitter, Dimensions, Platform, RefreshControl, Text, UIManager, View } from 'react-native';
+import { BackHandler, DeviceEventEmitter, Dimensions, Platform, RefreshControl, Text, UIManager, View, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import Animated, {
   Easing,
   Extrapolation,
@@ -82,6 +83,7 @@ export function HomeScreen() {
     offers: [],
     bestsellers: [],
     allProducts: [],
+    megaCampaign: null,
   });
 
   // --- UI State ---
@@ -729,7 +731,20 @@ export function HomeScreen() {
           <OffersSection offers={homeData.offers} />
           <FeaturesSection />
           <MiddleSlider slides={homeData.sliderImages} />
-          <DailySpecialSection products={dailySpecials} />
+          {homeData.megaCampaign && homeData.megaCampaign.isActive && homeData.megaCampaign.homeBannerImage && (
+              <Pressable 
+                onPress={() => router.push({ pathname: '/mega-campaign', params: { data: JSON.stringify(homeData.megaCampaign) }})}
+                className="w-full px-4 mb-4 mt-2"
+              >
+                <Image 
+                  source={{ uri: homeData.megaCampaign.homeBannerImage }}
+                  style={{ width: '100%', height: 180, borderRadius: 16 }}
+                  contentFit="cover"
+                  transition={200}
+                />
+              </Pressable>
+            )}
+            <DailySpecialSection products={dailySpecials} />
         </>
       )}
       <View
