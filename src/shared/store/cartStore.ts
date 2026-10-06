@@ -87,15 +87,11 @@ export const useCartStore = create<CartState>()(
       resolveConflict: (clearCart) => {
         const { pendingConflictProduct, pendingConflictQuantity, items, removeItem, addItem } = get();
         if (clearCart && pendingConflictProduct) {
-          // Remove ONLY the conflicting special offers, keeping regular items in the cart
+          // Remove ALL items because they cannot be mixed
           items.forEach(item => {
-            if (item.isSpecialOffer && (item.deliveryDate !== pendingConflictProduct.deliveryDate || item.mealType !== pendingConflictProduct.mealType)) {
-              removeItem(item.id);
-            }
+            removeItem(item.id);
           });
           
-          // Delay adding the new item by 50ms so React registers the quantity drop first.
-          // This forces the Navbar Lottie animation to play correctly!
           setTimeout(() => {
             get().addItem(pendingConflictProduct, pendingConflictQuantity, true);
           }, 50);
@@ -143,12 +139,12 @@ export const useCartStore = create<CartState>()(
         
         // --- Conflict Check ---
         if (items.length > 0) {
-          const existingOffer = items.find(i => i.isSpecialOffer);
-          if (existingOffer && product.isSpecialOffer) {
-            if (existingOffer.deliveryDate !== product.deliveryDate || existingOffer.mealType !== product.mealType) {
-              set({ pendingConflictProduct: product, pendingConflictQuantity: quantity });
-              return;
-            }
+          const hasSpecialOffer = items.some(i => i.isSpecialOffer);
+          const isProductSpecialOffer = !!product.isSpecialOffer;
+
+          if (hasSpecialOffer !== isProductSpecialOffer) {
+            set({ pendingConflictProduct: product, pendingConflictQuantity: quantity });
+            return;
           }
         }
 

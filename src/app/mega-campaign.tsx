@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, ScrollView, ImageBackground, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -6,6 +6,8 @@ import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
+import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
+
 
 const { width } = Dimensions.get('window');
 
@@ -13,7 +15,9 @@ export default function MegaCampaignScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
+  const [selectedCategoryIdx, setSelectedCategoryIdx] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
   const campaign = useMemo(() => {
     if (params.data && typeof params.data === 'string') {
       try {
@@ -25,9 +29,95 @@ export default function MegaCampaignScreen() {
     return null;
   }, [params.data]);
 
+  useEffect(() => {
+    if (!campaign) {
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    const preloadImages = async () => {
+      try {
+        const urlsToPrefetch: string[] = [];
+        if (campaign.headingImage) urlsToPrefetch.push(campaign.headingImage);
+        if (campaign.pageBgImage) urlsToPrefetch.push(campaign.pageBgImage);
+        
+        if (campaign.categories) {
+          campaign.categories.forEach((cat: any) => {
+            if (cat.image) urlsToPrefetch.push(cat.image);
+            if (cat.items) {
+               cat.items.forEach((item: any) => {
+                 if (item.image) urlsToPrefetch.push(item.image);
+               });
+            }
+          });
+        }
+
+        if (urlsToPrefetch.length > 0) {
+          await Promise.all(urlsToPrefetch.map(url => Image.prefetch(url)));
+        }
+      } catch (error) {
+        console.error("Error prefetching images:", error);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    preloadImages();
+    return () => { isMounted = false; };
+  }, [campaign]);
+
+  
+
+
   const addItem = useCartStore((state) => state.addItem);
   const cartItems = useCartStore((state) => state.items);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
+
+  
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={{ position: 'absolute', top: insets.top + 10, left: 16, zIndex: 50 }}>
+          <TouchableOpacity 
+            onPress={() => router.back()}
+            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <ArrowLeft size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
+        <ShimmerSkeleton width="100%" height={width * (2 / 3)} borderRadius={0} />
+        
+        {/* Skeleton for tabs */}
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
+           {[...Array(5)].map((_, i) => (
+             <ShimmerSkeleton key={i} width={(width - 32 - 32) / 5} height={(width - 32 - 32) / 5} borderRadius={12} />
+           ))}
+        </View>
+
+        {/* Skeleton for items */}
+        <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 30 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', padding: 16, gap: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
+            {[...Array(4)].map((_, i) => (
+              <View key={i} style={{ flexDirection: 'row', gap: 12, borderBottomWidth: i === 3 ? 0 : 1, borderBottomColor: '#eee', paddingBottom: i === 3 ? 0 : 16 }}>
+                <ShimmerSkeleton width={90} height={90} borderRadius={12} />
+                <View style={{ flex: 1, justifyContent: 'space-between', paddingVertical: 4 }}>
+                  <View style={{ gap: 8 }}>
+                    <ShimmerSkeleton width="80%" height={20} borderRadius={4} />
+                    <ShimmerSkeleton width="60%" height={14} borderRadius={4} />
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <ShimmerSkeleton width={60} height={20} borderRadius={4} />
+                    <ShimmerSkeleton width={70} height={32} borderRadius={16} />
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   if (!campaign) {
     return (
@@ -64,7 +154,7 @@ export default function MegaCampaignScreen() {
       isSpecialOffer: true,
       deliveryDate: item.deliveryDate,
       orderCutoffTime: item.orderCutoffTime,
-      mealType: item.mealType
+      mealType: item.mealType ? item.mealType.toLowerCase() : undefined
     };
     
     addItem(product as any);
@@ -108,20 +198,40 @@ export default function MegaCampaignScreen() {
           />
         )}
 
-        <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 30 }}>
-          {campaign.categories?.map((cat: any, cIdx: number) => (
-            <View key={cIdx} style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
-              
-              {cat.image && (
-                <Image 
-                  source={{ uri: cat.image }} 
-                  style={{ width: '100%', height: 120 }}
-                  contentFit="cover"
-                />
-              )}
+        {/* Category Buttons */}
+        {campaign.categories && campaign.categories.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
+            {campaign.categories.map((cat: any, cIdx: number) => (
+              <TouchableOpacity 
+                key={cIdx} 
+                onPress={() => setSelectedCategoryIdx(cIdx)}
+                style={{ 
+                  borderRadius: 12, 
+                  overflow: 'hidden',
+                  borderWidth: 2,
+                  borderColor: selectedCategoryIdx === cIdx ? '#e11d48' : 'transparent',
+                  width: (width - 32 - 32) / 5, // 32 for total padding, 32 for 4 gaps of 8
+                  height: (width - 32 - 32) / 5
+                }}
+              >
+                {cat.image ? (
+                  <Image source={{ uri: cat.image }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                ) : (
+                  <View style={{ flex: 1, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Category</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
+        {/* Selected Category Items */}
+        {campaign.categories && campaign.categories[selectedCategoryIdx] && (
+          <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 30 }}>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
               <View style={{ padding: 16, gap: 16 }}>
-                {cat.items?.map((item: any, iIdx: number) => {
+                {campaign.categories[selectedCategoryIdx].items?.map((item: any, iIdx: number) => {
                   const qty = getQuantity(item.name, item.price);
                   let isExpired = false;
                   if (item.orderCutoffTime) {
@@ -129,7 +239,7 @@ export default function MegaCampaignScreen() {
                   }
 
                   return (
-                    <View key={iIdx} style={{ flexDirection: 'row', gap: 12, borderBottomWidth: iIdx === cat.items.length - 1 ? 0 : 1, borderBottomColor: '#eee', paddingBottom: iIdx === cat.items.length - 1 ? 0 : 16 }}>
+                    <View key={iIdx} style={{ flexDirection: 'row', gap: 12, borderBottomWidth: iIdx === campaign.categories[selectedCategoryIdx].items.length - 1 ? 0 : 1, borderBottomColor: '#eee', paddingBottom: iIdx === campaign.categories[selectedCategoryIdx].items.length - 1 ? 0 : 16 }}>
                       {item.image && (
                         <Image 
                           source={{ uri: item.image }} 
@@ -195,8 +305,8 @@ export default function MegaCampaignScreen() {
                 })}
               </View>
             </View>
-          ))}
-        </View>
+          </View>
+        )}
 
       </ScrollView>
     </ImageBackground>

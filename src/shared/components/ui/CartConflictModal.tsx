@@ -55,7 +55,7 @@ export function CartConflictModal() {
   if (!isVisible) return null;
 
   // Find the existing offer to show its details in the warning
-  const existingOffer = existingItems.find(i => i.isSpecialOffer);
+  
   
   return (
     <Modal
@@ -86,31 +86,29 @@ export function CartConflictModal() {
           <View className="bg-white rounded-t-[32px] pt-6 px-6 shadow-2xl flex-shrink" style={{ paddingBottom: insets.bottom + 24 }}>
 
             <View className="items-center mb-5">
-              <View className="w-16 h-16 bg-orange-50 rounded-full items-center justify-center mb-4 relative">
-                <Clock size={28} color="#ea580c" />
+              <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4 relative">
+                <X size={28} color="#e11d48" />
               </View>
               <Text className="text-xl font-black text-gray-900 text-center font-sans mb-1 tracking-tight">
-                Different Time Slot
+                Replace Cart Items?
               </Text>
               <Text className="text-sm text-gray-500 text-center font-sans px-4">
-                You can only order offers for one time slot at a time. Do you want to replace your previous offer?
+                You cannot mix Special Offers / Mega Campaigns with regular Menu items. Do you want to clear your cart and add this item?
               </Text>
             </View>
 
             <View className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-8">
-              {existingOffer && (
-                <View className="mb-4">
-                  <Text className="text-[11px] font-bold text-gray-400 uppercase mb-2 font-sans tracking-widest">
-                    Already in Cart
+              <View className="mb-4">
+                <Text className="text-[11px] font-bold text-gray-400 uppercase mb-2 font-sans tracking-widest">
+                  Already in Cart
+                </Text>
+                <View className="flex-row items-center">
+                  <View className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2" />
+                  <Text className="text-sm text-gray-700 font-sans flex-1 font-medium" numberOfLines={1}>
+                    {pendingProduct?.isSpecialOffer ? "Regular Menu Items" : "Special Offers / Campaigns"}
                   </Text>
-                  <View className="flex-row items-center">
-                    <View className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2" />
-                    <Text className="text-sm text-gray-700 font-sans flex-1 font-medium" numberOfLines={1}>
-                      {existingOffer.name} <Text className="font-bold">({existingOffer.mealType} • {existingOffer.deliveryDate})</Text>
-                    </Text>
-                  </View>
                 </View>
-              )}
+              </View>
               
               <View className="h-[1px] w-full bg-gray-200 mb-4" />
 
@@ -121,7 +119,7 @@ export function CartConflictModal() {
                 <View className="flex-row items-center">
                   <View className="w-1.5 h-1.5 rounded-full bg-primary mr-2" />
                   <Text className="text-sm font-bold text-gray-900 font-sans flex-1" numberOfLines={1}>
-                    {pendingProduct?.name} <Text className="text-primary">({pendingProduct?.mealType} • {pendingProduct?.deliveryDate})</Text>
+                    {pendingProduct?.name}
                   </Text>
                 </View>
               </View>
@@ -133,18 +131,17 @@ export function CartConflictModal() {
                 activeOpacity={0.8}
                 className="flex-1 py-4 rounded-xl bg-gray-100 items-center justify-center border border-gray-200"
               >
-                <Text className="text-gray-700 font-bold font-sans text-[15px]">Keep Old Offer</Text>
+                <Text className="text-gray-700 font-bold font-sans text-[15px]">Cancel</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 onPress={() => closeModal(true)}
                 activeOpacity={0.8}
-                className="flex-1 py-4 rounded-xl bg-primary items-center justify-center shadow-sm"
+                className="flex-1 py-4 rounded-xl bg-primary items-center justify-center shadow-lg shadow-primary/30"
               >
-                <Text className="text-white font-bold font-sans text-[15px]">Replace Offer</Text>
+                <Text className="text-white font-bold font-sans text-[15px]">Replace Cart</Text>
               </TouchableOpacity>
             </View>
-
           </View>
         </Animated.View>
       </View>

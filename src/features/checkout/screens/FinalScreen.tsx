@@ -702,7 +702,7 @@ export function FinalScreen() {
       return;
     }
 
-    // Validate special offers cutoff times and meal types
+    // Validate special offers cutoff times
     for (const item of items) {
       if (item.isSpecialOffer) {
         if (item.orderCutoffTime && new Date() > new Date(item.orderCutoffTime)) {
@@ -710,15 +710,6 @@ export function FinalScreen() {
           showAlert({
             title: "Time Limit Exceeded",
             message: `The order deadline for ${item.name} has passed. Please remove it from your cart.`,
-            cancelText: ""
-          });
-          return;
-        }
-        if (item.mealType && item.mealType !== 'both' && item.mealType !== mealTime) {
-          resetSlider?.();
-          showAlert({
-            title: "Invalid Meal Time",
-            message: `${item.name} is only available for ${item.mealType}. Please change your meal time selection or remove the item.`,
             cancelText: ""
           });
           return;

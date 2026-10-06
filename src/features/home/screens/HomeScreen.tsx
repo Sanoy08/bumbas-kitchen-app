@@ -301,7 +301,18 @@ export function HomeScreen() {
 
         // Validate special offers in the cart against current active offers
         if (data.data.offers) {
-          const removedItems = useCartStore.getState().validateSpecialOffers(data.data.offers);
+          let allActiveOffers = [...data.data.offers];
+          if (data.data.megaCampaign && data.data.megaCampaign.isActive && data.data.megaCampaign.categories) {
+            data.data.megaCampaign.categories.forEach((cat: any) => {
+              if (cat.items) {
+                cat.items.forEach((item: any) => {
+                  const id = `mega_${item.name.replace(/\s+/g, '_')}_${item.price}`;
+                  allActiveOffers.push({ id, ...item });
+                });
+              }
+            });
+          }
+          const removedItems = useCartStore.getState().validateSpecialOffers(allActiveOffers);
           if (removedItems.length > 0) {
             showAlert({
               title: 'Offer Expired',
