@@ -10,6 +10,9 @@ import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 
 
 const { width } = Dimensions.get('window');
+const CARD_H_PADDING = 16;
+const CARD_WIDTH = width - CARD_H_PADDING * 2;
+const DEFAULT_IMAGE_HEIGHT = CARD_WIDTH * 0.75; // fallback while ratio unknown
 
 export default function MegaCampaignScreen() {
   const params = useLocalSearchParams();
@@ -18,8 +21,9 @@ export default function MegaCampaignScreen() {
   const [selectedCategoryIdx, setSelectedCategoryIdx] = useState(0);
   const [isContentReady, setIsContentReady] = useState(false);
   const [prefetchDone, setPrefetchDone] = useState(false);
+  // url -> aspect ratio (width / height)
+  const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
 
-  // Track which images have loaded (by URL) and which must load before hiding skeleton
   const loadedImagesRef = useRef<Set<string>>(new Set());
   const totalImagesRef = useRef<Set<string>>(new Set());
 
@@ -34,7 +38,6 @@ export default function MegaCampaignScreen() {
     return null;
   }, [params.data]);
 
-  // Collect ALL image urls for prefetch
   const allImageUrls = useMemo(() => {
     if (!campaign) return [];
     const urls = new Set<string>();
@@ -49,7 +52,6 @@ export default function MegaCampaignScreen() {
     return Array.from(urls);
   }, [campaign]);
 
-  // Which images are visible on the very first paint — those must load before hiding skeleton
   useEffect(() => {
     if (!campaign) return;
     const set = new Set<string>();
@@ -64,7 +66,6 @@ export default function MegaCampaignScreen() {
     loadedImagesRef.current = new Set();
   }, [campaign]);
 
-  // If campaign is null, don't keep the skeleton forever
   useEffect(() => {
     if (!campaign) {
       setPrefetchDone(true);
@@ -72,7 +73,6 @@ export default function MegaCampaignScreen() {
     }
   }, [campaign]);
 
-  // Prefetch everything as fast as possible
   useEffect(() => {
     if (!campaign) return;
     let isMounted = true;
@@ -92,19 +92,22 @@ export default function MegaCampaignScreen() {
     };
   }, [campaign, allImageUrls]);
 
-  const handleImageLoad = useCallback((url?: string) => {
+  const handleImageLoad = useCallback((url?: string, source?: { width?: number; height?: number }) => {
     if (!url) return;
+    // Save aspect ratio for this image
+    if (source?.width && source?.height) {
+      const ratio = source.width / source.height;
+      setImageRatios((prev) => (prev[url] === ratio ? prev : { ...prev, [url]: ratio }));
+    }
     loadedImagesRef.current.add(url);
     const total = totalImagesRef.current.size;
     if (total > 0 && loadedImagesRef.current.size >= total) {
-      // Let the frame paint before removing skeleton
       requestAnimationFrame(() => {
         requestAnimationFrame(() => setIsContentReady(true));
       });
     }
   }, []);
 
-  // No visible images to track -> ready as soon as prefetch finishes
   useEffect(() => {
     if (prefetchDone && totalImagesRef.current.size === 0) {
       setIsContentReady(true);
@@ -161,7 +164,6 @@ export default function MegaCampaignScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Real content (rendered behind skeleton as soon as prefetch finishes so images start painting) */}
       {prefetchDone && campaign && (
         <View style={StyleSheet.absoluteFill}>
           <ImageBackground
@@ -222,87 +224,104 @@ export default function MegaCampaignScreen() {
                 </ScrollView>
               )}
 
-              {/* Selected Category Items */}
+              {/* Selected Category Items — big cards, edge-to-edge image with natural ratio */}
               {campaign.categories && campaign.categories[selectedCategoryIdx] && (
-                <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 30 }}>
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
-                    <View style={{ padding: 16, gap: 16 }}>
-                      {campaign.categories[selectedCategoryIdx].items?.map((item: any, iIdx: number) => {
-                        const qty = getQuantity(item.name, item.price);
-                        let isExpired = false;
-                        if (item.orderCutoffTime) {
-                          isExpired = new Date() > new Date(item.orderCutoffTime);
-                        }
-                        const trackLoad = selectedCategoryIdx === 0;
+                <View style={{ paddingHorizontal: CARD_H_PADDING, marginTop: 20, gap: 20 }}>
+                  {campaign.categories[selectedCategoryIdx].items?.map((item: any, iIdx: number) => {
+                    const qty = getQuantity(item.name, item.price);
+                    let isExpired = false;
+                    if (item.orderCutoffTime) {
+                      isExpired = new Date() > new Date(item.orderCutoffTime);
+                    }
+                    const trackLoad = selectedCategoryIdx === 0;
+                    const ratio = item.image ? imageRatios[item.image] : undefined;
+                    const imageHeight = ratio ? CARD_WIDTH / ratio : DEFAULT_IMAGE_HEIGHT;
 
-                        return (
-                          <View key={iIdx} style={{ flexDirection: 'row', gap: 12, borderBottomWidth: iIdx === campaign.categories[selectedCategoryIdx].items.length - 1 ? 0 : 1, borderBottomColor: '#eee', paddingBottom: iIdx === campaign.categories[selectedCategoryIdx].items.length - 1 ? 0 : 16 }}>
-                            {item.image && (
-                              <Image
-                                source={{ uri: item.image }}
-                                style={{ width: 90, height: 90, borderRadius: 12 }}
-                                contentFit="cover"
-                                onLoad={trackLoad ? () => handleImageLoad(item.image) : undefined}
-                              />
+                    return (
+                      <View
+                        key={iIdx}
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.97)',
+                          borderRadius: 24,
+                          overflow: 'hidden',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 6 },
+                          shadowOpacity: 0.12,
+                          shadowRadius: 14,
+                          elevation: 6,
+                        }}
+                      >
+                        {item.image && (
+                          <Image
+                            source={{ uri: item.image }}
+                            style={{ width: CARD_WIDTH, height: imageHeight }}
+                            contentFit="cover"
+                            onLoad={(e: any) => {
+                              const src = e?.source;
+                              handleImageLoad(
+                                item.image,
+                                src ? { width: src.width, height: src.height } : undefined
+                              );
+                            }}
+                          />
+                        )}
+
+                        <View style={{ padding: 16, gap: 10 }}>
+                          <Text style={{ fontSize: 20, fontWeight: '800', color: '#111' }}>
+                            {item.name}
+                          </Text>
+
+                          {item.description ? (
+                            <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }}>
+                              {item.description}
+                            </Text>
+                          ) : null}
+
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            {item.deliveryDate && (
+                              <View style={{ backgroundColor: '#fdf2f8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                                <Text style={{ fontSize: 12, color: '#e11d48', fontWeight: '700' }}>
+                                  Delivers: {new Date(item.deliveryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                </Text>
+                              </View>
                             )}
-
-                            <View style={{ flex: 1, justifyContent: 'space-between' }}>
-                              <View>
-                                <Text style={{ fontSize: 16, fontWeight: '700', color: '#111' }}>{item.name}</Text>
-                                {item.description ? (
-                                  <Text style={{ fontSize: 13, color: '#666', marginTop: 4 }} numberOfLines={2}>{item.description}</Text>
-                                ) : null}
-
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 }}>
-                                  {item.deliveryDate && (
-                                    <View style={{ backgroundColor: '#fdf2f8', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                      <Text style={{ fontSize: 10, color: '#e11d48', fontWeight: '600' }}>
-                                        Delivers: {new Date(item.deliveryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                      </Text>
-                                    </View>
-                                  )}
-                                  {item.mealType && (
-                                    <View style={{ backgroundColor: '#f0f9ff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                      <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>{item.mealType}</Text>
-                                    </View>
-                                  )}
-                                </View>
+                            {item.mealType && (
+                              <View style={{ backgroundColor: '#f0f9ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                                <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: '700' }}>{item.mealType}</Text>
                               </View>
-
-                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                                <Text style={{ fontSize: 16, fontWeight: '800', color: '#e11d48' }}>₹{item.price}</Text>
-
-                                {isExpired ? (
-                                  <View style={{ backgroundColor: '#f3f4f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}>
-                                    <Text style={{ fontSize: 12, color: '#9ca3af', fontWeight: '600' }}>Closed</Text>
-                                  </View>
-                                ) : (
-                                  qty > 0 ? (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e11d48', borderRadius: 20 }}>
-                                      <TouchableOpacity onPress={() => handleUpdateQuantity(item.name, item.price, -1)} style={{ padding: 8 }}>
-                                        <Minus size={16} color="white" />
-                                      </TouchableOpacity>
-                                      <Text style={{ color: 'white', fontWeight: '700', marginHorizontal: 8 }}>{qty}</Text>
-                                      <TouchableOpacity onPress={() => handleUpdateQuantity(item.name, item.price, 1)} style={{ padding: 8 }}>
-                                        <Plus size={16} color="white" />
-                                      </TouchableOpacity>
-                                    </View>
-                                  ) : (
-                                    <TouchableOpacity
-                                      onPress={() => handleAddToCart(item)}
-                                      style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e11d48', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 }}
-                                    >
-                                      <Text style={{ color: '#e11d48', fontWeight: '700', fontSize: 13 }}>ADD</Text>
-                                    </TouchableOpacity>
-                                  )
-                                )}
-                              </View>
-                            </View>
+                            )}
                           </View>
-                        );
-                      })}
-                    </View>
-                  </View>
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                            <Text style={{ fontSize: 22, fontWeight: '800', color: '#e11d48' }}>₹{item.price}</Text>
+
+                            {isExpired ? (
+                              <View style={{ backgroundColor: '#f3f4f6', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24 }}>
+                                <Text style={{ fontSize: 13, color: '#9ca3af', fontWeight: '700' }}>Closed</Text>
+                              </View>
+                            ) : qty > 0 ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e11d48', borderRadius: 24 }}>
+                                <TouchableOpacity onPress={() => handleUpdateQuantity(item.name, item.price, -1)} style={{ padding: 10 }}>
+                                  <Minus size={18} color="white" />
+                                </TouchableOpacity>
+                                <Text style={{ color: 'white', fontWeight: '800', marginHorizontal: 10, fontSize: 16 }}>{qty}</Text>
+                                <TouchableOpacity onPress={() => handleUpdateQuantity(item.name, item.price, 1)} style={{ padding: 10 }}>
+                                  <Plus size={18} color="white" />
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <TouchableOpacity
+                                onPress={() => handleAddToCart(item)}
+                                style={{ backgroundColor: '#e11d48', paddingHorizontal: 28, paddingVertical: 10, borderRadius: 24 }}
+                              >
+                                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>ADD</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 
@@ -311,7 +330,6 @@ export default function MegaCampaignScreen() {
         </View>
       )}
 
-      {/* Skeleton overlay — hides only after all visible images have loaded */}
       {showSkeleton && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff' }]}>
           <View style={{ position: 'absolute', top: insets.top + 10, left: 16, zIndex: 50 }}>
@@ -324,37 +342,34 @@ export default function MegaCampaignScreen() {
           </View>
           <ShimmerSkeleton width="100%" height={width * (2 / 3)} borderRadius={0} />
 
-          {/* Skeleton for tabs */}
           <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
             {[...Array(5)].map((_, i) => (
               <ShimmerSkeleton key={i} width={(width - 32 - 32) / 5} height={(width - 32 - 32) / 5} borderRadius={12} />
             ))}
           </View>
 
-          {/* Skeleton for items */}
-          <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 30 }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', padding: 16, gap: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
-              {[...Array(4)].map((_, i) => (
-                <View key={i} style={{ flexDirection: 'row', gap: 12, borderBottomWidth: i === 3 ? 0 : 1, borderBottomColor: '#eee', paddingBottom: i === 3 ? 0 : 16 }}>
-                  <ShimmerSkeleton width={90} height={90} borderRadius={12} />
-                  <View style={{ flex: 1, justifyContent: 'space-between', paddingVertical: 4 }}>
-                    <View style={{ gap: 8 }}>
-                      <ShimmerSkeleton width="80%" height={20} borderRadius={4} />
-                      <ShimmerSkeleton width="60%" height={14} borderRadius={4} />
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <ShimmerSkeleton width={60} height={20} borderRadius={4} />
-                      <ShimmerSkeleton width={70} height={32} borderRadius={16} />
-                    </View>
+          <View style={{ paddingHorizontal: CARD_H_PADDING, marginTop: 20, gap: 20 }}>
+            {[...Array(2)].map((_, i) => (
+              <View key={i} style={{ backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 6 }}>
+                <ShimmerSkeleton width="100%" height={DEFAULT_IMAGE_HEIGHT} borderRadius={0} />
+                <View style={{ padding: 16, gap: 10 }}>
+                  <ShimmerSkeleton width="80%" height={22} borderRadius={4} />
+                  <ShimmerSkeleton width="60%" height={14} borderRadius={4} />
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <ShimmerSkeleton width={90} height={22} borderRadius={6} />
+                    <ShimmerSkeleton width={70} height={22} borderRadius={6} />
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                    <ShimmerSkeleton width={70} height={24} borderRadius={4} />
+                    <ShimmerSkeleton width={90} height={40} borderRadius={24} />
                   </View>
                 </View>
-              ))}
-            </View>
+              </View>
+            ))}
           </View>
         </View>
       )}
 
-      {/* Error state (only when there is no campaign data) */}
       {!campaign && prefetchDone && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text>Error loading campaign data.</Text>
