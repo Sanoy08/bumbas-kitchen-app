@@ -492,7 +492,7 @@ export function FinalScreen() {
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
 
-  const { user, isInitialized } = useAuthStore();
+  const { user, token, isInitialized } = useAuthStore();
   const { items, getTotalPrice, getItemCount, checkoutState } = useCartStore();
 
   const { couponCode, couponDiscount, useCoins, coinDiscount: savedCoinDiscount } = checkoutState;
@@ -656,11 +656,13 @@ export function FinalScreen() {
 
   // Fetch addresses and wallet
   useEffect(() => {
-    if (!user) return;
+    if (!user || !token) return;
 
     const fetchData = async () => {
       try {
-        const resAddr = await fetch(`${API_URL}/user/addresses`);
+        const resAddr = await fetch(`${API_URL}/user/addresses`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const dataAddr = await resAddr.json();
         if (dataAddr.success && dataAddr.addresses) {
           setAddresses(dataAddr.addresses);
@@ -668,7 +670,9 @@ export function FinalScreen() {
           if (defaultAddr) setSelectedAddressId(defaultAddr.id);
         }
 
-        const resWallet = await fetch(`${API_URL}/wallet`);
+        const resWallet = await fetch(`${API_URL}/wallet`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const dataWallet = await resWallet.json();
         if (dataWallet.success && dataWallet.wallet) {
           setBaseTotalSpent(dataWallet.wallet.totalSpent || 0);
@@ -678,7 +682,7 @@ export function FinalScreen() {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, token]);
 
   // Auth & cart checks
   useEffect(() => {

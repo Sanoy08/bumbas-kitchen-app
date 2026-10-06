@@ -36,6 +36,8 @@ export default function MegaCampaignScreen() {
   const [isContentReady, setIsContentReady] = useState(false);
   const [prefetchDone, setPrefetchDone] = useState(false);
   const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
+  // Per-item-image loaded flag (URL -> true)
+  const [loadedItemImages, setLoadedItemImages] = useState<Record<string, boolean>>({});
 
   const loadedImagesRef = useRef<Set<string>>(new Set());
   const totalImagesRef = useRef<Set<string>>(new Set());
@@ -132,6 +134,24 @@ export default function MegaCampaignScreen() {
       });
     }
   }, []);
+
+  // Handle item image load: save ratio, mark loaded, and (for first category) feed into initial-load tracker
+  const handleItemImageLoad = useCallback((
+    url: string,
+    source: { width?: number; height?: number } | undefined,
+    trackInitialLoad: boolean
+  ) => {
+    if (source?.width && source?.height) {
+      const ratio = source.width / source.height;
+      setImageRatios((prev) => (prev[url] === ratio ? prev : { ...prev, [url]: ratio }));
+    }
+    setLoadedItemImages((prev) => (prev[url] ? prev : { ...prev, [url]: true }));
+    if (trackInitialLoad) {
+      handleImageLoad(url, source);
+    } else {
+      loadedImagesRef.current.add(url);
+    }
+  }, [handleImageLoad]);
 
   useEffect(() => {
     if (prefetchDone && totalImagesRef.current.size === 0) {
@@ -291,7 +311,6 @@ export default function MegaCampaignScreen() {
                             elevation: isSelected ? 10 : 2,
                           }}
                         >
-                          {/* Outer ring (selected) or transparent */}
                           <View
                             style={{
                               flex: 1,
@@ -341,9 +360,11 @@ export default function MegaCampaignScreen() {
                       if (item.orderCutoffTime) {
                         isExpired = new Date() > new Date(item.orderCutoffTime);
                       }
-                      const trackLoad = selectedCategoryIdx === 0;
+                      const trackInitialLoad = selectedCategoryIdx === 0;
                       const ratio = item.image ? imageRatios[item.image] : undefined;
-                      const imageHeight = ratio ? CARD_WIDTH / ratio : DEFAULT_IMAGE_HEIGHT;
+                      // Start square (1:1) until ratio is known; then adjust to natural aspect
+                      const imageHeight = ratio ? CARD_WIDTH / ratio : CARD_WIDTH;
+                      const itemImageLoaded = item.image ? !!loadedItemImages[item.image] : true;
 
                       return (
                         <View
@@ -360,18 +381,29 @@ export default function MegaCampaignScreen() {
                           }}
                         >
                           {item.image && (
-                            <Image
-                              source={{ uri: item.image }}
-                              style={{ width: CARD_WIDTH, height: imageHeight }}
-                              contentFit="cover"
-                              onLoad={(e: any) => {
-                                const src = e?.source;
-                                handleImageLoad(
-                                  item.image,
-                                  src ? { width: src.width, height: src.height } : undefined
-                                );
-                              }}
-                            />
+                            <View style={{ width: CARD_WIDTH, height: imageHeight, backgroundColor: '#f3f4f6' }}>
+                              <Image
+                                source={{ uri: item.image }}
+                                style={{ width: '100%', height: '100%' }}
+                                contentFit="cover"
+                                onLoad={(e: any) => {
+                                  const src = e?.source;
+                                  handleItemImageLoad(
+                                    item.image,
+                                    src ? { width: src.width, height: src.height } : undefined,
+                                    trackInitialLoad
+                                  );
+                                }}
+                              />
+                              {!itemImageLoaded && (
+                                <ShimmerSkeleton
+                                  width="100%"
+                                  height="100%"
+                                  borderRadius={0}
+                                  style={StyleSheet.absoluteFill as any}
+                                />
+                              )}
+                            </View>
                           )}
 
                           <View style={{ padding: 16, gap: 10 }}>
@@ -424,6 +456,7 @@ export default function MegaCampaignScreen() {
               </View>
             </Animated.ScrollView>
 
+            {/* Top white strip */}
             <Animated.View
               pointerEvents="none"
               style={{
@@ -454,7 +487,7 @@ export default function MegaCampaignScreen() {
           <View style={{ paddingHorizontal: CARD_H_PADDING, marginTop: 20, gap: 20 }}>
             {[...Array(2)].map((_, i) => (
               <View key={i} style={{ backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 6 }}>
-                <ShimmerSkeleton width="100%" height={DEFAULT_IMAGE_HEIGHT} borderRadius={0} />
+                <ShimmerSkeleton width="100%" height={CARD_WIDTH} borderRadius={0} />
                 <View style={{ padding: 16, gap: 10 }}>
                   <ShimmerSkeleton width="80%" height={22} borderRadius={4} />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
