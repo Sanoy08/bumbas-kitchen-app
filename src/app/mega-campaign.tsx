@@ -2,6 +2,7 @@ import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import LottieView from 'lottie-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Minus, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -36,8 +37,10 @@ export default function MegaCampaignScreen() {
   const [isContentReady, setIsContentReady] = useState(false);
   const [prefetchDone, setPrefetchDone] = useState(false);
   const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
-  // Per-item-image loaded flag (URL -> true)
   const [loadedItemImages, setLoadedItemImages] = useState<Record<string, boolean>>({});
+
+  const cartLottieRef = useRef<LottieView>(null);
+  const [animationKey, setAnimationKey] = useState(0);
 
   const loadedImagesRef = useRef<Set<string>>(new Set());
   const totalImagesRef = useRef<Set<string>>(new Set());
@@ -204,6 +207,16 @@ export default function MegaCampaignScreen() {
     const cartItem = cartItems.find((ci: any) => ci.id === id);
     return cartItem ? cartItem.quantity : 0;
   };
+
+  const totalQuantity = cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0);
+  const prevQuantity = useRef(totalQuantity);
+
+  useEffect(() => {
+    if (totalQuantity > prevQuantity.current) {
+      setAnimationKey(prev => prev + 1);
+    }
+    prevQuantity.current = totalQuantity;
+  }, [totalQuantity]);
 
   const handleUpdateQuantity = (itemName: string, itemPrice: number, change: number) => {
     const id = `mega_${itemName.replace(/\s+/g, '_')}_${itemPrice}`;
@@ -511,6 +524,54 @@ export default function MegaCampaignScreen() {
             <Text style={{ color: 'white' }}>Go Back</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {cartItems && cartItems.length > 0 && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/cart')}
+          style={{
+            position: 'absolute',
+            bottom: insets.bottom > 0 ? insets.bottom : 20,
+            left: 16,
+            right: 16,
+            backgroundColor: '#f4bbc7',
+            borderRadius: 16,
+            paddingVertical: 14,
+            paddingHorizontal: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            shadowColor: '#e11d48',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+            overflow: 'hidden'
+          }}
+        >
+          <View style={{ backgroundColor: 'rgba(225,29,72,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+            <Text style={{ color: '#e11d48', fontWeight: 'bold', fontSize: 14 }}>
+              {cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0)} {cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0) > 1 ? 'items' : 'item'}
+            </Text>
+          </View>
+
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+            <LottieView
+              ref={cartLottieRef}
+              key={`cart-anim-${animationKey}`}
+              source={require('../../assets/animations/cart.json')}
+              loop={false}
+              autoPlay={animationKey > 0}
+              onAnimationFinish={() => {
+                cartLottieRef.current?.reset();
+              }}
+              style={{ width: 60, height: 60 }}
+            />
+          </View>
+
+          <Text style={{ color: '#e11d48', fontWeight: 'bold', fontSize: 16 }}>View Cart</Text>
+        </TouchableOpacity>
       )}
     </View>
   );

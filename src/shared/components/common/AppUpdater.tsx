@@ -1,16 +1,18 @@
 // src/components/AppUpdater.tsx
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Linking } from 'react-native';
+import { useAuthStore } from '@/shared/store/authStore';
 import * as Application from 'expo-application';
-import LottieView from 'lottie-react-native';
-import { useAlert } from '../ui/CustomAlert';
 import { Image } from 'expo-image';
+import LottieView from 'lottie-react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { useAlert } from '../ui/CustomAlert';
 
 export function AppUpdater() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [updateInfo, setUpdateInfo] = useState({ latestVersion: '', apkUrl: '' });
   const [isStoreOpen, setIsStoreOpen] = useState(true);
-  
+
+  const user = useAuthStore(state => state.user);
   const { showAlert } = useAlert();
 
   useEffect(() => {
@@ -26,9 +28,9 @@ export function AppUpdater() {
             setIsStoreOpen(data.isStoreOpen);
           }
           if (data.latestVersion && data.apkUrl && isNewerVersion(currentVersion, data.latestVersion)) {
-            setUpdateInfo({ 
-                latestVersion: data.latestVersion, 
-                apkUrl: data.apkUrl 
+            setUpdateInfo({
+              latestVersion: data.latestVersion,
+              apkUrl: data.apkUrl
             });
             setShowUpdate(true);
           }
@@ -49,10 +51,10 @@ export function AppUpdater() {
     const oldParts = oldVer.split('.').map(Number);
     const newParts = newVer.split('.').map(Number);
     for (let i = 0; i < Math.max(oldParts.length, newParts.length); i++) {
-        const o = oldParts[i] || 0;
-        const n = newParts[i] || 0;
-        if (n > o) return true;
-        if (n < o) return false;
+      const o = oldParts[i] || 0;
+      const n = newParts[i] || 0;
+      if (n > o) return true;
+      if (n < o) return false;
     }
     return false;
   };
@@ -75,50 +77,50 @@ export function AppUpdater() {
         title: "Error",
         message: "Could not open the update link.",
         confirmText: "OK",
-      }); 
+      });
     }
   };
 
   return (
     <>
-      <Modal visible={!isStoreOpen} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={!isStoreOpen && user?.role !== 'admin'} transparent animationType="fade" onRequestClose={() => { }}>
         <View style={{ flex: 1, backgroundColor: '#fdebe8' }}>
-          <Image 
-            source={require('../../../../assets/images/store.webp')} 
-            style={{ width: '100%', flex: 1 }} 
+          <Image
+            source={require('../../../../assets/images/store.webp')}
+            style={{ width: '100%', flex: 1 }}
             contentFit="contain"
             contentPosition="center"
           />
         </View>
       </Modal>
 
-      <Modal visible={showUpdate} transparent animationType="fade" onRequestClose={() => {}}>
-      <View className="flex-1 justify-center items-center bg-black/60 px-4">
-        <View className="bg-white rounded-[32px] p-6 w-[88%] max-w-[340px] items-center shadow-2xl">
-          <LottieView
-            source={require('../../../../assets/animations/Maintenance web.json')}
-            autoPlay
-            loop
-            style={{ width: 220, height: 220 }}
-          />
-          <Text className="text-2xl font-extrabold tracking-tight text-gray-900 mb-2 mt-2">
-            Update Required
-          </Text>
-          <Text className="text-[13px] leading-5 text-gray-500 mb-6 text-center px-2">
-            Version {updateInfo.latestVersion} is now available. Please update to continue using Bumba's Kitchen smoothly.
-          </Text>
+      <Modal visible={showUpdate} transparent animationType="fade" onRequestClose={() => { }}>
+        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+          <View className="bg-white rounded-[32px] p-6 w-[88%] max-w-[340px] items-center shadow-2xl">
+            <LottieView
+              source={require('../../../../assets/animations/Maintenance web.json')}
+              autoPlay
+              loop
+              style={{ width: 220, height: 220 }}
+            />
+            <Text className="text-2xl font-extrabold tracking-tight text-gray-900 mb-2 mt-2">
+              Update Required
+            </Text>
+            <Text className="text-[13px] leading-5 text-gray-500 mb-6 text-center px-2">
+              Version {updateInfo.latestVersion} is now available. Please update to continue using Bumba's Kitchen smoothly.
+            </Text>
 
-          <View className="w-full">
-            <TouchableOpacity 
-              onPress={handleUpdate} 
-              className="w-full bg-primary py-3.5 rounded-2xl flex-row justify-center items-center active:opacity-80"
-            >
-              <Text className="text-white font-bold text-lg">Update Now</Text>
-            </TouchableOpacity>
+            <View className="w-full">
+              <TouchableOpacity
+                onPress={handleUpdate}
+                className="w-full bg-primary py-3.5 rounded-2xl flex-row justify-center items-center active:opacity-80"
+              >
+                <Text className="text-white font-bold text-lg">Update Now</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
     </>
   );
 }

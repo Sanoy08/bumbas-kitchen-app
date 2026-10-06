@@ -142,12 +142,6 @@ export default function ShopLayout() {
         }}
       />
 
-      <Tabs.Screen
-        name="mega-campaign"
-        options={{
-          href: null,
-        }}
-      />
 
     </Tabs>
     <CartConflictModal />
