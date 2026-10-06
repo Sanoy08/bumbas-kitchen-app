@@ -14,6 +14,10 @@ const CARD_H_PADDING = 16;
 const CARD_WIDTH = width - CARD_H_PADDING * 2;
 const DEFAULT_IMAGE_HEIGHT = CARD_WIDTH * 0.75; // fallback while ratio unknown
 
+// Category tile size + 50% overlap over the heading image bottom
+const CATEGORY_TILE_SIZE = (width - 32 - 32) / 5;
+const CATEGORY_OVERLAP = CATEGORY_TILE_SIZE / 2;
+
 export default function MegaCampaignScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
@@ -21,7 +25,6 @@ export default function MegaCampaignScreen() {
   const [selectedCategoryIdx, setSelectedCategoryIdx] = useState(0);
   const [isContentReady, setIsContentReady] = useState(false);
   const [prefetchDone, setPrefetchDone] = useState(false);
-  // url -> aspect ratio (width / height)
   const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
 
   const loadedImagesRef = useRef<Set<string>>(new Set());
@@ -94,7 +97,6 @@ export default function MegaCampaignScreen() {
 
   const handleImageLoad = useCallback((url?: string, source?: { width?: number; height?: number }) => {
     if (!url) return;
-    // Save aspect ratio for this image
     if (source?.width && source?.height) {
       const ratio = source.width / source.height;
       setImageRatios((prev) => (prev[url] === ratio ? prev : { ...prev, [url]: ratio }));
@@ -191,37 +193,49 @@ export default function MegaCampaignScreen() {
                 />
               )}
 
-              {/* Category Buttons */}
+              {/* Category Buttons — centered on the heading image bottom edge (50% overlap) */}
               {campaign.categories && campaign.categories.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
-                  {campaign.categories.map((cat: any, cIdx: number) => (
-                    <TouchableOpacity
-                      key={cIdx}
-                      onPress={() => setSelectedCategoryIdx(cIdx)}
-                      style={{
-                        borderRadius: 12,
-                        overflow: 'hidden',
-                        borderWidth: 2,
-                        borderColor: selectedCategoryIdx === cIdx ? '#e11d48' : 'transparent',
-                        width: (width - 32 - 32) / 5,
-                        height: (width - 32 - 32) / 5
-                      }}
-                    >
-                      {cat.image ? (
-                        <Image
-                          source={{ uri: cat.image }}
-                          style={{ width: '100%', height: '100%' }}
-                          contentFit="cover"
-                          onLoad={() => handleImageLoad(cat.image)}
-                        />
-                      ) : (
-                        <View style={{ flex: 1, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Category</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <View style={{ zIndex: 10, marginTop: -CATEGORY_OVERLAP }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+                  >
+                    {campaign.categories.map((cat: any, cIdx: number) => (
+                      <TouchableOpacity
+                        key={cIdx}
+                        onPress={() => setSelectedCategoryIdx(cIdx)}
+                        style={{
+                          borderRadius: 12,
+                          overflow: 'hidden',
+                          borderWidth: 2,
+                          borderColor: selectedCategoryIdx === cIdx ? '#e11d48' : 'transparent',
+                          width: CATEGORY_TILE_SIZE,
+                          height: CATEGORY_TILE_SIZE,
+                          backgroundColor: '#fff',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.15,
+                          shadowRadius: 8,
+                          elevation: 5,
+                        }}
+                      >
+                        {cat.image ? (
+                          <Image
+                            source={{ uri: cat.image }}
+                            style={{ width: '100%', height: '100%' }}
+                            contentFit="cover"
+                            onLoad={() => handleImageLoad(cat.image)}
+                          />
+                        ) : (
+                          <View style={{ flex: 1, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Category</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
               )}
 
               {/* Selected Category Items — big cards, edge-to-edge image with natural ratio */}
@@ -342,9 +356,10 @@ export default function MegaCampaignScreen() {
           </View>
           <ShimmerSkeleton width="100%" height={width * (2 / 3)} borderRadius={0} />
 
-          <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
+          {/* Skeleton tabs — same 50% overlap so layout doesn't jump */}
+          <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, zIndex: 10, marginTop: -CATEGORY_OVERLAP }}>
             {[...Array(5)].map((_, i) => (
-              <ShimmerSkeleton key={i} width={(width - 32 - 32) / 5} height={(width - 32 - 32) / 5} borderRadius={12} />
+              <ShimmerSkeleton key={i} width={CATEGORY_TILE_SIZE} height={CATEGORY_TILE_SIZE} borderRadius={12} />
             ))}
           </View>
 
