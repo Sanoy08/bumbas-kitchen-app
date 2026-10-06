@@ -17,11 +17,11 @@ const CATEGORY_TILE_SIZE = (width - 32 - 32) / 5;
 const CATEGORY_OVERLAP = CATEGORY_TILE_SIZE / 2;
 const HEADING_HEIGHT = width * (2 / 3);
 
-// How much less to scroll so the items don't hug the sticky bar
 const AUTOSCROLL_OFFSET = -10;
-
-// Extra white space below the category icons (inside the sticky bar)
 const CATEGORY_BOTTOM_PADDING = 30;
+
+const SELECTED_SCALE = 1.08;
+const UNSELECTED_OPACITY = 0.55;
 
 export default function MegaCampaignScreen() {
   const params = useLocalSearchParams();
@@ -264,36 +264,69 @@ export default function MegaCampaignScreen() {
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+                    contentContainerStyle={{
+                      paddingHorizontal: 16,
+                      gap: 8,
+                      alignItems: 'center',
+                      paddingVertical: 4,
+                    }}
                   >
-                    {campaign.categories.map((cat: any, cIdx: number) => (
-                      <TouchableOpacity
-                        key={cIdx}
-                        onPress={() => handleSelectCategory(cIdx)}
-                        style={{
-                          borderRadius: 12,
-                          overflow: 'hidden',
-                          borderWidth: 2,
-                          borderColor: selectedCategoryIdx === cIdx ? '#e11d48' : 'transparent',
-                          width: CATEGORY_TILE_SIZE,
-                          height: CATEGORY_TILE_SIZE,
-                          backgroundColor: '#fff',
-                        }}
-                      >
-                        {cat.image ? (
-                          <Image
-                            source={{ uri: cat.image }}
-                            style={{ width: '100%', height: '100%' }}
-                            contentFit="cover"
-                            onLoad={() => handleImageLoad(cat.image)}
-                          />
-                        ) : (
-                          <View style={{ flex: 1, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Category</Text>
+                    {campaign.categories.map((cat: any, cIdx: number) => {
+                      const isSelected = selectedCategoryIdx === cIdx;
+                      return (
+                        <TouchableOpacity
+                          key={cIdx}
+                          onPress={() => handleSelectCategory(cIdx)}
+                          activeOpacity={0.85}
+                          style={{
+                            width: CATEGORY_TILE_SIZE,
+                            height: CATEGORY_TILE_SIZE,
+                            borderRadius: 14,
+                            opacity: isSelected ? 1 : UNSELECTED_OPACITY,
+                            transform: [{ scale: isSelected ? SELECTED_SCALE : 1 }],
+                            shadowColor: isSelected ? '#e11d48' : '#000',
+                            shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
+                            shadowOpacity: isSelected ? 0.35 : 0.12,
+                            shadowRadius: isSelected ? 8 : 4,
+                            elevation: isSelected ? 10 : 2,
+                          }}
+                        >
+                          {/* Outer ring (selected) or transparent */}
+                          <View
+                            style={{
+                              flex: 1,
+                              borderRadius: 14,
+                              borderWidth: isSelected ? 2.5 : 0,
+                              borderColor: isSelected ? '#e11d48' : 'transparent',
+                              padding: isSelected ? 2 : 0,
+                              backgroundColor: isSelected ? '#ffffff' : 'transparent',
+                            }}
+                          >
+                            <View
+                              style={{
+                                flex: 1,
+                                borderRadius: isSelected ? 10 : 14,
+                                overflow: 'hidden',
+                                backgroundColor: '#fff',
+                              }}
+                            >
+                              {cat.image ? (
+                                <Image
+                                  source={{ uri: cat.image }}
+                                  style={{ width: '100%', height: '100%' }}
+                                  contentFit="cover"
+                                  onLoad={() => handleImageLoad(cat.image)}
+                                />
+                              ) : (
+                                <View style={{ flex: 1, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Category</Text>
+                                </View>
+                              )}
+                            </View>
                           </View>
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                        </TouchableOpacity>
+                      );
+                    })}
                   </ScrollView>
                 )}
               </View>
@@ -346,7 +379,6 @@ export default function MegaCampaignScreen() {
                               {item.name}
                             </Text>
 
-                            {/* Only delivery date chip remains */}
                             {item.deliveryDate && (
                               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                                 <View style={{ backgroundColor: '#fdf2f8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
@@ -392,7 +424,6 @@ export default function MegaCampaignScreen() {
               </View>
             </Animated.ScrollView>
 
-            {/* Top white strip (safe area) */}
             <Animated.View
               pointerEvents="none"
               style={{
