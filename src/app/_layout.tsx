@@ -63,6 +63,7 @@ export default function RootLayout() {
   const [isFirstRun, setIsFirstRun] = useState<boolean | null>(null);
   const [showSplash, setShowSplash] = useState(true);
   const [isHomeLoaded, setIsHomeLoaded] = useState(false);
+  const [isAppUpdaterReady, setIsAppUpdaterReady] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // ★ App load howar sathe sathe auto-sync chalu korar jonno
@@ -115,29 +116,34 @@ export default function RootLayout() {
     let timeoutId: NodeJS.Timeout;
     const listener = DeviceEventEmitter.addListener('home_data_loaded', () => {
       setIsHomeLoaded(true);
-      clearTimeout(timeoutId);
+    });
+
+    const updaterListener = DeviceEventEmitter.addListener('app_updater_ready', () => {
+      setIsAppUpdaterReady(true);
     });
 
     const refreshListener = DeviceEventEmitter.addListener('trigger_refresh_splash', () => {
       setShowSplash(true);
       setIsHomeLoaded(false);
+      setIsAppUpdaterReady(false);
       fadeAnim.setValue(1);
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => setIsHomeLoaded(true), 3000);
+      timeoutId = setTimeout(() => { setIsHomeLoaded(true); setIsAppUpdaterReady(true); }, 4000);
     });
 
-    // Fallback: if home doesn't load in 3 seconds, dismiss splash anyway
-    timeoutId = setTimeout(() => setIsHomeLoaded(true), 3000);
+    // Fallback: if home doesn't load in 4 seconds, dismiss splash anyway
+    timeoutId = setTimeout(() => { setIsHomeLoaded(true); setIsAppUpdaterReady(true); }, 4000);
 
     return () => {
       listener.remove();
+      updaterListener.remove();
       refreshListener.remove();
       clearTimeout(timeoutId);
     };
   }, []);
 
   useEffect(() => {
-    if (!isFirstRun && isInitialized && fontsLoaded && isHomeLoaded) {
+    if (!isFirstRun && isInitialized && fontsLoaded && isHomeLoaded && isAppUpdaterReady) {
       setTimeout(() => {
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -150,7 +156,7 @@ export default function RootLayout() {
         });
       }, 300);
     }
-  }, [isFirstRun, isInitialized, fontsLoaded, isHomeLoaded]);
+  }, [isFirstRun, isInitialized, fontsLoaded, isHomeLoaded, isAppUpdaterReady]);
 
   const finishOnboarding = async () => {
     await AsyncStorage.setItem('isFirstRun', 'false');

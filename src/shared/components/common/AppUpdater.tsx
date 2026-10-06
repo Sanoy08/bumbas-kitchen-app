@@ -4,10 +4,12 @@ import { View, Text, TouchableOpacity, Modal, Linking } from 'react-native';
 import * as Application from 'expo-application';
 import LottieView from 'lottie-react-native';
 import { useAlert } from '../ui/CustomAlert';
+import { Image } from 'expo-image';
 
 export function AppUpdater() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [updateInfo, setUpdateInfo] = useState({ latestVersion: '', apkUrl: '' });
+  const [isStoreOpen, setIsStoreOpen] = useState(true);
   
   const { showAlert } = useAlert();
 
@@ -19,8 +21,11 @@ export function AppUpdater() {
         const res = await fetch(`https://www.bumbaskitchen.app/api/app-version?t=${new Date().getTime()}`);
         const data = await res.json();
 
-        if (data.success && data.latestVersion && data.apkUrl) {
-          if (isNewerVersion(currentVersion, data.latestVersion)) {
+        if (data.success) {
+          if (typeof data.isStoreOpen === 'boolean') {
+            setIsStoreOpen(data.isStoreOpen);
+          }
+          if (data.latestVersion && data.apkUrl && isNewerVersion(currentVersion, data.latestVersion)) {
             setUpdateInfo({ 
                 latestVersion: data.latestVersion, 
                 apkUrl: data.apkUrl 
@@ -30,6 +35,10 @@ export function AppUpdater() {
         }
       } catch (error) {
         console.log("Update check failed", error);
+      } finally {
+        import('react-native').then(({ DeviceEventEmitter }) => {
+          DeviceEventEmitter.emit('app_updater_ready');
+        });
       }
     };
 
@@ -71,7 +80,19 @@ export function AppUpdater() {
   };
 
   return (
-    <Modal visible={showUpdate} transparent animationType="fade" onRequestClose={() => {}}>
+    <>
+      <Modal visible={!isStoreOpen} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={{ flex: 1, backgroundColor: '#fdebe8' }}>
+          <Image 
+            source={require('../../../../assets/images/store.webp')} 
+            style={{ width: '100%', flex: 1 }} 
+            contentFit="contain"
+            contentPosition="center"
+          />
+        </View>
+      </Modal>
+
+      <Modal visible={showUpdate} transparent animationType="fade" onRequestClose={() => {}}>
       <View className="flex-1 justify-center items-center bg-black/60 px-4">
         <View className="bg-white rounded-[32px] p-6 w-[88%] max-w-[340px] items-center shadow-2xl">
           <LottieView
@@ -98,5 +119,6 @@ export function AppUpdater() {
         </View>
       </View>
     </Modal>
+    </>
   );
 }
