@@ -215,7 +215,7 @@ export default function MegaCampaignScreen() {
               scrollEventThrottle={16}
               stickyHeaderIndices={hasCategories ? [1] : undefined}
             >
-              {/* Child 0: heading — negative margin moved HERE so the sticky child has no negative margin */}
+              {/* Child 0: heading */}
               <View style={{ marginBottom: -(CATEGORY_OVERLAP + STICKY_TOP) }}>
                 {campaign.headingImage && (
                   <Image
@@ -227,7 +227,7 @@ export default function MegaCampaignScreen() {
                 )}
               </View>
 
-              {/* Child 1: sticky category row — no more negative marginTop */}
+              {/* Child 1: sticky category row */}
               <View
                 pointerEvents="box-none"
                 style={{
@@ -346,26 +346,16 @@ export default function MegaCampaignScreen() {
                               {item.name}
                             </Text>
 
-                            {item.description ? (
-                              <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }}>
-                                {item.description}
-                              </Text>
-                            ) : null}
-
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                              {item.deliveryDate && (
+                            {/* Only delivery date chip remains */}
+                            {item.deliveryDate && (
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                                 <View style={{ backgroundColor: '#fdf2f8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
                                   <Text style={{ fontSize: 12, color: '#e11d48', fontWeight: '700' }}>
                                     Delivers: {new Date(item.deliveryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                                   </Text>
                                 </View>
-                              )}
-                              {item.mealType && (
-                                <View style={{ backgroundColor: '#f0f9ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
-                                  <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: '700' }}>{item.mealType}</Text>
-                                </View>
-                              )}
-                            </View>
+                              </View>
+                            )}
 
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                               <Text style={{ fontSize: 22, fontWeight: '800', color: '#e11d48' }}>₹{item.price}</Text>
@@ -436,10 +426,8 @@ export default function MegaCampaignScreen() {
                 <ShimmerSkeleton width="100%" height={DEFAULT_IMAGE_HEIGHT} borderRadius={0} />
                 <View style={{ padding: 16, gap: 10 }}>
                   <ShimmerSkeleton width="80%" height={22} borderRadius={4} />
-                  <ShimmerSkeleton width="60%" height={14} borderRadius={4} />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <ShimmerSkeleton width={90} height={22} borderRadius={6} />
-                    <ShimmerSkeleton width={70} height={22} borderRadius={6} />
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                     <ShimmerSkeleton width={70} height={24} borderRadius={4} />
