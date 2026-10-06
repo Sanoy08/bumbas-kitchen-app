@@ -532,45 +532,51 @@ export default function MegaCampaignScreen() {
           onPress={() => router.push('/cart')}
           style={{
             position: 'absolute',
-            bottom: insets.bottom > 0 ? insets.bottom : 20,
-            left: 16,
-            right: 16,
-            backgroundColor: '#f4bbc7',
-            borderRadius: 16,
-            paddingVertical: 14,
-            paddingHorizontal: 20,
+            bottom: insets.bottom > 0 ? insets.bottom + 10 : 24,
+            alignSelf: 'center',
+            backgroundColor: '#cb202d', // Zomato Crimson Red
+            borderRadius: 999, // Pill shape
+            paddingVertical: 12,
+            paddingLeft: 12,
+            paddingRight: 20,
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            shadowColor: '#e11d48',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
-            overflow: 'hidden'
+            shadowColor: '#cb202d',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+            elevation: 10,
           }}
         >
-          <View style={{ backgroundColor: 'rgba(225,29,72,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-            <Text style={{ color: '#e11d48', fontWeight: 'bold', fontSize: 14 }}>
-              {cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0)} {cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0) > 1 ? 'items' : 'item'}
-            </Text>
-          </View>
-
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+          {/* Lottie Icon Container */}
+          <View style={{ width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
             <LottieView
               ref={cartLottieRef}
               key={`cart-anim-${animationKey}`}
               source={require('../../assets/animations/cart.json')}
               loop={false}
               autoPlay={animationKey > 0}
-              onAnimationFinish={() => {
-                cartLottieRef.current?.reset();
-              }}
-              style={{ width: 60, height: 60 }}
+              onAnimationFinish={() => cartLottieRef.current?.reset()}
+              style={{ width: 55, height: 55, position: 'absolute' }}
             />
           </View>
 
-          <Text style={{ color: '#e11d48', fontWeight: 'bold', fontSize: 16 }}>View Cart</Text>
+          {/* Item Count & Price */}
+          <View style={{ flexDirection: 'column', marginRight: 16 }}>
+            <Text style={{ color: 'white', fontWeight: '800', fontSize: 14 }}>
+              {cartItems.reduce((acc: any, item: any) => acc + item.quantity, 0)} Items
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontWeight: '700', fontSize: 13 }}>
+              ₹{cartItems.reduce((acc: any, item: any) => acc + (item.price * item.quantity), 0)}
+            </Text>
+          </View>
+
+          <View style={{ width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', marginRight: 16 }} />
+
+          {/* Action Text */}
+          <Text style={{ color: 'white', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 }}>
+            View Cart
+          </Text>
         </TouchableOpacity>
       )}
     </View>
