@@ -799,7 +799,7 @@ export function FinalScreen() {
         altPhone: user?.phone || '',
         items: items,
         subtotal: totalPrice,
-        deliveryFee: 0,
+        deliveryFee: (selectedAddress && selectedAddress.distanceKm > 2) ? 'Applicable' : 0,
         total: finalTotal,
         discount: couponDiscount + coinDiscountAmount,
         couponCode: couponDiscount > 0 ? couponCode : '',
