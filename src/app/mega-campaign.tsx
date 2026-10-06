@@ -534,7 +534,7 @@ export default function MegaCampaignScreen() {
           onPress={() => router.push('/cart')}
           style={{
             position: 'absolute',
-            bottom: Math.max(insets.bottom, 24),
+            bottom: insets.bottom > 0 ? insets.bottom + 10 : 24,
             alignSelf: 'center',
             backgroundColor: '#cb202d', // Zomato Crimson Red
             borderRadius: 999, // Pill shape
