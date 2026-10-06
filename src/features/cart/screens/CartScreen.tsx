@@ -146,11 +146,15 @@ const CartItem = React.memo(
         <Animated.View style={{ opacity }}>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => router.push(`/menus/${item.slug}`)}
+            onPress={() => {
+              if (!item.isSpecialOffer) {
+                router.push(`/menus/${item.slug}`);
+              }
+            }}
             className="bg-white rounded-2xl p-4 mb-4 border border-gray-100"
             accessibilityLabel={`View details of ${item.name}`}
             accessibilityRole="button"
-            disabled={isRemoving}
+            disabled={isRemoving || item.isSpecialOffer}
           >
             <TouchableOpacity
               onPress={(e) => {

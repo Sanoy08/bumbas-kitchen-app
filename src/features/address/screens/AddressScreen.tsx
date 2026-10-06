@@ -577,7 +577,7 @@ export function AddressScreen() {
         console.log('Region change error:', e);
         setIsReverseGeocoding(false);
       }
-    }, 1000);
+    }, 2000);
   };
 
   // Tap on a spot to jump camera there (onRegionDidChange will then update address)
@@ -782,6 +782,10 @@ export function AddressScreen() {
                   style={{ flex: 1, width: '100%' }}
                   onPress={onMapPress}
                   onPanDrag={() => setIsPanning(true)}
+                  onRegionChange={() => {
+                    setIsPanning(true);
+                    if (regionChangeTimer.current) clearTimeout(regionChangeTimer.current);
+                  }}
                   onRegionChangeComplete={onRegionDidChange}
                   scrollEnabled={mapScrollEnabled}
                   showsCompass={false}
