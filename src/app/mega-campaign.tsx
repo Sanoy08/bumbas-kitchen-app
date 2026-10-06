@@ -229,14 +229,17 @@ export default function MegaCampaignScreen() {
   const hasCategories = !!(campaign?.categories && campaign.categories.length > 0);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      {prefetchDone && campaign && (
-        <View style={StyleSheet.absoluteFill}>
-          <ImageBackground
-            source={{ uri: campaign.pageBgImage || 'https://via.placeholder.com/800x1200' }}
-            style={{ flex: 1 }}
-            resizeMode="cover"
-          >
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        {prefetchDone && campaign && (
+          <View style={StyleSheet.absoluteFill}>
+            {campaign.pageBgImage && (
+              <Image
+                source={{ uri: campaign.pageBgImage }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                contentPosition="bottom center"
+              />
+            )}
             <Animated.ScrollView
               ref={scrollRef}
               contentContainerStyle={{ paddingBottom: 100 }}
@@ -483,9 +486,8 @@ export default function MegaCampaignScreen() {
                 zIndex: 5,
               }}
             />
-          </ImageBackground>
-        </View>
-      )}
+          </View>
+        )}
 
       {showSkeleton && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff' }]}>
@@ -532,7 +534,7 @@ export default function MegaCampaignScreen() {
           onPress={() => router.push('/cart')}
           style={{
             position: 'absolute',
-            bottom: insets.bottom > 0 ? insets.bottom + 10 : 24,
+            bottom: Math.max(insets.bottom, 24),
             alignSelf: 'center',
             backgroundColor: '#cb202d', // Zomato Crimson Red
             borderRadius: 999, // Pill shape
