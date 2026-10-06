@@ -215,8 +215,8 @@ export default function MegaCampaignScreen() {
               scrollEventThrottle={16}
               stickyHeaderIndices={hasCategories ? [1] : undefined}
             >
-              {/* Child 0: heading */}
-              <View>
+              {/* Child 0: heading — negative margin moved HERE so the sticky child has no negative margin */}
+              <View style={{ marginBottom: -(CATEGORY_OVERLAP + STICKY_TOP) }}>
                 {campaign.headingImage && (
                   <Image
                     source={{ uri: campaign.headingImage }}
@@ -227,10 +227,10 @@ export default function MegaCampaignScreen() {
                 )}
               </View>
 
-              {/* Child 1: sticky category row */}
+              {/* Child 1: sticky category row — no more negative marginTop */}
               <View
+                pointerEvents="box-none"
                 style={{
-                  marginTop: -(CATEGORY_OVERLAP + STICKY_TOP),
                   paddingTop: STICKY_TOP,
                   paddingBottom: CATEGORY_BOTTOM_PADDING,
                 }}
@@ -402,7 +402,7 @@ export default function MegaCampaignScreen() {
               </View>
             </Animated.ScrollView>
 
-            {/* Top white strip (safe area) — now solid */}
+            {/* Top white strip (safe area) */}
             <Animated.View
               pointerEvents="none"
               style={{
