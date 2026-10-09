@@ -979,7 +979,17 @@ export function AddressScreen() {
 
                       <TouchableOpacity
                         onPress={() => {
-                          handleSave();
+                          if ((formData.distanceKm ?? 0) > 2) {
+                            showAlert({
+                              title: "Delivery Charge Applicable",
+                              message: `This address is ${formData.distanceKm?.toFixed(1)} km away. A delivery charge will be added by our team after order confirmation.`,
+                              confirmText: "Proceed Anyway",
+                              cancelText: "Cancel",
+                              onConfirm: () => handleSave(),
+                            });
+                          } else {
+                            handleSave();
+                          }
                         }}
                         disabled={isSaving || outOfRange || !formData.coordinates || formData.address?.toLowerCase().includes('custom location')}
                         style={{ height: 48, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: isSaving || outOfRange || !formData.coordinates || formData.address?.toLowerCase().includes('custom location') ? '#d1d5db' : '#e11d48' }}

@@ -2,12 +2,13 @@ import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { Minus, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  BackHandler,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -58,6 +59,31 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
   const totalImagesRef = useRef<Set<string>>(new Set());
   const scrollRef = useRef<any>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const currentScrollY = useRef(0);
+
+  // Track raw scroll position for back-handler logic
+  useEffect(() => {
+    const id = scrollY.addListener(({ value }) => {
+      currentScrollY.current = value;
+    });
+    return () => scrollY.removeListener(id);
+  }, [scrollY]);
+
+  // Back button: scroll to top first, then exit on next press
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (currentScrollY.current > 50) {
+          scrollRef.current?.scrollTo({ y: 0, animated: true });
+          return true; // prevent default back
+        }
+        return false; // let default back happen (go home)
+      };
+
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [])
+  );
 
   const stickyBgOpacity = scrollY.interpolate({
     inputRange: [STICKY_THRESHOLD - 6, STICKY_THRESHOLD + 4],
