@@ -101,12 +101,23 @@ export const useCartStore = create<CartState>()(
 
       setIsInitialized: (val) => set({ isInitialized: val }),
 
-      // ★ Next.js er moto App khullar por Initial Fetch
+      // ★ Smart Initial Fetch: If local cart has unsynced changes (isDirty === true), push to DB instead of overwriting!
       fetchCartFromDB: async () => {
         const token = useAuthStore.getState().token;
         if (!token) {
             set({ isInitialized: true });
             return;
+        }
+
+        const { isDirty, items } = get();
+
+        // ★ CRITICAL FIX: If user added items before killing the app, local cart has unsynced items.
+        // DO NOT overwrite with outdated DB cart! Instead, push local cart to DB.
+        if (isDirty) {
+          console.log(`[Cart] Local cart has unsynced changes (${items.length} items). Pushing to DB on startup...`);
+          await get().syncToDatabase();
+          set({ isInitialized: true });
+          return;
         }
 
         try {
@@ -316,12 +327,19 @@ export const useCartStore = create<CartState>()(
            }
          };
 
-         // Listen to AppState to pause sync when in background
+         // Listen to AppState to pause sync when in background, and flush any unsynced changes immediately
          const subscription = AppState.addEventListener('change', (nextAppState) => {
            if (nextAppState === 'active') {
              startInterval();
            } else {
              stopInterval();
+             // User swiped up, minimized or exited app -> flush sync immediately to DB!
+             const { isDirty, isSyncing } = get();
+             const token = useAuthStore.getState().token;
+             if (token && isDirty && !isSyncing) {
+               console.log('[Cart Sync] 📱 App minimized or exiting with unsynced changes. Flushing sync to DB...');
+               get().syncToDatabase();
+             }
            }
          });
 
@@ -371,7 +389,11 @@ export const useCartStore = create<CartState>()(
     {
       name: 'bumbas-kitchen-cart',
       storage: createJSONStorage(() => zustandStorage),
-      partialize: (state) => ({ items: state.items, checkoutState: state.checkoutState }),
+      partialize: (state) => ({ 
+        items: state.items, 
+        checkoutState: state.checkoutState,
+        isDirty: state.isDirty 
+      }),
     }
   )
 );
