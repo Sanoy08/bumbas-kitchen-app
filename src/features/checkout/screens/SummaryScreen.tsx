@@ -146,9 +146,18 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.ap
 export function SummaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { items, setCheckoutData } = useCartStore();
+  const { items, setCheckoutData, syncToDatabase, isDirty } = useCartStore();
   const { user, isInitialized } = useAuthStore();
   const { showAlert } = useAlert();
+
+  // Automatically sync cart when arriving at this page if it's dirty
+  useFocusEffect(
+    useCallback(() => {
+      if (isDirty) {
+        syncToDatabase();
+      }
+    }, [isDirty, syncToDatabase])
+  );
 
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
