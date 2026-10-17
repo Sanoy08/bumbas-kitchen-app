@@ -51,4 +51,5 @@ export type CartItem = {
   deliveryDate?: string;
   orderCutoffTime?: string;
   mealType?: string;
+  isDailySpecial?: boolean;
 };

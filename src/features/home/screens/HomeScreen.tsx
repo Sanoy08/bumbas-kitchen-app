@@ -616,7 +616,18 @@ export function HomeScreen() {
     return result;
   }, [categoryFiltered, activeFilter, homeData.bestsellers]);
 
-  const dailySpecials = useMemo(() => homeData.allProducts?.filter((p: any) => p.isDailySpecial && p.stock > 0), [homeData.allProducts]);
+  const dailySpecials = useMemo(() => {
+    const list = (homeData.todaysSpecials && homeData.todaysSpecials.length > 0)
+      ? homeData.todaysSpecials
+      : (homeData.allProducts?.filter((p: any) => p.isDailySpecial) || []);
+
+    return list.filter((p: any) => {
+      const name = (p.name || '').toLowerCase();
+      const cat = (p.category?.name || p.category || '').toLowerCase();
+      // Strictly exclude thalis
+      return p.stock > 0 && !name.includes('thali') && cat !== 'thali';
+    });
+  }, [homeData.todaysSpecials, homeData.allProducts]);
 
   // =========================================================================
   // Date Popup Handlers

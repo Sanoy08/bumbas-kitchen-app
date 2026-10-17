@@ -177,7 +177,8 @@ export const useCartStore = create<CartState>()(
                 isSpecialOffer: product.isSpecialOffer !== undefined ? product.isSpecialOffer : item.isSpecialOffer,
                 deliveryDate: product.deliveryDate !== undefined ? product.deliveryDate : item.deliveryDate,
                 orderCutoffTime: product.orderCutoffTime !== undefined ? product.orderCutoffTime : item.orderCutoffTime,
-                mealType: product.mealType !== undefined ? product.mealType : item.mealType
+                mealType: product.mealType !== undefined ? product.mealType : item.mealType,
+                isDailySpecial: product.isDailySpecial !== undefined ? product.isDailySpecial : item.isDailySpecial
             } : item
           );
         } else {
@@ -192,7 +193,8 @@ export const useCartStore = create<CartState>()(
             isSpecialOffer: product.isSpecialOffer,
             deliveryDate: product.deliveryDate,
             orderCutoffTime: product.orderCutoffTime,
-            mealType: product.mealType
+            mealType: product.mealType,
+            isDailySpecial: product.isDailySpecial
           };
           newItems = [...items, newItem];
         }
