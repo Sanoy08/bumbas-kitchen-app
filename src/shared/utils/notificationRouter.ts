@@ -119,7 +119,7 @@ export function handleNotificationNavigation(rawUrl: string | undefined | null, 
     case '/menu':
     case '/explore':
     case '/food':
-      router.push('/(shop)?scrollTo=explore');
+      router.push(queryString ? `/(shop)?scrollTo=explore&${queryString}` : '/(shop)?scrollTo=explore');
       break;
 
     case '/cart':
@@ -166,9 +166,10 @@ export function handleNotificationNavigation(rawUrl: string | undefined | null, 
       break;
 
     default:
-      // Check if it's a dish detail path: /menus/:slug or /menu/:slug
-      if (normalizedPath.startsWith('/menus/') || normalizedPath.startsWith('/menu/')) {
-        const slug = normalizedPath.replace(/^\/(menus|menu)\//, '');
+      // Check if it's a dish detail path: /menus/:slug, /menu/:slug, /product/:slug, /dish/:slug
+      const dishPrefixMatch = normalizedPath.match(/^\/(menus|menu|product|products|dish|dishes)\/(.+)$/);
+      if (dishPrefixMatch) {
+        const slug = dishPrefixMatch[2];
         router.push(`/menus/${slug}${query}`);
       } else {
         // Fallback: try navigating, if error fallback to /(shop)
