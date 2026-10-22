@@ -41,7 +41,7 @@ export function SpecialDishCard({ name, description, price, date }: Props) {
         <View className="flex-row items-center bg-white/80 px-3 py-1 rounded-full shadow-sm mb-4 border border-amber-100">
           <Utensils size={12} color="#b45309" />
           <Text className="text-xs font-bold text-amber-700 ml-1.5 uppercase">
-            TODAY'S SPECIAL
+            SPECIAL FOR {displayDate.toUpperCase()}
           </Text>
         </View>
 

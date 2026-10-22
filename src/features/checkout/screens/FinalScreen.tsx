@@ -514,13 +514,18 @@ export function FinalScreen() {
   const [instructions, setInstructions] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(true);
 
-  const dailySpecialItem = items.find((item) => item.isDailySpecial);
-  const specialOfferItem = items.find((item) => item.isSpecialOffer);
-  const fixedScheduleItem = dailySpecialItem || specialOfferItem;
+  const dailySpecialItems = items.filter((item) => item.isDailySpecial);
+  const specialOfferItems = items.filter((item) => item.isSpecialOffer);
+  const allSpecialItems = items.filter((item) => item.isDailySpecial || item.isSpecialOffer);
+
+  const lunchOnlySpecial = allSpecialItems.find(i => i.mealType?.toLowerCase() === 'lunch');
+  const dinnerOnlySpecial = allSpecialItems.find(i => i.mealType?.toLowerCase() === 'dinner');
+  const fixedDateItem = allSpecialItems.find(i => i.deliveryDate || (i as any).date);
+  const fixedScheduleItem = fixedDateItem || lunchOnlySpecial || dinnerOnlySpecial || allSpecialItems[0];
 
   useEffect(() => {
-    if (fixedScheduleItem) {
-      const targetDateStr = fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date;
+    if (fixedDateItem) {
+      const targetDateStr = fixedDateItem.deliveryDate || (fixedDateItem as any).date;
       if (targetDateStr) {
         const dateOnly = targetDateStr.split('T')[0];
         const parts = dateOnly.split('-');
@@ -530,11 +535,13 @@ export function FinalScreen() {
           setPreferredDate(new Date(targetDateStr));
         }
       }
-      if (fixedScheduleItem.mealType === 'lunch' || fixedScheduleItem.mealType === 'dinner') {
-        setMealTime(fixedScheduleItem.mealType);
-      }
     }
-  }, [fixedScheduleItem]);
+    if (lunchOnlySpecial) {
+      setMealTime('lunch');
+    } else if (dinnerOnlySpecial) {
+      setMealTime('dinner');
+    }
+  }, [fixedDateItem, lunchOnlySpecial, dinnerOnlySpecial]);
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
@@ -965,7 +972,7 @@ export function FinalScreen() {
         <View className="mb-6">
           <Text className="text-lg font-bold text-gray-900 mb-3 px-1">Preferences</Text>
 
-          {dailySpecialItem && (
+          {dailySpecialItems.length > 0 && (
             <View className="mb-3 bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3.5 flex-row items-center gap-3 shadow-sm">
               <View className="h-9 w-9 rounded-full bg-amber-500/15 items-center justify-center">
                 <Star size={16} color="#b45309" fill="#b45309" />
@@ -975,7 +982,26 @@ export function FinalScreen() {
                   Today's Special Fixed Delivery
                 </Text>
                 <Text className="text-[11px] text-amber-800 font-sans mt-0.5 leading-4">
-                  Delivery date and meal time are fixed for {dailySpecialItem.name}.
+                  Delivery date and meal time are fixed for Today's Special dishes.
+                </Text>
+              </View>
+              <View className="bg-amber-200/70 px-2 py-1 rounded-md">
+                <Lock size={12} color="#78350f" />
+              </View>
+            </View>
+          )}
+
+          {dailySpecialItems.length === 0 && specialOfferItems.length > 0 && (
+            <View className="mb-3 bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3.5 flex-row items-center gap-3 shadow-sm">
+              <View className="h-9 w-9 rounded-full bg-amber-500/15 items-center justify-center">
+                <Star size={16} color="#b45309" fill="#b45309" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs font-bold text-amber-950 font-sans">
+                  Special Offer Fixed Delivery
+                </Text>
+                <Text className="text-[11px] text-amber-800 font-sans mt-0.5 leading-4">
+                  Delivery date and meal time are fixed for this special offer.
                 </Text>
               </View>
               <View className="bg-amber-200/70 px-2 py-1 rounded-md">
@@ -991,12 +1017,14 @@ export function FinalScreen() {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => {
-                    if (fixedScheduleItem && (fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date)) {
-                      const itemDate = fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date;
+                    if (fixedDateItem) {
+                      const itemDate = fixedDateItem.deliveryDate || (fixedDateItem as any).date;
                       const formattedDate = format(new Date(itemDate), 'MMM do, yyyy');
                       showAlert({
                         title: "Action Disabled",
-                        message: `Delivery date is fixed to ${formattedDate} for ${fixedScheduleItem.name}.`,
+                        message: dailySpecialItems.length > 0
+                          ? `Delivery date is fixed to ${formattedDate} for Today's Special dishes.`
+                          : `Delivery date is fixed to ${formattedDate} for this special offer.`,
                         cancelText: ""
                       });
                     } else {
@@ -1004,7 +1032,7 @@ export function FinalScreen() {
                     }
                   }}
                   className={`h-12 rounded-xl px-3 flex-row items-center justify-between ${
-                    fixedScheduleItem && (fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date)
+                    fixedDateItem
                       ? 'bg-gray-100' 
                       : 'bg-gray-50 border border-gray-200'
                   }`}
@@ -1020,12 +1048,13 @@ export function FinalScreen() {
                 <SegmentedControl
                   value={mealTime}
                   onChange={(val) => setMealTime(val)}
-                  lunchDisabled={fixedScheduleItem && fixedScheduleItem.mealType === 'dinner'}
-                  dinnerDisabled={fixedScheduleItem && fixedScheduleItem.mealType === 'lunch'}
+                  lunchDisabled={Boolean(dinnerOnlySpecial)}
+                  dinnerDisabled={Boolean(lunchOnlySpecial)}
                   onDisabledPress={(type) => {
+                    const label = dailySpecialItems.length > 0 ? "Today's Special dishes" : "Special offer items";
                     showAlert({
                       title: "Action Disabled",
-                      message: `${fixedScheduleItem?.name} is only available for ${type === 'lunch' ? 'dinner' : 'lunch'}.`,
+                      message: `${label} are only available for ${type === 'lunch' ? 'dinner' : 'lunch'}.`,
                       cancelText: ""
                     });
                   }}

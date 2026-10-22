@@ -293,7 +293,7 @@ export function ProductDetailsScreen() {
               return pSlug === normalizedSlug || pId === rawSlug || cleanSlug(p.name || '') === normalizedSlug;
             });
 
-            if (specialMatch) {
+            if (isSpecialParam && specialMatch) {
               const masterProduct = regularMatch || allProducts.find((p: any) => 
                 p.id === specialMatch.dishId || 
                 p.id === specialMatch.id || 
@@ -310,7 +310,17 @@ export function ProductDetailsScreen() {
             } else if (regularMatch) {
               foundProduct = {
                 ...regularMatch,
-                isDailySpecial: Boolean(isSpecialParam)
+                isDailySpecial: false,
+                deliveryDate: undefined,
+                mealType: undefined
+              };
+            } else if (specialMatch) {
+              foundProduct = {
+                ...specialMatch,
+                isDailySpecial: false,
+                deliveryDate: undefined,
+                date: undefined,
+                mealType: undefined
               };
             }
 
@@ -342,8 +352,10 @@ export function ProductDetailsScreen() {
             const data = await res.json();
             if (data.success && data.product) {
               foundProduct = data.product;
-              if (isSpecialParam || foundProduct.isDailySpecial) {
+              if (isSpecialParam) {
                 foundProduct = { ...foundProduct, isDailySpecial: true };
+              } else {
+                foundProduct = { ...foundProduct, isDailySpecial: false, deliveryDate: undefined, mealType: undefined };
               }
               related = data.relatedProducts || [];
             }
@@ -966,9 +978,25 @@ export function ProductDetailsScreen() {
               </View>
             )}
             {product.isDailySpecial && (
-              <View className="bg-primary/10 px-2.5 py-0.5 rounded-md">
-                <Text className="text-xs font-bold text-primary font-sans">
-                  Today's Special
+              <View className="bg-amber-500/10 px-2.5 py-1 rounded-md flex-row items-center gap-1.5 border border-amber-500/20">
+                <Star size={12} color="#b45309" fill="#b45309" />
+                <Text className="text-xs font-bold text-amber-900 font-sans">
+                  {(() => {
+                    const dStr = product.deliveryDate || (product as any).date;
+                    if (dStr) {
+                      try {
+                        const clean = dStr.split('T')[0];
+                        const parts = clean.split('-');
+                        const d = parts.length === 3
+                          ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+                          : new Date(dStr);
+                        if (!isNaN(d.getTime())) {
+                          return `Special for ${format(d, 'do MMMM')}`;
+                        }
+                      } catch {}
+                    }
+                    return "Today's Special";
+                  })()}
                 </Text>
               </View>
             )}

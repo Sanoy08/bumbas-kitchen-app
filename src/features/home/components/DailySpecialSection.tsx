@@ -21,20 +21,33 @@ export const DailySpecialSection = memo(({ products }: DailySpecialSectionProps)
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const tomorrowStr = format(new Date(Date.now() + 86400000), 'yyyy-MM-dd');
 
+  // Helper to parse date safely avoiding timezone shift
+  const parseDateSafe = (dateStr?: string) => {
+    if (!dateStr) return null;
+    try {
+      const clean = dateStr.split('T')[0];
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
+  const firstDateItem = products.find(p => p.deliveryDate || p.date);
+  const rawDateStr = firstDateItem?.deliveryDate || firstDateItem?.date;
+  const parsedSectionDate = parseDateSafe(rawDateStr) || new Date();
+  const formattedSectionDate = format(parsedSectionDate, 'do MMMM');
+
   return (
     <View className="py-6 my-2 bg-gradient-to-b from-amber-50/90 via-orange-50/50 to-amber-50/30 border-y border-amber-100">
-      <View className="px-4 mb-4">
-        <View className="flex-row items-center justify-between">
-          <SectionHeading title="Today's Special 🌟" />
-          <View className="bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200/80 flex-row items-center gap-1">
-            <Star size={11} color="#b45309" fill="#b45309" />
-            <Text className="text-[11px] font-bold text-amber-800 font-sans">
-              Daily Specials
-            </Text>
-          </View>
-        </View>
-        <Text className="text-gray-500 mt-1 font-sans ml-1 text-sm">
-          Freshly prepared handpicked delicacies available today
+      <View className="px-4 mb-2">
+        <SectionHeading title={`Special for ${formattedSectionDate} 🌟`} />
+        <Text className="text-gray-500 font-sans ml-1 text-sm -mt-4 mb-3">
+          Freshly prepared handpicked delicacies for {formattedSectionDate}
         </Text>
       </View>
 
@@ -146,7 +159,13 @@ export const DailySpecialSection = memo(({ products }: DailySpecialSectionProps)
                       <View className="bg-amber-100/70 px-2.5 py-0.5 rounded-md flex-row items-center gap-1 border border-amber-200/60">
                         <Calendar size={11} color="#b45309" />
                         <Text className="text-[10px] font-bold text-amber-900 font-sans">
-                          {isToday ? 'Available Today' : isTomorrow ? 'Available Tomorrow' : `Available ${itemDate}`}
+                          {(() => {
+                            const parsedCardDate = parseDateSafe(itemDate);
+                            const cardDateFormatted = parsedCardDate ? format(parsedCardDate, 'do MMM') : itemDate;
+                            if (isToday) return `Today • ${cardDateFormatted}`;
+                            if (isTomorrow) return `Tomorrow • ${cardDateFormatted}`;
+                            return `Special for ${cardDateFormatted}`;
+                          })()}
                         </Text>
                       </View>
                     </View>

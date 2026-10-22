@@ -46,8 +46,8 @@ interface CartState {
   // Conflict Resolution
   pendingConflictProduct: Product | null;
   pendingConflictQuantity: number;
-  conflictType: 'special_offer_clash' | 'regular_qty_under_3' | 'existing_regular_under_3' | null;
-  setPendingConflict: (product: Product | null, quantity?: number, conflictType?: 'special_offer_clash' | 'regular_qty_under_3' | 'existing_regular_under_3' | null) => void;
+  conflictType: 'special_offer_clash' | 'regular_qty_under_3' | 'existing_regular_under_3' | 'meal_type_clash' | null;
+  setPendingConflict: (product: Product | null, quantity?: number, conflictType?: 'special_offer_clash' | 'regular_qty_under_3' | 'existing_regular_under_3' | 'meal_type_clash' | null) => void;
   resolveConflict: (action: boolean | 'clear_and_add' | 'bump_quantity_and_add') => void;
 
   // Actions
@@ -169,19 +169,23 @@ export const useCartStore = create<CartState>()(
             const enrichedItems = data.items.map((dbItem: CartItem) => {
               const matchedLocal = currentItems.find(local => isSameDish(local, dbItem));
               const specialMatch = cachedSpecials.find(s => isSameDish(s, dbItem));
-              const isSpecial = Boolean(
-                dbItem.isDailySpecial || 
-                matchedLocal?.isDailySpecial || 
-                specialMatch || 
-                (!dbItem.isSpecialOffer && (dbItem.deliveryDate || (dbItem.mealType && dbItem.mealType !== 'all')))
-              );
+              const isSpecial = matchedLocal?.isDailySpecial !== undefined
+                ? matchedLocal.isDailySpecial
+                : Boolean(
+                    dbItem.isDailySpecial || 
+                    (!dbItem.isSpecialOffer && (dbItem.deliveryDate || (dbItem.mealType && dbItem.mealType !== 'all')))
+                  );
 
               return {
                 ...dbItem,
-                dishId: dbItem.dishId || matchedLocal?.dishId || specialMatch?.dishId || specialMatch?.id,
+                dishId: dbItem.dishId || matchedLocal?.dishId || (isSpecial ? (specialMatch?.dishId || specialMatch?.id) : undefined),
                 isDailySpecial: isSpecial,
-                deliveryDate: dbItem.deliveryDate || matchedLocal?.deliveryDate || specialMatch?.deliveryDate || specialMatch?.date,
-                mealType: dbItem.mealType || matchedLocal?.mealType || specialMatch?.mealType,
+                deliveryDate: isSpecial 
+                  ? (dbItem.deliveryDate || matchedLocal?.deliveryDate || specialMatch?.deliveryDate || specialMatch?.date)
+                  : undefined,
+                mealType: isSpecial 
+                  ? (dbItem.mealType || matchedLocal?.mealType || specialMatch?.mealType)
+                  : undefined,
               };
             });
 
@@ -221,9 +225,30 @@ export const useCartStore = create<CartState>()(
             return;
           }
 
-          // 2. Today's Special vs OTHER Regular Dishes Rule:
-          // Notice: Exclude existingItem if it is the SAME dish (same dish merges smoothly!)
+          // 2. Meal Timing Clash: Cannot mix Lunch-only and Dinner-only items in the same order
+          const incomingMeal = product.mealType?.toLowerCase()?.trim();
           const otherItems = items.filter(i => !isSameDish(i, product));
+
+          if (incomingMeal === 'lunch' || incomingMeal === 'dinner') {
+            const hasConflictingMeal = otherItems.some(i => {
+              const itemMeal = i.mealType?.toLowerCase()?.trim();
+              if (incomingMeal === 'lunch') return itemMeal === 'dinner';
+              if (incomingMeal === 'dinner') return itemMeal === 'lunch';
+              return false;
+            });
+
+            if (hasConflictingMeal) {
+              set({
+                pendingConflictProduct: product,
+                pendingConflictQuantity: quantity,
+                conflictType: 'meal_type_clash'
+              });
+              return;
+            }
+          }
+
+          // 3. Today's Special vs OTHER Regular Dishes Rule:
+          // Notice: Exclude existingItem if it is the SAME dish (same dish merges smoothly!)
 
           const hasOtherDailySpecial = otherItems.some(i => i.isDailySpecial);
           const isIncomingDailySpecial = Boolean(product.isDailySpecial || existingItem?.isDailySpecial);
@@ -336,7 +361,7 @@ export const useCartStore = create<CartState>()(
           if (quantity < 3) {
             showGlobalAlert({
               title: 'কমপক্ষে ৩টি কোয়ান্টিটি প্রয়োজন',
-              message: "Today's Special ডিশ কার্টে থাকলে সাধারণ মেনুর যেকোনো খাবারের সর্বনিম্ন ৩টি কোয়ান্টিটি (ক্যাটারিং সাইজ) থাকতে হবে।",
+              message: "Today's Special ডিশ কার্টে থাকলে সাধারণ মেনুর যেকোনো খাবারের সর্বনিম্ন ৩টি কোয়ান্টিটি থাকতে হবে।",
               confirmText: 'OK',
               cancelText: '',
             });
@@ -499,17 +524,18 @@ export const useCartStore = create<CartState>()(
           if (!isSyncing) {
             const enriched = data.items.map(dbItem => {
               const matchedLocal = currentItems.find(local => isSameDish(local, dbItem));
-              const isSpecial = Boolean(
-                dbItem.isDailySpecial || 
-                matchedLocal?.isDailySpecial || 
-                (!dbItem.isSpecialOffer && (dbItem.deliveryDate || (dbItem.mealType && dbItem.mealType !== 'all')))
-              );
+              const isSpecial = matchedLocal?.isDailySpecial !== undefined
+                ? matchedLocal.isDailySpecial
+                : Boolean(
+                    dbItem.isDailySpecial || 
+                    (!dbItem.isSpecialOffer && (dbItem.deliveryDate || (dbItem.mealType && dbItem.mealType !== 'all')))
+                  );
               return {
                 ...dbItem,
                 dishId: dbItem.dishId || matchedLocal?.dishId,
                 isDailySpecial: isSpecial,
-                deliveryDate: dbItem.deliveryDate || matchedLocal?.deliveryDate,
-                mealType: dbItem.mealType || matchedLocal?.mealType,
+                deliveryDate: isSpecial ? (dbItem.deliveryDate || matchedLocal?.deliveryDate) : undefined,
+                mealType: isSpecial ? (dbItem.mealType || matchedLocal?.mealType) : undefined,
               };
             });
             set({ items: enriched, isDirty: false });

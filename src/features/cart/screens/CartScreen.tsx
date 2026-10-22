@@ -10,6 +10,7 @@ import {
   Minus,
   Plus,
   ShoppingBag,
+  Star,
   Trash2,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
@@ -33,6 +34,7 @@ import { useAlert } from '@/shared/components/ui';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import { formatPrice } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
+import { format } from 'date-fns';
 
 if (
   Platform.OS === 'android' &&
@@ -133,6 +135,11 @@ const CartItem = React.memo(
         ? item.image[0]?.url
         : item.image?.url);
 
+    const isDailySpecial = Boolean(
+      item.isDailySpecial || 
+      (!item.isSpecialOffer && (item.deliveryDate || (item.mealType && item.mealType !== 'all')))
+    );
+
     return (
       <Swipeable
         ref={swipeableRef}
@@ -151,7 +158,18 @@ const CartItem = React.memo(
                 router.push(`/menus/${item.slug}`);
               }
             }}
-            className="bg-white rounded-2xl p-4 mb-4 border border-gray-100"
+            className={`bg-white rounded-2xl p-4 mb-4 border ${
+              isDailySpecial 
+                ? 'border-amber-300 shadow-sm' 
+                : 'border-gray-100'
+            }`}
+            style={{
+              shadowColor: isDailySpecial ? '#f59e0b' : '#000',
+              shadowOffset: { width: 0, height: isDailySpecial ? 2 : 1 },
+              shadowOpacity: isDailySpecial ? 0.08 : 0.03,
+              shadowRadius: isDailySpecial ? 6 : 4,
+              elevation: isDailySpecial ? 2 : 1,
+            }}
             accessibilityLabel={`View details of ${item.name}`}
             accessibilityRole="button"
             disabled={isRemoving || item.isSpecialOffer}
@@ -207,6 +225,29 @@ const CartItem = React.memo(
               </View>
               <View className="flex-1 justify-between">
                 <View>
+                  {isDailySpecial && (
+                    <View className="flex-row items-center gap-1 mb-1 self-start bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      <Star size={10} color="#b45309" fill="#b45309" />
+                      <Text className="text-[10px] font-bold text-amber-800 font-sans tracking-wide">
+                        {(() => {
+                          const dStr = item.deliveryDate || (item as any).date;
+                          if (dStr) {
+                            try {
+                              const clean = dStr.split('T')[0];
+                              const parts = clean.split('-');
+                              const d = parts.length === 3
+                                ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+                                : new Date(dStr);
+                              if (!isNaN(d.getTime())) {
+                                return `Special for ${format(d, 'do MMM')}`;
+                              }
+                            } catch {}
+                          }
+                          return "Today's Special";
+                        })()}
+                      </Text>
+                    </View>
+                  )}
                   <Text
                     className="text-base font-bold text-gray-900 font-sans leading-snug"
                     numberOfLines={2}

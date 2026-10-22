@@ -27,6 +27,7 @@ import LottieView from 'lottie-react-native';
 import { VoiceSearchModal } from '@/shared/components/search/VoiceSearchModal';
 import { ProductCard } from '@/shared/components/shop/ProductCard';
 import { useAlert } from '@/shared/components/ui';
+import { isSameDish } from '@/shared/utils/utils';
 
 const { width: windowWidth } = Dimensions.get('window');
 const CONTAINER_PADDING = 16;
@@ -128,7 +129,21 @@ export function SearchScreen() {
         let products: any[] = [];
         if (cachedData) {
           const homeData = JSON.parse(cachedData);
-          products = homeData.allProducts || [];
+          const allItems = [...(homeData.allProducts || [])];
+          const specials = homeData.todaysSpecials || [];
+          specials.forEach((special: any) => {
+            const exists = allItems.some((p: any) => isSameDish(p, special));
+            if (!exists) {
+              allItems.push(special);
+            }
+          });
+          // Ensure all dishes in search are displayed and handled as regular menu items (special naa)
+          products = allItems.map((p: any) => ({
+            ...p,
+            isDailySpecial: false,
+            deliveryDate: undefined,
+            mealType: undefined,
+          }));
           setAllProducts(products);
         }
 

@@ -68,7 +68,7 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
   if (product.isDailySpecial && !hasValidImage) {
     return (
       <View className="flex-1 m-1.5 bg-amber-50/30 rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-        <Link href={`/menus/${product.slug}`} asChild>
+        <Link href={`/menus/${product.slug}?isSpecial=true`} asChild>
           <TouchableOpacity activeOpacity={0.9} className="flex-1">
             <View className="aspect-square relative w-full">
               <SpecialDishCard
@@ -91,7 +91,7 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
 
   return (
     // Link component এখন পুরো কার্ডকে র‍্যাপ করছে
-    <Link href={`/menus/${product.slug}`} asChild>
+    <Link href={product.isDailySpecial ? `/menus/${product.slug}?isSpecial=true` : `/menus/${product.slug}`} asChild>
       <TouchableOpacity 
         activeOpacity={0.9} 
         className={`m-1.5 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex-col ${isOutOfStock ? 'opacity-70' : ''}`}
