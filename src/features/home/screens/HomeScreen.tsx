@@ -36,6 +36,7 @@ import { OrderCancelledModal, useAlert } from '@/shared/components/ui';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useCartStore } from '@/shared/store/cartStore';
 import { useNotificationStore } from '@/shared/store/notificationStore';
+import { isAdminNotification } from '@/shared/utils/notificationRouter';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useTabBarStore } from '@/shared/store/tabBarStore';
 
@@ -344,7 +345,8 @@ export function HomeScreen() {
       const res = await fetch(`${API_URL}/notifications/history`);
       const data = await res.json();
       if (data.success && data.notifications) {
-        const unreadNotifications = data.notifications.filter((n: any) => !n.isRead);
+        const customerNotifs = data.notifications.filter((n: any) => !isAdminNotification(n));
+        const unreadNotifications = customerNotifs.filter((n: any) => !n.isRead);
         useNotificationStore.getState().setHasUnread(unreadNotifications.length > 0);
 
         // Check for any unread cancelled order notification

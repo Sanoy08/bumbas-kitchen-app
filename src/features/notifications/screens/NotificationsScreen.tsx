@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Bell, BellRing, Clock, Gift, ShoppingBag, Wallet, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Bell, BellRing, Clock, Gift, ShoppingBag, Wallet, Trash2, ChevronRight } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { useNotificationStore } from '@/shared/store/notificationStore';
 import { useAlert } from '@/shared/components/ui';
 import * as Notifications from 'expo-notifications';
+import { handleNotificationNavigation, isAdminNotification } from '@/shared/utils/notificationRouter';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
 interface NotificationItem {
@@ -17,6 +18,8 @@ interface NotificationItem {
   body: string;
   createdAt: string;
   isRead: boolean;
+  link?: string;
+  url?: string;
 }
 
 export default function NotificationsScreen() {
@@ -74,9 +77,13 @@ export default function NotificationsScreen() {
       
       if (data.success) {
         const fetchedNotifs = data.notifications || [];
-        setNotifications(fetchedNotifs.map((n: NotificationItem) => ({ ...n, isRead: true })));
+        
+        // Filter out admin notifications in customer app
+        const customerOnly = fetchedNotifs.filter((n: any) => !isAdminNotification(n));
+        setNotifications(customerOnly.map((n: NotificationItem) => ({ ...n, isRead: true })));
+        
         // Auto mark all as read silently on page enter
-        if (fetchedNotifs.some((n: NotificationItem) => !n.isRead)) {
+        if (customerOnly.some((n: NotificationItem) => !n.isRead)) {
           fetch(`${API_URL}/notifications/mark-read`, { method: 'PATCH' }).catch(() => {});
         }
         setHasUnread(false);
@@ -138,32 +145,51 @@ export default function NotificationsScreen() {
     return <BellRing size={20} color={color} />;
   };
 
-  const renderItem = ({ item, index }: { item: NotificationItem; index: number }) => (
-    <Animated.View 
-      entering={FadeInDown.delay(index * 80).springify().damping(14)}
-      className="p-4 mb-3 rounded-3xl border bg-white border-gray-100 shadow-sm"
-    >
-      <View className="flex-row items-start">
-        <View className="h-12 w-12 rounded-full items-center justify-center mr-3 bg-red-50">
-          {getNotificationIcon(item.title)}
-        </View>
-        <View className="flex-1">
-          <Text className="font-extrabold font-sans text-[15px] mb-1 text-gray-900">
-            {item.title}
-          </Text>
-          <Text className="text-gray-500 font-sans text-sm leading-5 mb-2.5 pr-2">
-            {item.body || (item as any).message}
-          </Text>
-          <View className="flex-row items-center">
-            <Clock size={12} color="#9ca3af" />
-            <Text className="text-gray-400 text-xs font-sans ml-1.5 font-medium tracking-wide">
-              {formatDate(item.createdAt)}
-            </Text>
+  const renderItem = ({ item, index }: { item: NotificationItem; index: number }) => {
+    const targetLink = item.link || item.url || (item as any).link;
+
+    return (
+      <Animated.View 
+        entering={FadeInDown.delay(index * 80).springify().damping(14)}
+        className="mb-3"
+      >
+        <TouchableOpacity
+          activeOpacity={targetLink ? 0.7 : 1}
+          onPress={() => {
+            if (targetLink) {
+              handleNotificationNavigation(targetLink, router);
+            }
+          }}
+          className="p-4 rounded-3xl border bg-white border-gray-100 shadow-sm"
+        >
+          <View className="flex-row items-start">
+            <View className="h-12 w-12 rounded-full items-center justify-center mr-3 bg-red-50">
+              {getNotificationIcon(item.title)}
+            </View>
+            <View className="flex-1">
+              <Text className="font-extrabold font-sans text-[15px] mb-1 text-gray-900">
+                {item.title}
+              </Text>
+              <Text className="text-gray-500 font-sans text-sm leading-5 mb-2.5 pr-2">
+                {item.body || (item as any).message}
+              </Text>
+              <View className="flex-row items-center">
+                <Clock size={12} color="#9ca3af" />
+                <Text className="text-gray-400 text-xs font-sans ml-1.5 font-medium tracking-wide">
+                  {formatDate(item.createdAt)}
+                </Text>
+              </View>
+            </View>
+            {targetLink && (
+              <View className="self-center ml-2 p-1">
+                <ChevronRight size={18} color="#9ca3af" />
+              </View>
+            )}
           </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>

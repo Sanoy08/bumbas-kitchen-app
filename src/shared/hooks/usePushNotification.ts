@@ -15,14 +15,42 @@ let globalSyncedToken: string | null = null;
 let isSubscribing = false;
 let globalListenersAttached = false;
 
+import { handleNotificationNavigation, isAdminNotification } from '@/shared/utils/notificationRouter';
+
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const content = notification?.request?.content;
+    const data = content?.data || {};
+    const notifObj = {
+      title: content?.title,
+      body: content?.body,
+      message: content?.body,
+      link: data?.link || data?.url,
+      url: data?.url || data?.link,
+      type: data?.type,
+      forAdmin: data?.forAdmin,
+      targetRole: data?.targetRole,
+      ...data,
+    };
+
+    if (isAdminNotification(notifObj)) {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 export const usePushNotification = () => {
@@ -35,12 +63,7 @@ export const usePushNotification = () => {
   const responseListener = useRef<any>(null);
 
   const handleNavigation = (url: string) => {
-    if (!url) return;
-    try {
-      router.push(url as any);
-    } catch (e) {
-      console.error('Navigation error:', e);
-    }
+    handleNotificationNavigation(url, router);
   };
 
   const subscribeToPush = async (requestPermissionIfMissing = true) => {
@@ -117,6 +140,25 @@ export const usePushNotification = () => {
       globalListenersAttached = true;
       notificationListener.current = Notifications.addNotificationReceivedListener(
         (notification) => {
+          const content = notification?.request?.content;
+          const data = content?.data || {};
+          const notifObj = {
+            title: content?.title,
+            body: content?.body,
+            message: content?.body,
+            link: data?.link || data?.url,
+            url: data?.url || data?.link,
+            type: data?.type,
+            forAdmin: data?.forAdmin,
+            targetRole: data?.targetRole,
+            ...data,
+          };
+
+          if (isAdminNotification(notifObj)) {
+            console.log('Ignored admin notification received in foreground:', content?.title);
+            return;
+          }
+
           console.log('Notification Received in foreground:', notification);
           useNotificationStore.getState().setHasUnread(true);
         }
@@ -124,9 +166,28 @@ export const usePushNotification = () => {
 
       responseListener.current = Notifications.addNotificationResponseReceivedListener(
         (response) => {
-          const data = response.notification.request.content.data;
-          if (data?.url && typeof handleNavigation === 'function') {
-            handleNavigation(data.url as string);
+          const content = response?.notification?.request?.content;
+          const data = content?.data || {};
+          const notifObj = {
+            title: content?.title,
+            body: content?.body,
+            message: content?.body,
+            link: data?.link || data?.url,
+            url: data?.url || data?.link,
+            type: data?.type,
+            forAdmin: data?.forAdmin,
+            targetRole: data?.targetRole,
+            ...data,
+          };
+
+          if (isAdminNotification(notifObj)) {
+            console.log('Ignored tap on admin notification:', content?.title);
+            return;
+          }
+
+          const targetUrl = data?.url || data?.link;
+          if (targetUrl && typeof handleNavigation === 'function') {
+            handleNavigation(targetUrl as string);
           }
         }
       );
