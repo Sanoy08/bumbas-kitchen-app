@@ -6,8 +6,10 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { useAuthStore } from '@/shared/store/authStore';
 
-// Toast use korar jonno (jodi react-native-toast-message use koren)
-// import Toast from 'react-native-toast-message';
+import { toast } from 'sonner-native';
+import { isSameDish } from '@/shared/utils/utils';
+import { showGlobalAlert } from '@/shared/components/ui/CustomAlert';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
@@ -22,7 +24,7 @@ const zustandStorage = {
     return value ?? null;
   },
   removeItem: (name: string) => {
-    return storage.delete(name);
+    return storage.remove(name);
   },
 };
 
@@ -44,8 +46,9 @@ interface CartState {
   // Conflict Resolution
   pendingConflictProduct: Product | null;
   pendingConflictQuantity: number;
-  setPendingConflict: (product: Product | null, quantity?: number) => void;
-  resolveConflict: (clearCart: boolean) => void;
+  conflictType: 'special_offer_clash' | 'regular_qty_under_3' | 'existing_regular_under_3' | null;
+  setPendingConflict: (product: Product | null, quantity?: number, conflictType?: 'special_offer_clash' | 'regular_qty_under_3' | 'existing_regular_under_3' | null) => void;
+  resolveConflict: (action: boolean | 'clear_and_add' | 'bump_quantity_and_add') => void;
 
   // Actions
   addItem: (product: Product, quantity?: number, showToast?: boolean) => void;
@@ -81,12 +84,19 @@ export const useCartStore = create<CartState>()(
       appStateSubscription: null,
       pendingConflictProduct: null,
       pendingConflictQuantity: 1,
+      conflictType: null,
 
-      setPendingConflict: (product, quantity = 1) => set({ pendingConflictProduct: product, pendingConflictQuantity: quantity }),
+      setPendingConflict: (product, quantity = 1, conflictType = null) => 
+        set({ pendingConflictProduct: product, pendingConflictQuantity: quantity, conflictType }),
 
-      resolveConflict: (clearCart) => {
-        const { pendingConflictProduct, pendingConflictQuantity, items, removeItem, addItem } = get();
-        if (clearCart && pendingConflictProduct) {
+      resolveConflict: (action) => {
+        const { pendingConflictProduct, pendingConflictQuantity, conflictType, items, removeItem, addItem, updateQuantity } = get();
+        if (!pendingConflictProduct || action === false) {
+          set({ pendingConflictProduct: null, pendingConflictQuantity: 1, conflictType: null });
+          return;
+        }
+
+        if (action === true || action === 'clear_and_add') {
           // Remove ALL items because they cannot be mixed
           items.forEach(item => {
             removeItem(item.id);
@@ -95,8 +105,23 @@ export const useCartStore = create<CartState>()(
           setTimeout(() => {
             get().addItem(pendingConflictProduct, pendingConflictQuantity, true);
           }, 50);
+        } else if (action === 'bump_quantity_and_add') {
+          if (conflictType === 'regular_qty_under_3') {
+            // Add regular item with minimum 3 servings
+            get().addItem(pendingConflictProduct, Math.max(3, pendingConflictQuantity), true);
+          } else if (conflictType === 'existing_regular_under_3') {
+            // Bump all regular items in cart to quantity 3, then add Today's Special
+            items.forEach(item => {
+              if (!item.isSpecialOffer && !item.isDailySpecial && item.quantity < 3) {
+                updateQuantity(item.id, 3);
+              }
+            });
+            setTimeout(() => {
+              get().addItem(pendingConflictProduct, pendingConflictQuantity, true);
+            }, 50);
+          }
         }
-        set({ pendingConflictProduct: null, pendingConflictQuantity: 1 });
+        set({ pendingConflictProduct: null, pendingConflictQuantity: 1, conflictType: null });
       },
 
       setIsInitialized: (val) => set({ isInitialized: val }),
@@ -130,7 +155,37 @@ export const useCartStore = create<CartState>()(
           });
           const data = await res.json();
           if (data.success && data.items) {
-            set({ items: data.items, isDirty: false });
+            const currentItems = get().items;
+
+            let cachedSpecials: any[] = [];
+            try {
+              const cached = await AsyncStorage.getItem('bumbas_home_data');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                cachedSpecials = parsed.todaysSpecials || [];
+              }
+            } catch {}
+
+            const enrichedItems = data.items.map((dbItem: CartItem) => {
+              const matchedLocal = currentItems.find(local => isSameDish(local, dbItem));
+              const specialMatch = cachedSpecials.find(s => isSameDish(s, dbItem));
+              const isSpecial = Boolean(
+                dbItem.isDailySpecial || 
+                matchedLocal?.isDailySpecial || 
+                specialMatch || 
+                (!dbItem.isSpecialOffer && (dbItem.deliveryDate || (dbItem.mealType && dbItem.mealType !== 'all')))
+              );
+
+              return {
+                ...dbItem,
+                dishId: dbItem.dishId || matchedLocal?.dishId || specialMatch?.dishId || specialMatch?.id,
+                isDailySpecial: isSpecial,
+                deliveryDate: dbItem.deliveryDate || matchedLocal?.deliveryDate || specialMatch?.deliveryDate || specialMatch?.date,
+                mealType: dbItem.mealType || matchedLocal?.mealType || specialMatch?.mealType,
+              };
+            });
+
+            set({ items: enrichedItems, isDirty: false });
           } else {
              // DB theke fail korle kintu local storage e thakle dirty true kora (Next.js behavior)
              if (get().items.length > 0) {
@@ -147,19 +202,60 @@ export const useCartStore = create<CartState>()(
       // ★ Add Item (Next.js image logic and Toast setup)
       addItem: (product, quantity = 1, showToast = true) => {
         const { items } = get();
-        
+
+        // Match existing item using isSameDish (matches by id, dishId, slug, or name)
+        const existingItem = items.find((item) => isSameDish(item, product));
+
         // --- Conflict Check ---
         if (items.length > 0) {
           const hasSpecialOffer = items.some(i => i.isSpecialOffer);
           const isProductSpecialOffer = !!product.isSpecialOffer;
 
+          // 1. Special Offer Clash (Festivals / Campaigns)
           if (hasSpecialOffer !== isProductSpecialOffer) {
-            set({ pendingConflictProduct: product, pendingConflictQuantity: quantity });
+            set({ 
+              pendingConflictProduct: product, 
+              pendingConflictQuantity: quantity,
+              conflictType: 'special_offer_clash'
+            });
             return;
+          }
+
+          // 2. Today's Special vs OTHER Regular Dishes Rule:
+          // Notice: Exclude existingItem if it is the SAME dish (same dish merges smoothly!)
+          const otherItems = items.filter(i => !isSameDish(i, product));
+
+          const hasOtherDailySpecial = otherItems.some(i => i.isDailySpecial);
+          const isIncomingDailySpecial = Boolean(product.isDailySpecial || existingItem?.isDailySpecial);
+          const isIncomingRegularOnly = !product.isSpecialOffer && !product.isDailySpecial && !existingItem?.isDailySpecial;
+
+          // If cart has Today's Special among OTHER items, and user is adding a strictly regular dish:
+          if (hasOtherDailySpecial && isIncomingRegularOnly) {
+            const existingRegularQty = (existingItem?.quantity || 0) + quantity;
+            if (existingRegularQty < 3) {
+              set({
+                pendingConflictProduct: product,
+                pendingConflictQuantity: quantity,
+                conflictType: 'regular_qty_under_3'
+              });
+              return;
+            }
+          }
+
+          // If incoming dish is or becomes Today's Special, check if any OTHER regular dish in cart has quantity < 3:
+          if (isIncomingDailySpecial && otherItems.length > 0) {
+            const anyOtherRegularUnder3 = otherItems.some(i => !i.isSpecialOffer && !i.isDailySpecial && i.quantity < 3);
+            if (anyOtherRegularUnder3) {
+              set({
+                pendingConflictProduct: product,
+                pendingConflictQuantity: quantity,
+                conflictType: 'existing_regular_under_3'
+              });
+              return;
+            }
           }
         }
 
-        const existingItem = items.find((item) => item.id === product.id);
         const maxStock = product.stock || 100;
         const currentQty = existingItem ? existingItem.quantity : 0;
 
@@ -168,30 +264,39 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
+        const deliveryDateVal = product.deliveryDate || (product as any).date;
+
         let newItems;
         if (existingItem) {
+          // ★ MERGE: Same dish exists in cart! Merge quantities & promote to Today's Special if applicable
+          const isMergedSpecial = Boolean(existingItem.isDailySpecial || product.isDailySpecial);
+          const mergedDeliveryDate = deliveryDateVal || existingItem.deliveryDate;
+          const mergedMealType = (product.mealType && product.mealType !== 'both' ? product.mealType : existingItem.mealType) || product.mealType || existingItem.mealType;
+          const mergedDishId = product.dishId || existingItem.dishId || product.id || existingItem.id;
+
           newItems = items.map((item) =>
-            item.id === product.id ? { 
+            isSameDish(item, product) ? { 
                 ...item, 
                 quantity: item.quantity + quantity,
+                dishId: mergedDishId,
                 isSpecialOffer: product.isSpecialOffer !== undefined ? product.isSpecialOffer : item.isSpecialOffer,
-                deliveryDate: product.deliveryDate !== undefined ? product.deliveryDate : item.deliveryDate,
+                deliveryDate: mergedDeliveryDate,
                 orderCutoffTime: product.orderCutoffTime !== undefined ? product.orderCutoffTime : item.orderCutoffTime,
-                mealType: product.mealType !== undefined ? product.mealType : item.mealType,
-                isDailySpecial: product.isDailySpecial !== undefined ? product.isDailySpecial : item.isDailySpecial
+                mealType: mergedMealType,
+                isDailySpecial: isMergedSpecial
             } : item
           );
         } else {
           const newItem: CartItem = {
             id: product.id,
+            dishId: product.dishId || product.id,
             slug: product.slug,
             name: product.name,
             price: product.price,
-            // ★ FIX: Next.js er moto Array er poriborte Index 0 theke neoya hocche
             image: product.images && product.images.length > 0 ? product.images[0] : { id: 'def', url: '', alt: product.name },
             quantity: quantity,
             isSpecialOffer: product.isSpecialOffer,
-            deliveryDate: product.deliveryDate,
+            deliveryDate: deliveryDateVal,
             orderCutoffTime: product.orderCutoffTime,
             mealType: product.mealType,
             isDailySpecial: product.isDailySpecial
@@ -209,7 +314,7 @@ export const useCartStore = create<CartState>()(
       // ★ Remove Item
       removeItem: (id) => {
         set((state) => ({
-          items: state.items.filter((item) => item.id !== id),
+          items: state.items.filter((item) => item.id !== id && (!item.dishId || item.dishId !== id)),
           isDirty: true,
         }));
         // Toast.show({ type: 'info', text1: "Item removed" });
@@ -221,8 +326,26 @@ export const useCartStore = create<CartState>()(
           get().removeItem(id);
           return;
         }
+
+        const { items } = get();
+        const hasDailySpecial = items.some(i => Boolean(i.isDailySpecial || (!i.isSpecialOffer && (i.deliveryDate || (i.mealType && i.mealType !== 'all')))));
+        const targetItem = items.find(i => i.id === id || (i.dishId && i.dishId === id) || isSameDish(i, { id } as any));
+        const isTargetDailySpecial = targetItem ? Boolean(targetItem.isDailySpecial || (!targetItem.isSpecialOffer && (targetItem.deliveryDate || (targetItem.mealType && targetItem.mealType !== 'all')))) : false;
+
+        if (hasDailySpecial && targetItem && !targetItem.isSpecialOffer && !isTargetDailySpecial) {
+          if (quantity < 3) {
+            showGlobalAlert({
+              title: 'কমপক্ষে ৩টি কোয়ান্টিটি প্রয়োজন',
+              message: "Today's Special ডিশ কার্টে থাকলে সাধারণ মেনুর যেকোনো খাবারের সর্বনিম্ন ৩টি কোয়ান্টিটি (ক্যাটারিং সাইজ) থাকতে হবে।",
+              confirmText: 'OK',
+              cancelText: '',
+            });
+            return;
+          }
+        }
+
         set((state) => ({
-          items: state.items.map((item) => (item.id === id ? { ...item, quantity } : item)),
+          items: state.items.map((item) => ((item.id === id || (item.dishId && item.dishId === id) || isSameDish(item, { id } as any)) ? { ...item, quantity } : item)),
           isDirty: true,
         }));
       },
@@ -372,9 +495,24 @@ export const useCartStore = create<CartState>()(
         const channel = pusher.subscribe(`user-${user.id}`);
         
         channel.bind('cart-updated', (data: { items: CartItem[] }) => {
-          const { isSyncing } = get();
+          const { isSyncing, items: currentItems } = get();
           if (!isSyncing) {
-            set({ items: data.items, isDirty: false });
+            const enriched = data.items.map(dbItem => {
+              const matchedLocal = currentItems.find(local => isSameDish(local, dbItem));
+              const isSpecial = Boolean(
+                dbItem.isDailySpecial || 
+                matchedLocal?.isDailySpecial || 
+                (!dbItem.isSpecialOffer && (dbItem.deliveryDate || (dbItem.mealType && dbItem.mealType !== 'all')))
+              );
+              return {
+                ...dbItem,
+                dishId: dbItem.dishId || matchedLocal?.dishId,
+                isDailySpecial: isSpecial,
+                deliveryDate: dbItem.deliveryDate || matchedLocal?.deliveryDate,
+                mealType: dbItem.mealType || matchedLocal?.mealType,
+              };
+            });
+            set({ items: enriched, isDirty: false });
           }
         });
 

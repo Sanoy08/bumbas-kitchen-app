@@ -11,7 +11,7 @@ import { LOTTIE_PLACEHOLDER } from '@/shared/constants/constants';
 import LottieView from 'lottie-react-native';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
 import type { CartItem, Product } from '@/shared/types/types';
-import { formatPrice } from '@/shared/utils/utils';
+import { formatPrice, isSameDish } from '@/shared/utils/utils';
 
 import { useCartStore } from '@/shared/store/cartStore';
 import { differenceInDays } from 'date-fns';
@@ -26,7 +26,7 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
   
   // Only subscribe to this specific product's cart item — not the whole cart array.
   // This means only THIS card re-renders when its own quantity changes.
-  const cartItem = useCartStore((state) => state.items.find((item: CartItem) => item.id === product.id));
+  const cartItem = useCartStore((state) => state.items.find((item: CartItem) => isSameDish(item, product)));
   const addItem = useCartStore((state) => state.addItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const isOutOfStock = product.stock <= 0;
@@ -48,14 +48,14 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
 
   const handleIncrease = () => {
     if (cartItem) {
-      updateQuantity(product.id, cartItem.quantity + 1);
+      updateQuantity(cartItem.id, cartItem.quantity + 1);
       triggerVibration(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
   const handleDecrease = () => {
     if (cartItem) {
-      updateQuantity(product.id, cartItem.quantity - 1);
+      updateQuantity(cartItem.id, cartItem.quantity - 1);
       triggerVibration(Haptics.ImpactFeedbackStyle.Light);
     }
   };

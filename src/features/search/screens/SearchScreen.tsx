@@ -125,10 +125,12 @@ export function SearchScreen() {
     const loadInitialData = async () => {
       try {
         const cachedData = await AsyncStorage.getItem('bumbas_home_data');
-        const homeDataStr = cachedData;
-        if (!homeDataStr) return;
-        const homeData = JSON.parse(homeDataStr);
-        setAllProducts(homeData.allProducts || []);
+        let products: any[] = [];
+        if (cachedData) {
+          const homeData = JSON.parse(cachedData);
+          products = homeData.allProducts || [];
+          setAllProducts(products);
+        }
 
         const recent = await AsyncStorage.getItem('recent_searches');
         if (recent) setRecentSearches(JSON.parse(recent));
@@ -137,7 +139,7 @@ export function SearchScreen() {
         if (searchParams.voiceQuery) {
           const q = searchParams.voiceQuery as string;
           setSearchQuery(q);
-          handleSearchSubmit(q, homeData.allProducts || []);
+          handleSearchSubmit(q, products);
         } else {
           // Focus input if no voice query
           setTimeout(() => inputRef.current?.focus(), 400);

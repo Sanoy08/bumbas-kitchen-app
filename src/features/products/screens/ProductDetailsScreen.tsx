@@ -45,7 +45,7 @@ import { toast } from 'sonner-native';
 
 import { ProductCard } from '@/shared/components/shop/ProductCard';
 import { optimizeImageUrl } from '@/shared/utils/imageUtils';
-import { formatPrice } from '@/shared/utils/utils';
+import { formatPrice, isSameDish } from '@/shared/utils/utils';
 import { useCartStore } from '@/shared/store/cartStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
@@ -172,6 +172,7 @@ const ProductSkeleton = () => {
 export function ProductDetailsScreen() {
   const searchParams = useLocalSearchParams();
   const slug = searchParams.slug;
+  const isSpecialParam = searchParams.isSpecial === 'true';
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -193,8 +194,9 @@ export function ProductDetailsScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showFullDesc, setShowFullDesc] = useState(false);
 
-  const cartItem = product ? items.find((item: any) => item.id === product.id) : null;
+  const cartItem = product ? items.find((item: any) => isSameDish(item, product)) : null;
   const inCart = !!cartItem;
+  const isDailySpecialDish = Boolean(isSpecialParam || product?.isDailySpecial);
 
   // Sticky bottom bar
   const [showBottomBar, setShowBottomBar] = useState(false);
@@ -267,14 +269,51 @@ export function ProductDetailsScreen() {
         let related: any[] = [];
         let otherProducts: any[] = [];
 
+        const rawSlug = (Array.isArray(slug) ? slug[0] : (slug || '')).toString().trim();
+        const cleanSlug = (str: string) => (str || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-*|-*$/g, '');
+        const normalizedSlug = cleanSlug(decodeURIComponent(rawSlug));
+
         // 1. Try to load from home cache for instant rendering
         const cachedData = await AsyncStorage.getItem('bumbas_home_data');
         if (cachedData) {
           try {
             const homeData = JSON.parse(cachedData);
             const allProducts = homeData.allProducts || [];
+            const todaysSpecials = homeData.todaysSpecials || [];
 
-            foundProduct = allProducts.find((p: any) => p.slug === slug);
+            const specialMatch = todaysSpecials.find((p: any) => {
+              const pSlug = cleanSlug(p.slug || p.name || p.dishName || '');
+              const pId = (p.id || p._id || p.dishId || '').toString();
+              return pSlug === normalizedSlug || pId === rawSlug || cleanSlug(p.name || '') === normalizedSlug;
+            });
+
+            const regularMatch = allProducts.find((p: any) => {
+              const pSlug = cleanSlug(p.slug || p.name || '');
+              const pId = (p.id || p._id || '').toString();
+              return pSlug === normalizedSlug || pId === rawSlug || cleanSlug(p.name || '') === normalizedSlug;
+            });
+
+            if (specialMatch) {
+              const masterProduct = regularMatch || allProducts.find((p: any) => 
+                p.id === specialMatch.dishId || 
+                p.id === specialMatch.id || 
+                cleanSlug(p.name) === cleanSlug(specialMatch.name || specialMatch.dishName)
+              );
+              foundProduct = {
+                ...(masterProduct || {}),
+                ...specialMatch,
+                isDailySpecial: true,
+                deliveryDate: specialMatch.deliveryDate || specialMatch.date,
+                date: specialMatch.date || specialMatch.deliveryDate,
+                mealType: specialMatch.mealType || 'both'
+              };
+            } else if (regularMatch) {
+              foundProduct = {
+                ...regularMatch,
+                isDailySpecial: Boolean(isSpecialParam)
+              };
+            }
+
             if (foundProduct) {
               related = allProducts
                 .filter(
@@ -295,11 +334,21 @@ export function ProductDetailsScreen() {
 
         // 2. If not in cache (e.g. app opened directly via Deep Link), fetch from API
         if (!foundProduct) {
-          const res = await fetch(`${API_URL}/products/${slug}`);
-          const data = await res.json();
-          if (data.success && data.product) {
-            foundProduct = data.product;
-            related = data.relatedProducts || [];
+          try {
+            let res = await fetch(`${API_URL}/products/${encodeURIComponent(normalizedSlug)}`);
+            if (!res.ok) {
+              res = await fetch(`${API_URL}/products/${encodeURIComponent(rawSlug)}`);
+            }
+            const data = await res.json();
+            if (data.success && data.product) {
+              foundProduct = data.product;
+              if (isSpecialParam || foundProduct.isDailySpecial) {
+                foundProduct = { ...foundProduct, isDailySpecial: true };
+              }
+              related = data.relatedProducts || [];
+            }
+          } catch (apiErr) {
+            console.log('API fallback fetch error:', apiErr);
           }
         }
 
@@ -312,7 +361,8 @@ export function ProductDetailsScreen() {
         setProduct(foundProduct);
         setRelatedProducts(related);
 
-        if (otherProducts.length > 0) {
+        const isSpecialDish = Boolean(isSpecialParam || foundProduct.isDailySpecial);
+        if (!isSpecialDish && otherProducts.length > 0) {
           const shuffled = [...otherProducts].sort(() => 0.5 - Math.random());
           setRandomItems(shuffled.slice(0, 8));
           setMoreItems(shuffled.slice(8, 20));
@@ -949,9 +999,9 @@ export function ProductDetailsScreen() {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       if (inCart) {
                         if (cartItem.quantity > 1) {
-                          updateQuantity(product.id, cartItem.quantity - 1);
+                          updateQuantity(cartItem.id, cartItem.quantity - 1);
                         } else {
-                          removeItem(product.id);
+                          removeItem(cartItem.id);
                         }
                       } else {
                         setQuantity((q) => Math.max(1, q - 1));
@@ -968,7 +1018,7 @@ export function ProductDetailsScreen() {
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       if (inCart) {
-                        updateQuantity(product.id, cartItem.quantity + 1);
+                        updateQuantity(cartItem.id, cartItem.quantity + 1);
                       } else {
                         setQuantity((q) => q + 1);
                       }
@@ -1032,7 +1082,7 @@ export function ProductDetailsScreen() {
           </View>
 
           {/* Complete Your Meal */}
-          {randomItems.length > 0 && (
+          {!isDailySpecialDish && randomItems.length > 0 && (
             <View className="mb-10">
               <View className="flex-row items-center justify-between mb-5">
                 <Text className="text-xl font-bold text-gray-900 font-sans">
@@ -1126,7 +1176,7 @@ export function ProductDetailsScreen() {
           </View>
 
           {/* More to Explore Grid (12 items, fixed-height 2-column grid) */}
-          {moreItems.length > 0 && (
+          {!isDailySpecialDish && moreItems.length > 0 && (
             <View className="mt-4 pt-8 border-t border-gray-100">
               <Text className="text-xl font-bold text-gray-900 font-sans mb-5">
                 More to Explore
@@ -1188,9 +1238,9 @@ export function ProductDetailsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   if (inCart) {
                     if (cartItem.quantity > 1) {
-                      updateQuantity(product.id, cartItem.quantity - 1);
+                      updateQuantity(cartItem.id, cartItem.quantity - 1);
                     } else {
-                      removeItem(product.id);
+                      removeItem(cartItem.id);
                     }
                   } else {
                     setQuantity((q) => Math.max(1, q - 1));
@@ -1207,7 +1257,7 @@ export function ProductDetailsScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   if (inCart) {
-                    updateQuantity(product.id, cartItem.quantity + 1);
+                    updateQuantity(cartItem.id, cartItem.quantity + 1);
                   } else {
                     setQuantity((q) => q + 1);
                   }

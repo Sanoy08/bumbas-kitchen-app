@@ -77,12 +77,21 @@ export function HomeScreen() {
 
 
   // --- Data State ---
-  const [homeData, setHomeData] = useState({
+  const [homeData, setHomeData] = useState<{
+    heroSlides: any[];
+    sliderImages: any[];
+    offers: any[];
+    bestsellers: any[];
+    allProducts: any[];
+    todaysSpecials: any[];
+    megaCampaign: any;
+  }>({
     heroSlides: [],
     sliderImages: [],
     offers: [],
     bestsellers: [],
     allProducts: [],
+    todaysSpecials: [],
     megaCampaign: null,
   });
 
@@ -617,17 +626,16 @@ export function HomeScreen() {
   }, [categoryFiltered, activeFilter, homeData.bestsellers]);
 
   const dailySpecials = useMemo(() => {
-    const list = (homeData.todaysSpecials && homeData.todaysSpecials.length > 0)
-      ? homeData.todaysSpecials
-      : (homeData.allProducts?.filter((p: any) => p.isDailySpecial) || []);
+    // Strictly show dishes from dedicated todaysSpecials collection
+    const list = homeData.todaysSpecials || [];
 
     return list.filter((p: any) => {
       const name = (p.name || '').toLowerCase();
       const cat = (p.category?.name || p.category || '').toLowerCase();
-      // Strictly exclude thalis
+      // Strictly exclude thalis and verify stock
       return p.stock > 0 && !name.includes('thali') && cat !== 'thali';
     });
-  }, [homeData.todaysSpecials, homeData.allProducts]);
+  }, [homeData.todaysSpecials]);
 
   // =========================================================================
   // Date Popup Handlers

@@ -21,6 +21,7 @@ export type Review = {
 
 export type Product = {
   id: string;
+  dishId?: string;
   name: string;
   slug: string;
   description: string;
@@ -42,6 +43,7 @@ export type Product = {
 
 export type CartItem = {
   id: string;
+  dishId?: string;
   slug: string;
   name: string;
   price: number;

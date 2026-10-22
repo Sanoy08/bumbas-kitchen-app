@@ -21,6 +21,7 @@ import {
   Lock,
   MapPin,
   Plus,
+  Star,
   X,
 } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -513,18 +514,27 @@ export function FinalScreen() {
   const [instructions, setInstructions] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(true);
 
+  const dailySpecialItem = items.find((item) => item.isDailySpecial);
   const specialOfferItem = items.find((item) => item.isSpecialOffer);
+  const fixedScheduleItem = dailySpecialItem || specialOfferItem;
 
   useEffect(() => {
-    if (specialOfferItem) {
-      if (specialOfferItem.deliveryDate) {
-        setPreferredDate(new Date(specialOfferItem.deliveryDate));
+    if (fixedScheduleItem) {
+      const targetDateStr = fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date;
+      if (targetDateStr) {
+        const dateOnly = targetDateStr.split('T')[0];
+        const parts = dateOnly.split('-');
+        if (parts.length === 3) {
+          setPreferredDate(new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+        } else {
+          setPreferredDate(new Date(targetDateStr));
+        }
       }
-      if (specialOfferItem.mealType === 'lunch' || specialOfferItem.mealType === 'dinner') {
-        setMealTime(specialOfferItem.mealType);
+      if (fixedScheduleItem.mealType === 'lunch' || fixedScheduleItem.mealType === 'dinner') {
+        setMealTime(fixedScheduleItem.mealType);
       }
     }
-  }, [specialOfferItem]);
+  }, [fixedScheduleItem]);
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
@@ -954,6 +964,26 @@ export function FinalScreen() {
         {/* Preferences (Bento Box) */}
         <View className="mb-6">
           <Text className="text-lg font-bold text-gray-900 mb-3 px-1">Preferences</Text>
+
+          {dailySpecialItem && (
+            <View className="mb-3 bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3.5 flex-row items-center gap-3 shadow-sm">
+              <View className="h-9 w-9 rounded-full bg-amber-500/15 items-center justify-center">
+                <Star size={16} color="#b45309" fill="#b45309" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs font-bold text-amber-950 font-sans">
+                  Today's Special Fixed Delivery
+                </Text>
+                <Text className="text-[11px] text-amber-800 font-sans mt-0.5 leading-4">
+                  Delivery date and meal time are fixed for {dailySpecialItem.name}.
+                </Text>
+              </View>
+              <View className="bg-amber-200/70 px-2 py-1 rounded-md">
+                <Lock size={12} color="#78350f" />
+              </View>
+            </View>
+          )}
+
           <View className="bg-white rounded-[24px] p-1 shadow-sm border border-gray-100">
             <View className="p-4 flex-row space-x-4">
               <Reanimated.View style={[dateGlowStyle, { borderRadius: 12, flex: 1, borderWidth: 1 }]}>
@@ -961,10 +991,12 @@ export function FinalScreen() {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => {
-                    if (specialOfferItem && specialOfferItem.deliveryDate) {
+                    if (fixedScheduleItem && (fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date)) {
+                      const itemDate = fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date;
+                      const formattedDate = format(new Date(itemDate), 'MMM do, yyyy');
                       showAlert({
                         title: "Action Disabled",
-                        message: `Date is fixed to ${format(new Date(specialOfferItem.deliveryDate), 'MMM do')} for ${specialOfferItem.name}`,
+                        message: `Delivery date is fixed to ${formattedDate} for ${fixedScheduleItem.name}.`,
                         cancelText: ""
                       });
                     } else {
@@ -972,7 +1004,7 @@ export function FinalScreen() {
                     }
                   }}
                   className={`h-12 rounded-xl px-3 flex-row items-center justify-between ${
-                    specialOfferItem && specialOfferItem.deliveryDate 
+                    fixedScheduleItem && (fixedScheduleItem.deliveryDate || (fixedScheduleItem as any).date)
                       ? 'bg-gray-100' 
                       : 'bg-gray-50 border border-gray-200'
                   }`}
@@ -988,12 +1020,12 @@ export function FinalScreen() {
                 <SegmentedControl
                   value={mealTime}
                   onChange={(val) => setMealTime(val)}
-                  lunchDisabled={specialOfferItem && specialOfferItem.mealType === 'dinner'}
-                  dinnerDisabled={specialOfferItem && specialOfferItem.mealType === 'lunch'}
+                  lunchDisabled={fixedScheduleItem && fixedScheduleItem.mealType === 'dinner'}
+                  dinnerDisabled={fixedScheduleItem && fixedScheduleItem.mealType === 'lunch'}
                   onDisabledPress={(type) => {
                     showAlert({
                       title: "Action Disabled",
-                      message: `${specialOfferItem?.name} is a ${type === 'lunch' ? 'dinner' : 'lunch'} special.`,
+                      message: `${fixedScheduleItem?.name} is only available for ${type === 'lunch' ? 'dinner' : 'lunch'}.`,
                       cancelText: ""
                     });
                   }}

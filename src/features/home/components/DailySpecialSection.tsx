@@ -67,7 +67,7 @@ export const DailySpecialSection = memo(({ products }: DailySpecialSectionProps)
                 elevation: 3
               }}
             >
-              <Link href={`/menus/${product.slug}`} asChild>
+              <Link href={`/menus/${product.slug}?isSpecial=true`} asChild>
                 <TouchableOpacity 
                   activeOpacity={0.9} 
                   onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
@@ -155,7 +155,7 @@ export const DailySpecialSection = memo(({ products }: DailySpecialSectionProps)
               </Link>
 
               {/* Order Now Button */}
-              <Link href={`/menus/${product.slug}`} asChild>
+              <Link href={`/menus/${product.slug}?isSpecial=true`} asChild>
                 <TouchableOpacity 
                   onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
                   activeOpacity={0.85}

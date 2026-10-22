@@ -1,12 +1,12 @@
 // src\components\ui\CustomAlert.tsx
 
 // src/components/ui/CustomAlert.tsx
-import React, { createContext, useContext, useState, useRef } from 'react';
-import { Modal, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
+import { Modal, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 
-type AlertOptions = {
+export type AlertOptions = {
   title: string;
   message: string;
   confirmText?: string;
@@ -25,6 +25,18 @@ type AlertContextType = {
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
+let globalAlertHandler: ((options: AlertOptions) => void) | null = null;
+
+export const showGlobalAlert = (options: AlertOptions) => {
+  if (globalAlertHandler) {
+    globalAlertHandler(options);
+  } else {
+    Alert.alert(options.title, options.message, [
+      { text: options.confirmText || 'OK', onPress: options.onConfirm }
+    ]);
+  }
+};
+
 export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
   const [visible, setVisible] = useState(false);
   const [options, setOptions] = useState<AlertOptions>({
@@ -38,7 +50,7 @@ export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
   const onConfirmRef = useRef<(() => void) | undefined>(undefined);
   const onCancelRef = useRef<(() => void) | undefined>(undefined);
 
-  const showAlert = (opts: AlertOptions) => {
+  const showAlert = useCallback((opts: AlertOptions) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     setOptions({
       confirmText: 'OK',
@@ -50,7 +62,14 @@ export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
     onConfirmRef.current = opts.onConfirm;
     onCancelRef.current = opts.onCancel;
     setVisible(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    globalAlertHandler = showAlert;
+    return () => {
+      globalAlertHandler = null;
+    };
+  }, [showAlert]);
 
   const hideAlert = () => {
     setVisible(false);
