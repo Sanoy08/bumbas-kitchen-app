@@ -30,19 +30,20 @@ import Reanimated, { Easing, FadeIn, FadeOut, interpolate, Keyframe, useAnimated
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
-  Animated,
   Image,
   Keyboard,
+  LayoutAnimation,
+  Platform,
   ScrollView,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  LayoutAnimation,
-  Platform,
-  UIManager
+  UIManager,
+  View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
+import { toast } from 'sonner-native';
 
 if (
   Platform.OS === 'android' &&
@@ -50,9 +51,6 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
-import { toast } from 'sonner-native';
 
 const SuccessEffects = () => {
   const explode = useSharedValue(0);
@@ -147,7 +145,7 @@ export function SummaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { items, setCheckoutData, syncToDatabase, isDirty } = useCartStore();
-  const { user, isInitialized } = useAuthStore();
+  const { user, token, isInitialized } = useAuthStore();
   const { showAlert } = useAlert();
 
   // Automatically sync cart when arriving at this page if it's dirty
@@ -162,7 +160,15 @@ export function SummaryScreen() {
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    return user?.wallet?.currentBalance ?? user?.wallet?.balance ?? 0;
+  });
+  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(() => {
+    return (
+      typeof user?.wallet?.currentBalance === 'number' ||
+      typeof user?.wallet?.balance === 'number'
+    );
+  });
   const [useCoins, setUseCoins] = useState(false);
 
   // Popup state
@@ -306,25 +312,58 @@ export function SummaryScreen() {
 
   const itemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
-  // ★ Calculate total directly to ensure 100% reactivity
+  // ★ Fetch wallet balance once when screen is focused
   useFocusEffect(
     useCallback(() => {
+      let isMounted = true;
+
+      // Sync immediately from local user state
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser?.wallet) {
+        const cached = currentUser.wallet.currentBalance ?? currentUser.wallet.balance;
+        if (typeof cached === 'number') {
+          setWalletBalance(cached);
+          setIsWalletLoaded(true);
+        }
+      }
 
       const fetchWallet = async () => {
         try {
-          const res = await fetch(`${API_URL}/wallet`);
+          const currentToken = useAuthStore.getState().token;
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+          };
+          if (currentToken) {
+            headers['Authorization'] = `Bearer ${currentToken}`;
+          }
+          const res = await fetch(`${API_URL}/wallet`, { headers });
           const data = await res.json();
+          if (!isMounted) return;
+
           if (data.success && data.wallet) {
-            setWalletBalance(data.wallet.balance || 0);
-          } else if (data.success && data.balance) {
+            const balance = data.wallet.balance ?? data.wallet.currentBalance ?? 0;
+            setWalletBalance(balance);
+            setIsWalletLoaded(true);
+          } else if (data.success && typeof data.balance === 'number') {
             setWalletBalance(data.balance);
+            setIsWalletLoaded(true);
+          } else {
+            setIsWalletLoaded(true);
           }
         } catch (e) {
           console.log('Wallet fetch failed', e);
+          if (isMounted) setIsWalletLoaded(true);
         }
       };
-      if (user) fetchWallet();
-    }, [user])
+
+      if (useAuthStore.getState().user) {
+        fetchWallet();
+      }
+
+      return () => {
+        isMounted = false;
+      };
+    }, [])
   );
 
   // 2. Auth & Cart Check (Next.js er moto)
@@ -408,15 +447,19 @@ export function SummaryScreen() {
         });
       }
       setUseCoins(true);
+      const discount = Math.floor(Math.min(walletBalance, Math.floor(totalPrice * 0.5)));
+      if (discount > 0) {
+        toast.success(`${discount} BK Coins applied! Saved ${formatPrice(discount)}`);
+      }
     } else {
       setUseCoins(false);
+      toast.info('BK Coins removed');
     }
   };
 
-
-
   const maxCoinDiscount = Math.floor(totalPrice * 0.5);
-  const coinDiscountAmount = useCoins ? Math.floor(Math.min(walletBalance, maxCoinDiscount)) : 0;
+  const usableCoins = Math.floor(Math.min(walletBalance, maxCoinDiscount));
+  const coinDiscountAmount = useCoins ? usableCoins : 0;
   const couponDiscountAmount = Math.floor(couponDiscount);
   const finalTotal = Math.max(0, Math.floor(totalPrice - couponDiscountAmount - coinDiscountAmount));
 
@@ -438,10 +481,6 @@ export function SummaryScreen() {
         <ActivityIndicator size="large" color="#e11d48" />
       </View>
     );
-
-  const coinGradientColors = walletBalance > 0
-    ? (['#f43f5e', '#e11d48', '#be123c'] as const)
-    : (['#9ca3af', '#6b7280'] as const);
 
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
@@ -472,74 +511,161 @@ export function SummaryScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* ─── COIN CARD ─── */}
-        <View className="mb-5 rounded-2xl overflow-hidden shadow-xl" style={{ shadowColor: coinGradientColors[0], shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }}>
-          <LinearGradient
-            colors={coinGradientColors as any}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ padding: 20 }}
+        <View className="mb-5">
+          <TouchableOpacity
+            activeOpacity={walletBalance > 0 ? 0.9 : 1}
+            onPress={() => {
+              if (walletBalance > 0) {
+                handleCoinToggle(!useCoins);
+              }
+            }}
+            className="rounded-3xl overflow-hidden shadow-xl"
+            style={{
+              shadowColor: walletBalance > 0 ? (useCoins ? '#10b981' : '#e11d48') : '#000000',
+              shadowOpacity: 0.35,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 6 },
+              borderWidth: 1,
+              borderColor: walletBalance > 0 ? (useCoins ? 'rgba(74, 222, 128, 0.35)' : 'rgba(255, 255, 255, 0.15)') : 'rgba(255, 255, 255, 0.08)',
+            }}
           >
-            {/* Magical Background Ornaments */}
-            {walletBalance > 0 && (
-              <>
-                <View className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mt-12 -mr-12" />
-                <View className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -mb-8 -ml-8" />
-                <View className="absolute top-1/2 left-1/2 w-32 h-32 bg-white/5 rounded-full transform -translate-x-16 -translate-y-16" />
-              </>
-            )}
-            
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1">
-                <View className="items-center justify-center -ml-2 mr-2 z-10" style={{
-                  shadowColor: '#fbbf24',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 8,
-                }}>
-                  <LottieView 
-                    source={require('../../../../assets/animations/coin.json')} 
-                    autoPlay 
-                    loop 
-                    style={{ width: 80, height: 80 }} 
-                  />
-                </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center gap-1.5 mb-1">
-                    <Text className="text-white font-black text-2xl tracking-wide font-sans">BK Coins</Text>
-                    {walletBalance > 0 && <Sparkles size={16} color="#fef08a" style={{ marginBottom: 4 }} />}
+            <LinearGradient
+              colors={
+                walletBalance > 0
+                  ? useCoins
+                    ? ['#881337', '#9f1239', '#be123c']
+                    : ['#e11d48', '#be123c', '#9f1239']
+                  : !isWalletLoaded
+                  ? ['#e11d48', '#be123c', '#9f1239']
+                  : ['#334155', '#1e293b']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ padding: 18 }}
+            >
+              {/* Luxury Ambient Glow Ornaments */}
+              {(walletBalance > 0 || !isWalletLoaded) && (
+                <>
+                  <View className="absolute top-0 right-0 w-36 h-36 bg-amber-400/15 rounded-full -mt-10 -mr-10 pointer-events-none" />
+                  <View className="absolute bottom-0 left-0 w-28 h-28 bg-white/5 rounded-full -mb-10 -ml-10 pointer-events-none" />
+                </>
+              )}
+
+              <View className="flex-row items-center justify-between">
+                {/* Left: Icon & Coin Info */}
+                <View className="flex-row items-center flex-1 mr-3">
+                  <View
+                    className="h-12 w-12 rounded-2xl bg-black/25 border border-white/20 items-center justify-center mr-3"
+                    style={{
+                      shadowColor: '#fbbf24',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.45,
+                      shadowRadius: 6,
+                    }}
+                  >
+                    <LottieView
+                      source={require('../../../../assets/animations/coin.json')}
+                      autoPlay
+                      loop
+                      style={{ width: 44, height: 44 }}
+                    />
                   </View>
-                  <Text className="text-white/90 text-sm font-semibold font-sans">
-                    {walletBalance > 0
-                      ? `Available Balance: ${walletBalance}`
-                      : 'No coins available yet.'}
+                  <View className="flex-1">
+                    <Text className="font-black text-lg text-white font-sans tracking-wide">
+                      BK Coins
+                    </Text>
+                    <Text className="text-xs font-semibold text-white/90 mt-0.5">
+                      {walletBalance > 0 ? (
+                        <>
+                          Balance: <Text className="font-black text-amber-200">{walletBalance} Coins</Text>
+                        </>
+                      ) : !isWalletLoaded ? (
+                        'Checking coins...'
+                      ) : (
+                        'No coins available yet'
+                      )}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Right: Golden VIP Action Button */}
+                {walletBalance > 0 ? (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => handleCoinToggle(!useCoins)}
+                    className={`px-4 py-2.5 rounded-full flex-row items-center gap-1.5 shadow-lg ${
+                      useCoins
+                        ? 'bg-black/40 border border-white/30'
+                        : 'bg-amber-400 border border-amber-300 shadow-amber-950/40'
+                    }`}
+                  >
+                    {useCoins ? (
+                      <>
+                        <X size={14} color="#ffffff" strokeWidth={2.5} />
+                        <Text className="font-black text-xs text-white tracking-widest">REMOVE</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={14} color="#78350f" strokeWidth={3} />
+                        <Text className="font-black text-xs text-[#78350f] tracking-widest">APPLY</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ) : !isWalletLoaded ? (
+                  <View className="px-3 py-1.5 rounded-full bg-black/25 border border-white/15">
+                    <ActivityIndicator size="small" color="#fbbf24" style={{ transform: [{ scale: 0.8 }] }} />
+                  </View>
+                ) : (
+                  <View className="px-3 py-1.5 rounded-full bg-black/25 border border-white/15">
+                    <Text className="text-xs font-bold text-white/70">0 Coins</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Bottom: Dynamic Savings Callout */}
+              {walletBalance > 0 && (
+                <View
+                  className={`mt-3.5 px-3.5 py-2.5 rounded-2xl flex-row items-center justify-between border ${
+                    useCoins
+                      ? 'bg-emerald-950/50 border-emerald-400/50'
+                      : 'bg-black/25 border-amber-400/25'
+                  }`}
+                >
+                  {useCoins ? (
+                    <>
+                      <View className="flex-row items-center gap-1.5 flex-1">
+                        <CheckCircle2 size={16} color="#4ade80" />
+                        <Text className="text-xs font-bold text-white flex-1">
+                          {coinDiscountAmount} Coins applied successfully!
+                        </Text>
+                      </View>
+                      <Text className="text-amber-300 font-black text-sm">
+                        Saved {formatPrice(coinDiscountAmount)}
+                      </Text>
+                    </>
+                  ) : (
+                    <View className="flex-row items-center gap-1.5 flex-1">
+                      <Sparkles size={14} color="#fde047" />
+                      <Text className="text-xs font-medium text-white/95 flex-1">
+                        Tap to use <Text className="font-black text-amber-300">{usableCoins} Coins</Text> & save <Text className="font-black text-amber-300">{formatPrice(usableCoins)}</Text>
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {walletBalance === 0 && (
+                <View className="mt-3 pt-2.5 border-t border-white/15">
+                  <Text className="text-[11px] text-white/80 font-medium">
+                    Earn 6% BK Coins automatically on every completed order!
+                  </Text>
+                  <Text className="text-[10px] text-white/50 font-medium mt-0.5">
+                    *T&C Applied
                   </Text>
                 </View>
-              </View>
-              <Switch
-                value={useCoins}
-                onValueChange={handleCoinToggle}
-                disabled={walletBalance === 0}
-                trackColor={{ false: '#ffffff30', true: '#ffffff90' }}
-                thumbColor={useCoins ? '#fbbf24' : '#f3f4f6'}
-                ios_backgroundColor="#ffffff20"
-                style={{ transform: [{ scale: 1.1 }] }}
-              />
-            </View>
-            
-            {useCoins && walletBalance > 0 && (
-              <View className="mt-2">
-                <View className="flex-row justify-between items-center bg-black/10 px-4 py-3 rounded-xl mt-2 border border-white/20">
-                  <View className="flex-row items-center gap-2">
-                    <Sparkles size={16} color="#fef08a" />
-                    <Text className="text-yellow-50 text-sm font-bold font-sans tracking-wide">SAVINGS APPLIED</Text>
-                  </View>
-                  <Text className="text-2xl font-black text-white font-sans">
-                    - {formatPrice(coinDiscountAmount)}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </LinearGradient>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         {/* ─── COUPON CARD ─── */}
@@ -856,7 +982,7 @@ export function SummaryScreen() {
 
                       <View className="flex-row items-start justify-center relative mt-1 w-full px-4">
                         <Text className="text-[#e11d48] font-black text-3xl mt-3 mr-1">₹</Text>
-                        <Text 
+                        <Text
                           className="text-[#e11d48] font-black text-[72px] leading-[80px] tracking-tighter shrink"
                           numberOfLines={1}
                           adjustsFontSizeToFit

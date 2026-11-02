@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Bell, BellRing, Clock, Gift, ShoppingBag, Wallet, Trash2, ChevronRight } from 'lucide-react-native';
+import LottieView from 'lottie-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useNotificationStore } from '@/shared/store/notificationStore';
 import { useAlert } from '@/shared/components/ui';
@@ -16,7 +16,6 @@ interface NotificationItem {
   title: string;
   body?: string;
   message?: string;
-  image?: string;
   createdAt: string;
   isRead: boolean;
   link?: string;
@@ -102,14 +101,34 @@ export default function NotificationsScreen() {
   }, []);
 
   const formatDate = (dateString: string) => {
-    const d = new Date(dateString);
-    return d.toLocaleDateString('en-IN', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+
+    const now = new Date();
+    const isToday = 
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = 
+      date.getDate() === yesterday.getDate() &&
+      date.getMonth() === yesterday.getMonth() &&
+      date.getFullYear() === yesterday.getFullYear();
+
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) return `Today, ${timeStr}`;
+    if (isYesterday) return `Yesterday, ${timeStr}`;
+
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const isCurrentYear = date.getFullYear() === now.getFullYear();
+
+    if (isCurrentYear) return `${day} ${month}, ${timeStr}`;
+    return `${day} ${month} ${date.getFullYear()}, ${timeStr}`;
   };
 
   const confirmClearAll = () => {
@@ -148,7 +167,6 @@ export default function NotificationsScreen() {
 
   const renderItem = ({ item }: { item: NotificationItem }) => {
     const targetLink = item.link || item.url || (item as any).link;
-    const hasImage = typeof item.image === 'string' && item.image.trim().length > 0;
     const bodyText = item.body || item.message;
 
     return (
@@ -175,17 +193,6 @@ export default function NotificationsScreen() {
                   {bodyText}
                 </Text>
               ) : null}
-
-              {hasImage && (
-                <View className="mt-1 mb-2.5 rounded-2xl overflow-hidden bg-gray-100 border border-gray-100">
-                  <Image
-                    source={{ uri: item.image }}
-                    style={{ width: '100%', height: 160 }}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                </View>
-              )}
 
               <View className="flex-row items-center">
                 <Clock size={12} color="#9ca3af" />
@@ -257,11 +264,15 @@ export default function NotificationsScreen() {
           </TouchableOpacity>
         </View>
       ) : notifications.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8 -mt-20">
-          <View className="h-20 w-20 bg-red-50 rounded-full items-center justify-center mb-4">
-            <Bell size={36} color="#e11d48" />
-          </View>
-          <Text className="text-2xl font-extrabold text-gray-900 font-sans mb-2 text-center">All caught up!</Text>
+        <View className="flex-1 items-center justify-center px-8 -mt-24">
+          <LottieView
+            source={require('../../../../assets/animations/No-Item-Found.json')}
+            autoPlay
+            loop
+            style={{ width: 350, height: 350 }}
+            resizeMode="contain"
+          />
+          <Text className="text-2xl font-extrabold text-gray-900 font-sans mt-2 mb-3 text-center">All caught up!</Text>
           <Text className="text-gray-500 font-sans text-center leading-relaxed text-[15px]">
             You don't have any notifications right now. When you get updates on your orders or special offers, you'll find them here.
           </Text>

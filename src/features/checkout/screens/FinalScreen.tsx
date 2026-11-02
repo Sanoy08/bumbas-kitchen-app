@@ -844,7 +844,7 @@ export function FinalScreen() {
       setIsSuccess(true);
 
       const orderNum = data.orderId || '0000';
-      const eligibleAmountForCoins = Math.max(0, totalPrice - couponDiscount);
+      const eligibleAmountForCoins = Math.max(0, totalPrice - couponDiscount - coinDiscountAmount);
       const earnedCoins = Math.floor((eligibleAmountForCoins * earnRate) / 100);
 
       router.replace({
