@@ -58,6 +58,7 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
   const loadedImagesRef = useRef<Set<string>>(new Set());
   const totalImagesRef = useRef<Set<string>>(new Set());
   const scrollRef = useRef<any>(null);
+  const categoryScrollRef = useRef<any>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const currentScrollY = useRef(0);
 
@@ -212,11 +213,16 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
   const handleSelectCategory = useCallback(
     (idx: number) => {
       setSelectedCategoryIdx(idx);
+      if (campaign?.categories && campaign.categories.length > 5) {
+        const itemWidth = CATEGORY_TILE_SIZE + 8;
+        const targetX = 16 + idx * itemWidth + CATEGORY_TILE_SIZE / 2 - width / 2;
+        categoryScrollRef.current?.scrollTo({ x: Math.max(0, targetX), animated: true });
+      }
       requestAnimationFrame(() => {
         scrollRef.current?.scrollTo({ y: AUTOSCROLL_Y, animated: true });
       });
     },
-    [AUTOSCROLL_Y]
+    [AUTOSCROLL_Y, campaign?.categories]
   );
 
   const addItem = useCartStore((state) => state.addItem);
@@ -355,6 +361,7 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
 
               {hasCategories && (
                 <ScrollView
+                  ref={categoryScrollRef}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{
@@ -362,6 +369,8 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
                     gap: 8,
                     alignItems: 'center',
                     paddingVertical: 4,
+                    flexGrow: 1,
+                    justifyContent: (campaign?.categories?.length || 0) <= 5 ? 'center' : 'flex-start',
                   }}
                 >
                   {campaign.categories.map((cat: any, cIdx: number) => {
@@ -419,7 +428,7 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
                                 }}
                               >
                                 <Text style={{ fontSize: 12, fontWeight: 'bold' }}>
-                                  Category
+                                  {cat.name || 'Category'}
                                 </Text>
                               </View>
                             )}
@@ -675,6 +684,7 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
               gap: 8,
               zIndex: 10,
               marginTop: -CATEGORY_OVERLAP,
+              justifyContent: 'center',
             }}
           >
             {[...Array(5)].map((_, i) => (
