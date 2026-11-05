@@ -10,6 +10,7 @@ const rl = readline.createInterface({
 });
 
 const gradlePath = path.join(__dirname, 'android/app/build.gradle');
+const manifestPath = path.join(__dirname, 'android/app/src/main/AndroidManifest.xml');
 
 const appJsonPath = path.join(__dirname, 'app.json');
 const packageJsonPath = path.join(__dirname, 'package.json');
@@ -70,7 +71,18 @@ const runBuildProcess = async () => {
             console.log(`📦 Updated package.json version to ${newName}`);
         }
 
-        // ৩. AAB বিল্ড করা (Play Store এর জন্য)
+        // ৩. AndroidManifest.xml-এ EXPO_RUNTIME_VERSION আপডেট করা
+        if (fs.existsSync(manifestPath)) {
+            let manifestContent = fs.readFileSync(manifestPath, 'utf8');
+            manifestContent = manifestContent.replace(
+                /(android:name="expo\.modules\.updates\.EXPO_RUNTIME_VERSION"\s+android:value=")[^"]+(")/,
+                '$1' + newName + '$2'
+            );
+            fs.writeFileSync(manifestPath, manifestContent);
+            console.log(`📱 Updated AndroidManifest EXPO_RUNTIME_VERSION to ${newName}`);
+        }
+
+        // ৪. AAB বিল্ড করা (Play Store এর জন্য)
         console.log("\n🔨 Building AAB natively (Please wait...)...");
         const isWindows = process.platform === "win32";
         const buildCmd = isWindows ? 'cd android && gradlew.bat bundleRelease' : 'cd android && ./gradlew bundleRelease';

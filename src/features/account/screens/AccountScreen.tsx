@@ -46,6 +46,7 @@ import { useAlert } from '@/shared/components/ui'; // ★ Custom Alert import
 import { useAuthStore } from '@/shared/store/authStore';
 import { CustomCalendarModal } from '@/shared/components/common';
 import { OtaDiagnosticsModal } from '@/shared/components/updates';
+import { useOtaUpdates } from '@/shared/hooks/useOtaUpdates';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.bumbaskitchen.app/api';
 
@@ -84,6 +85,7 @@ export function AccountScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert(); // ★ Custom alert hook
+  const ota = useOtaUpdates();
   
   const [walletBalance, setWalletBalance] = useState(0);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -352,13 +354,21 @@ export function AccountScreen() {
         <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/account/wallet')} />
         <MenuItem icon={TicketPercent} title="My Coupons" subtitle="View available coupons for you" onPress={() => router.push('/account/coupons')} />
 
-        {/* --- APP UPDATES --- */}
+        {/* --- APP UPDATES & DEBUGGER --- */}
         <View className="mt-4 pt-4 border-t border-gray-100">
           <Text className="text-sm font-bold text-gray-400 uppercase tracking-wider font-sans mb-3 ml-2">App Updates</Text>
           <MenuItem 
             icon={Sparkles} 
             title="Check for Updates" 
-            subtitle="View OTA update status & diagnostics" 
+            subtitle={
+              ota.isUpdatePending 
+                ? '🚀 New update ready! Tap to apply' 
+                : ota.isDownloading 
+                ? '⏳ Downloading new update...' 
+                : ota.isChecking
+                ? '🔍 Checking for updates...'
+                : 'View OTA update status & diagnostics'
+            } 
             onPress={() => setIsDiagnosticsOpen(true)} 
           />
         </View>
