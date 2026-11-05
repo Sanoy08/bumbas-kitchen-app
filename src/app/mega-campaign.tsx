@@ -1,6 +1,7 @@
 import { ShimmerSkeleton } from '@/shared/components/ui/ShimmerSkeleton';
 import { useCartStore } from '@/shared/store/cartStore';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
@@ -51,6 +52,8 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
   const [prefetchDone, setPrefetchDone] = useState(false);
   const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
   const [loadedItemImages, setLoadedItemImages] = useState<Record<string, boolean>>({});
+
+
 
   const cartLottieRef = useRef<LottieView>(null);
   const [animationKey, setAnimationKey] = useState(0);
@@ -107,6 +110,50 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
     }
     return null;
   }, [params.data]);
+
+  const [themeColor, setThemeColor] = useState<string>(() => {
+    return campaign?.bgColor || '#af310a';
+  });
+
+  // Automatically detect the background color from pageBgImage (or use campaign.bgColor)
+  useEffect(() => {
+    if (campaign?.bgColor) {
+      setThemeColor(campaign.bgColor);
+      return;
+    }
+    if (!campaign?.pageBgImage) return;
+
+    let isMounted = true;
+    const extractColor = async () => {
+      try {
+        const url = campaign.pageBgImage;
+        if (url.includes('cloudinary.com') && url.includes('/upload/')) {
+          const miniUrl = url.replace(
+            '/upload/',
+            '/upload/c_crop,g_north,w_100,h_50/c_fill,w_1,h_1,f_bmp/'
+          );
+          const res = await fetch(miniUrl);
+          const buffer = await res.arrayBuffer();
+          const data = new Uint8Array(buffer);
+          if (data.length >= 142) {
+            const view = new DataView(buffer);
+            const offset = view.getUint32(10, true);
+            const b = data[offset];
+            const g = data[offset + 1];
+            const r = data[offset + 2];
+            const hex = '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
+            if (isMounted) setThemeColor(hex);
+          }
+        }
+      } catch (e) {
+        // Fallback maintained
+      }
+    };
+    extractColor();
+    return () => {
+      isMounted = false;
+    };
+  }, [campaign?.pageBgImage, campaign?.bgColor]);
 
   const allImageUrls = useMemo(() => {
     if (!campaign) return [];
@@ -315,14 +362,29 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
             stickyHeaderIndices={hasCategories ? [1] : undefined}
           >
             {/* Child 0: heading */}
-            <View style={{ marginBottom: -(CATEGORY_OVERLAP + STICKY_TOP) }}>
+            <View style={{ marginBottom: -(CATEGORY_OVERLAP + STICKY_TOP), position: 'relative' }}>
               {campaign.headingImage && (
-                <Image
-                  source={{ uri: campaign.headingImage }}
-                  style={{ width: '100%', height: HEADING_HEIGHT }}
-                  contentFit="cover"
-                  onLoad={() => handleImageLoad(campaign.headingImage)}
-                />
+                <View style={{ width: '100%', height: HEADING_HEIGHT, position: 'relative' }}>
+                  <Image
+                    source={{ uri: campaign.headingImage }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    onLoad={() => handleImageLoad(campaign.headingImage)}
+                  />
+                  {/* Automatic Bottom Fade Gradient Overlay */}
+                  <LinearGradient
+                    colors={['transparent', `${themeColor}33`, `${themeColor}bb`, themeColor]}
+                    locations={[0, 0.45, 0.8, 1]}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: Math.round(HEADING_HEIGHT * 0.45),
+                    }}
+                    pointerEvents="none"
+                  />
+                </View>
               )}
             </View>
 
@@ -343,7 +405,7 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
                   right: 0,
                   height: STICKY_TOP + 20,
                   opacity: stickyBgOpacity,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: themeColor,
                 }}
               />
               <Animated.View
@@ -656,7 +718,7 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
             </View>
           </Animated.ScrollView>
 
-          {/* Top white strip */}
+          {/* Top theme strip */}
           <Animated.View
             pointerEvents="none"
             style={{
@@ -665,7 +727,7 @@ const SCROLL_BOTTOM_PADDING = CART_CAPSULE_BOTTOM + 70;
               left: 0,
               right: 0,
               height: STICKY_TOP,
-              backgroundColor: '#ffffff',
+              backgroundColor: themeColor,
               opacity: stickyBgOpacity,
               zIndex: 5,
             }}

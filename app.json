@@ -1,12 +1,21 @@
 {
   "expo": {
     "name": "Bumba's Kitchen",
-    "slug": "bumbas-kitchen",
-    "version": "1.0.10",
+    "slug": "bumbas-kitchen-app",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/images/app-logo.png",
     "scheme": "bumbaskitchenapp",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9c5c9337-d063-4fd3-9bfd-42b22dc9c122",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "icon": "./assets/images/app-logo.png",
       "associatedDomains": [
@@ -24,7 +33,9 @@
       "permissions": [
         "RECORD_AUDIO",
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "predictiveBackGestureEnabled": false,
       "backgroundColor": "#ffffff",
@@ -73,6 +84,7 @@
       "favicon": "./assets/images/app-logo.png"
     },
     "plugins": [
+      "expo-updates",
       "expo-router",
       [
         "expo-splash-screen",
@@ -100,9 +112,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "40acdafb-c0f4-4185-a987-1f04ce8c59d8"
+        "projectId": "9c5c9337-d063-4fd3-9bfd-42b22dc9c122"
       }
     },
-    "owner": "sanoy08"
+    "owner": "bumbas-kitchen"
   }
 }

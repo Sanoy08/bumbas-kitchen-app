@@ -17,6 +17,7 @@ import { Toaster } from 'sonner-native';
 import "../../global.css";
 
 import { AppUpdater, NoInternetScreen, Onboarding } from '@/shared/components/common';
+import { OtaUpdateBanner } from '@/shared/components/updates';
 import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
 import { usePushNotification } from '@/shared/hooks/usePushNotification';
 
@@ -198,6 +199,8 @@ export default function RootLayout() {
           )}
 
           <AppUpdater />
+
+          <OtaUpdateBanner />
 
           <Toaster duration={1000} visibleToasts={1} position="bottom-center" theme="light" toastOptions={{ style: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }, titleStyle: { color: '#111827', fontWeight: 'regular' } }} />
         </AlertProvider>

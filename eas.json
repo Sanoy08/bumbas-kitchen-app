@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 20.1.0"
+    "version": ">= 20.1.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -10,14 +11,19 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "production",
       "android": {
-        "buildType": "apk"
-      },
-      "channel": "preview"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
+      }
     }
   },
   "submit": {
