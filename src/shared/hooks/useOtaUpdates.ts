@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ToastAndroid, Platform } from 'react-native';
+import { ToastAndroid, Platform, AppState } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Haptics from 'expo-haptics';
 
@@ -54,6 +54,36 @@ export function useOtaUpdates(): OtaUpdateState {
       setLastChecked(updatesState.lastCheckForUpdateTimeSinceRestart);
     }
   }, [updatesState.lastCheckForUpdateTimeSinceRestart]);
+
+  // Proactive check & fetch on mount and on AppState resume
+  useEffect(() => {
+    if (!Updates.isEnabled) return;
+
+    let isMounted = true;
+    const checkAndFetch = async () => {
+      try {
+        const check = await Updates.checkForUpdateAsync();
+        if (check.isAvailable && isMounted) {
+          await Updates.fetchUpdateAsync();
+        }
+      } catch (e) {
+        // Silent failure in background
+      }
+    };
+
+    checkAndFetch();
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        checkAndFetch();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, []);
 
   // Restart / Reload the app to apply the downloaded update
   const reloadApp = useCallback(async () => {

@@ -4,13 +4,27 @@ import * as Application from 'expo-application';
 import { Image } from 'expo-image';
 import LottieView from 'lottie-react-native';
 import { useEffect, useState } from 'react';
-import { Linking, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { DeviceEventEmitter, Linking, Modal, Text, TouchableOpacity, View } from 'react-native';
 import { useAlert } from '../ui/CustomAlert';
 
-export function AppUpdater() {
+interface AppUpdaterProps {
+  isSplashHidden?: boolean;
+}
+
+export function AppUpdater({ isSplashHidden: propSplashHidden }: AppUpdaterProps = {}) {
   const [showUpdate, setShowUpdate] = useState(false);
   const [updateInfo, setUpdateInfo] = useState({ latestVersion: '', apkUrl: '' });
   const [isStoreOpen, setIsStoreOpen] = useState(true);
+  const [eventSplashHidden, setEventSplashHidden] = useState(false);
+
+  const isSplashHidden = propSplashHidden ?? eventSplashHidden;
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('splash_hidden', () => {
+      setEventSplashHidden(true);
+    });
+    return () => sub.remove();
+  }, []);
 
   const user = useAuthStore(state => state.user);
   const { showAlert } = useAlert();
@@ -83,7 +97,7 @@ export function AppUpdater() {
 
   return (
     <>
-      <Modal visible={!isStoreOpen && user?.role !== 'admin'} transparent animationType="fade" onRequestClose={() => { }}>
+      <Modal visible={!isStoreOpen && user?.role !== 'admin' && isSplashHidden} transparent animationType="fade" onRequestClose={() => { }}>
         <View style={{ flex: 1, backgroundColor: '#fdebe8' }}>
           <Image
             source={require('../../../../assets/images/store.webp')}
@@ -94,7 +108,7 @@ export function AppUpdater() {
         </View>
       </Modal>
 
-      <Modal visible={showUpdate} transparent animationType="fade" onRequestClose={() => { }}>
+      <Modal visible={showUpdate && isSplashHidden} transparent animationType="fade" onRequestClose={() => { }}>
         <View className="flex-1 justify-center items-center bg-black/60 px-4">
           <View className="bg-white rounded-[32px] p-6 w-[88%] max-w-[340px] items-center shadow-2xl">
             <LottieView

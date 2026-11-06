@@ -63,6 +63,7 @@ export default function RootLayout() {
 
   const [isFirstRun, setIsFirstRun] = useState<boolean | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [isHomeLoaded, setIsHomeLoaded] = useState(false);
   const [isAppUpdaterReady, setIsAppUpdaterReady] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -125,6 +126,7 @@ export default function RootLayout() {
 
     const refreshListener = DeviceEventEmitter.addListener('trigger_refresh_splash', () => {
       setShowSplash(true);
+      setIsSplashComplete(false);
       setIsHomeLoaded(false);
       setIsAppUpdaterReady(false);
       fadeAnim.setValue(1);
@@ -152,6 +154,7 @@ export default function RootLayout() {
           useNativeDriver: true,
         }).start(() => {
           setShowSplash(false);
+          setIsSplashComplete(true);
           (global as any).isSplashHidden = true;
           DeviceEventEmitter.emit('splash_hidden');
         });
@@ -162,6 +165,7 @@ export default function RootLayout() {
   const finishOnboarding = async () => {
     await AsyncStorage.setItem('isFirstRun', 'false');
     setIsFirstRun(false);
+    setIsSplashComplete(true);
     DeviceEventEmitter.emit('onboarding_finished');
   };
 
@@ -198,9 +202,9 @@ export default function RootLayout() {
             </View>
           )}
 
-          <AppUpdater />
+          <AppUpdater isSplashHidden={isSplashComplete && !showSplash} />
 
-          <OtaUpdateBanner />
+          <OtaUpdateBanner isSplashHidden={isSplashComplete && !showSplash} />
 
           <Toaster duration={1000} visibleToasts={1} position="bottom-center" theme="light" toastOptions={{ style: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }, titleStyle: { color: '#111827', fontWeight: 'regular' } }} />
         </AlertProvider>
