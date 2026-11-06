@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ToastAndroid, Platform, AppState } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Haptics from 'expo-haptics';
@@ -84,6 +84,38 @@ export function useOtaUpdates(): OtaUpdateState {
       subscription.remove();
     };
   }, []);
+
+  // Silently and directly reload when user is NOT in the app (background or inactive)
+  const isReloadingRef = useRef(false);
+
+  useEffect(() => {
+    if (!Updates.isEnabled || !updatesState.isUpdatePending || isReloadingRef.current) return;
+
+    // 1. If user is currently NOT active in the app, reload immediately without showing any popup
+    if (AppState.currentState !== 'active') {
+      isReloadingRef.current = true;
+      Updates.reloadAsync().catch((err) => {
+        isReloadingRef.current = false;
+        console.warn('Silent background reload error:', err);
+      });
+      return;
+    }
+
+    // 2. If user is currently in the app, wait until they leave the app (background/inactive) to silently reload
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active' && updatesState.isUpdatePending && !isReloadingRef.current) {
+        isReloadingRef.current = true;
+        Updates.reloadAsync().catch((err) => {
+          isReloadingRef.current = false;
+          console.warn('Silent reload on app state change error:', err);
+        });
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [updatesState.isUpdatePending]);
 
   // Restart / Reload the app to apply the downloaded update
   const reloadApp = useCallback(async () => {

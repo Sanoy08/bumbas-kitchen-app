@@ -5,11 +5,14 @@ const { FileStore } = require("metro-cache");
 
 const config = getDefaultConfig(__dirname);
 
-// Persist Metro cache in .expo/metro-cache to prevent bundler cache rebuilds
-config.cacheStores = [
-  new FileStore({
-    root: path.join(__dirname, '.expo', 'metro-cache'),
-  }),
-];
+const persistentStore = new FileStore({
+  root: path.join(__dirname, '.expo', 'metro-cache'),
+});
+
+// Protect the persistent cache from being wiped on export
+persistentStore.clear = () => {};
+
+config.cacheStores = [persistentStore];
+config.resetCache = false;
 
 module.exports = withNativeWind(config, { input: "./global.css" });
