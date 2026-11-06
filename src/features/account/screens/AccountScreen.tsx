@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import {
     Cake,
     ChevronRight,
+    Gift,
     Heart,
     Lock,
     LogOut,
@@ -345,6 +346,7 @@ export function AccountScreen() {
 
         {/* --- MENU LIST --- */}
         <MenuItem icon={ShoppingBag} title="My Orders" subtitle="Track, Cancel and Return orders" onPress={() => router.push('/account/orders')} />
+        <MenuItem icon={Gift} title="Refer & Earn" subtitle="Invite friends & earn 20 Coins per referral" onPress={() => router.push('/account/refer')} />
         <MenuItem icon={Heart} title="My Favorites" subtitle="View and order your favorite dishes" onPress={() => router.push('/account/favorites')} />
         <MenuItem icon={MapPin} title="Addresses" subtitle="Save addresses for hassle-free checkout" onPress={() => router.push('/account/addresses')} />
         <MenuItem icon={Wallet} title="My Wallet & Coins" subtitle="Check balance and transaction history" onPress={() => router.push('/account/wallet')} />

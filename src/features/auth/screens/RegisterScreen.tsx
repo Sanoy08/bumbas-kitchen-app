@@ -8,7 +8,8 @@ import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { isAvailableAsync, showPhoneNumberHintAsync } from 'expo-phone-number-hint';
 import { Link, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, ArrowRight, RefreshCw, ShieldAlert, User } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Check, Gift, RefreshCw, ShieldAlert, User, X } from 'lucide-react-native';
+import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -45,7 +46,61 @@ export default function RegisterScreen() {
   const login = useAuthStore((state) => state.login);
   const { subscribeToPush } = usePushNotification();
   const { showAlert } = useAlert();
-  const { phone: prefillPhone } = useLocalSearchParams<{ phone?: string }>();
+  const { phone: prefillPhone, referralCode: prefillReferralCode, code: prefillCode } = useLocalSearchParams<{
+    phone?: string;
+    referralCode?: string;
+    code?: string;
+  }>();
+  const initialCode = (prefillReferralCode || prefillCode || '').trim().toUpperCase();
+
+  const [referralInput, setReferralInput] = useState(initialCode);
+  const [isValidatingReferral, setIsValidatingReferral] = useState(false);
+  const [referralStatus, setReferralStatus] = useState<{
+    applied: boolean;
+    referrerName?: string;
+    error?: string;
+  }>({ applied: false });
+
+  const validateReferral = async (codeToTest: string) => {
+    const trimmed = codeToTest.trim().toUpperCase();
+    if (!trimmed || trimmed.length !== 6) {
+      setReferralStatus({ applied: false, error: 'Code must be 6 characters' });
+      return;
+    }
+    setIsValidatingReferral(true);
+    setReferralStatus({ applied: false });
+    try {
+      const res = await fetch(`${API_URL}/referral/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: trimmed, phone: phoneValue || undefined }),
+      });
+      const data = await res.json();
+      if (data.success && data.valid) {
+        setReferralStatus({
+          applied: true,
+          referrerName: data.referrer?.name || 'Friend'
+        });
+        toast.success(`Referral applied! Referred by ${data.referrer?.name || 'Friend'} 🎉`);
+      } else {
+        setReferralStatus({
+          applied: false,
+          error: data.error || 'Invalid code'
+        });
+        toast.error(data.error || 'Invalid referral code');
+      }
+    } catch (err) {
+      setReferralStatus({ applied: false, error: 'Failed to validate code' });
+    } finally {
+      setIsValidatingReferral(false);
+    }
+  };
+
+  useEffect(() => {
+    if (initialCode && initialCode.length === 6) {
+      validateReferral(initialCode);
+    }
+  }, [initialCode]);
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(registerSchema),
@@ -287,10 +342,21 @@ export default function RegisterScreen() {
 
     // --- 2. PROCEED WITH VERIFICATION ---
     try {
+      let deviceId = await AsyncStorage.getItem('app_device_id');
+      if (!deviceId) {
+        deviceId = Crypto.randomUUID();
+        await AsyncStorage.setItem('app_device_id', deviceId);
+      }
+
       const res = await fetch(`${API_URL}/auth/phone/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phoneValue, otp: otpValue }),
+        body: JSON.stringify({
+          phone: phoneValue,
+          otp: otpValue,
+          referralCode: referralStatus.applied ? referralInput.trim().toUpperCase() : undefined,
+          deviceId
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -508,6 +574,84 @@ export default function RegisterScreen() {
                       <Text className={`text-xs ml-1 font-medium ${limitData.phoneLeft === 0 ? "text-red-500" : "text-gray-500"}`}>
                         {limitData.phoneLeft} attempts left for this number
                       </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* --- REFERRAL CODE (OPTIONAL) --- */}
+                <View className="mt-4">
+                  {referralStatus.applied ? (
+                    <View className="flex-row items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                      <View className="flex-row items-center flex-1 mr-2">
+                        <View className="h-8 w-8 rounded-full bg-green-100 items-center justify-center mr-2.5">
+                          <Check size={16} color="#16a34a" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-xs font-bold text-green-800 font-sans">
+                            Referral Applied: {referralInput.toUpperCase()}
+                          </Text>
+                          <Text className="text-[11px] text-green-700 font-medium font-sans">
+                            Referred by {referralStatus.referrerName} (+20 Coins on 1st order ≥ ₹499)
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setReferralStatus({ applied: false });
+                          setReferralInput('');
+                        }}
+                        className="p-1 rounded-full bg-green-200/50"
+                      >
+                        <X size={14} color="#15803d" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View>
+                      <View className="flex-row items-center border border-gray-300 rounded-xl bg-white overflow-hidden h-14">
+                        <View className="px-4 bg-gray-50 border-r border-gray-300 h-full justify-center">
+                          <Gift size={18} color="#6b7280" />
+                        </View>
+                        <TextInput
+                          className="flex-1 px-4 text-base text-gray-900 h-full font-medium uppercase tracking-wider"
+                          placeholder="Referral Code (Optional)"
+                          placeholderTextColor="#9ca3af"
+                          maxLength={6}
+                          autoCapitalize="characters"
+                          autoCorrect={false}
+                          value={referralInput}
+                          onChangeText={(text) => {
+                            const upper = text.toUpperCase().replace(/[^23456789ABCDEFGHJKLMNPQRSTUVWXYZ]/g, '');
+                            setReferralInput(upper);
+                            if (referralStatus.error) setReferralStatus({ applied: false });
+                          }}
+                          editable={!isLoading && !isValidatingReferral}
+                          onFocus={(event) => {
+                            event.currentTarget.measure((fx, fy, width, height, px, py) => {
+                              scrollToInput(py);
+                            });
+                          }}
+                        />
+                        {referralInput.length === 6 && (
+                          <TouchableOpacity
+                            onPress={() => validateReferral(referralInput)}
+                            disabled={isValidatingReferral}
+                            className="px-4 h-full justify-center bg-gray-50 border-l border-gray-200"
+                          >
+                            {isValidatingReferral ? (
+                              <ActivityIndicator size="small" color="#e11d48" />
+                            ) : (
+                              <Text className="text-xs font-bold text-rose-600 font-sans">Apply</Text>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      {referralStatus.error ? (
+                        <Text className="text-red-500 text-xs mt-1 px-1 font-sans">{referralStatus.error}</Text>
+                      ) : (
+                        <Text className="text-gray-400 text-[11px] mt-1 px-1 font-sans">
+                          Have a referral code from a friend? Enter it here.
+                        </Text>
+                      )}
                     </View>
                   )}
                 </View>

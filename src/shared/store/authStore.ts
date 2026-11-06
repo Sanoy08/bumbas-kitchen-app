@@ -20,6 +20,7 @@ export type User = {
   dob?: string;
   anniversary?: string;
   savedAddresses?: any[];
+  referralCode?: string;
 };
 
 interface AuthState {
